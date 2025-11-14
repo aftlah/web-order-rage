@@ -45,7 +45,7 @@ const CATALOG = {
 const state = { cart: [] };
 
 function fmt(n) {
-  return '$' + n.toLocaleString('en-US');
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 }
 
 function init() {
@@ -93,27 +93,30 @@ function addToCart() {
 }
 
 function renderCart() {
-  const tbody = document.querySelector("#cartTable tbody");
-  tbody.innerHTML = "";
+  const tbody = document.getElementById('cartBody');
+  const emptyEl = document.getElementById('emptyState');
+  tbody.innerHTML = '';
   let total = 0;
   state.cart.forEach((c, idx) => {
-    const tr = document.createElement("tr");
+    const tr = document.createElement('tr');
     const subtotal = c.price * c.qty;
     total += subtotal;
     tr.innerHTML = `
-      <td class="py-2">${c.item}</td>
-      <td class="py-2">${c.kategori}</td>
-      <td class="py-2">${fmt(c.price)}</td>
-      <td class="py-2">${c.qty}</td>
-      <td class="py-2">${fmt(subtotal)}</td>
-      <td class="py-2"><button class="px-2 py-1 rounded bg-red-600 hover:bg-red-700 text-white" data-idx="${idx}">Hapus</button></td>
+      <td class="px-4 py-3">${c.item}</td>
+      <td class="px-4 py-3">${c.kategori}</td>
+      <td class="px-4 py-3 text-right">${fmt(c.price)}</td>
+      <td class="px-4 py-3 text-center">${c.qty}</td>
+      <td class="px-4 py-3 text-right">${fmt(subtotal)}</td>
+      <td class="px-4 py-3 text-center"><button class="px-3 py-1 rounded-lg border-2 border-yellow-600 text-yellow-300 hover:bg-yellow-900/30 transition" data-idx="${idx}">Hapus</button></td>
     `;
     tbody.appendChild(tr);
   });
-  document.getElementById("totalAmount").textContent = fmt(total);
-  tbody.querySelectorAll("button[data-idx]").forEach((b) =>
-    b.addEventListener("click", (e) => {
-      const i = parseInt(e.currentTarget.getAttribute("data-idx"), 10);
+  document.getElementById('totalAmount').textContent = fmt(total);
+  document.getElementById('total-items').textContent = state.cart.reduce((a, c) => a + c.qty, 0);
+  if (emptyEl) emptyEl.classList.toggle('hidden', state.cart.length > 0);
+  tbody.querySelectorAll('button[data-idx]').forEach((b) =>
+    b.addEventListener('click', (e) => {
+      const i = parseInt(e.currentTarget.getAttribute('data-idx'), 10);
       state.cart.splice(i, 1);
       renderCart();
     })

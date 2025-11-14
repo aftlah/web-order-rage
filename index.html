@@ -1,156 +1,524 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Catatan Orderan</title>
+    <title>R.A.G.E Order System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <style>
+      * {
+        font-family: "Poppins", sans-serif;
+      }
+
+      :root {
+        --bg-main: linear-gradient(135deg, #fefdf2 0%, #fef3c7 100%);
+        --bg-card: #ffffff;
+        --text-primary: #1a1410;
+        --text-secondary: #78716c;
+        --border-color: #f3e8d8;
+        --input-bg: #fffbf0;
+        --accent-primary: #d97706;
+        --accent-secondary: #f59e0b;
+        --success-color: #b45309;
+        --rage-gold: #fbbf24;
+        --rage-black: #1f1410;
+      }
+
+      .dark {
+        --bg-main: linear-gradient(135deg, #0a0805 0%, #1a1410 100%);
+        --bg-card: #1f1410;
+        --text-primary: #fef3c7;
+        --text-secondary: #d4a574;
+        --border-color: #3d342d;
+        --input-bg: #0a0805;
+        --accent-primary: #f59e0b;
+        --accent-secondary: #fbbf24;
+        --success-color: #d97706;
+      }
+
       body {
-        font-family: "Inter", sans-serif;
+        background-image: url("public/images/foto_rage1.png");
+        background-attachment: fixed;
+        background-size: cover;
+        background-position: center;
+        color: var(--text-primary);
+        transition: color 0.3s ease;
+        min-height: 100vh;
       }
-      .glass {
-        backdrop-filter: blur(8px);
-        background: rgba(30, 41, 59, 0.7);
+
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        z-index: 0;
       }
-      .glow {
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.35);
+
+      .card-shadow {
+        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
       }
-      .btn-glow:hover {
-        box-shadow: 0 0 20px rgba(59, 130, 246, 0.55);
+
+      .card-shadow:hover {
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12);
+        transform: translateY(-2px);
       }
-      .btn-green-glow:hover {
-        box-shadow: 0 0 20px rgba(34, 197, 94, 0.55);
+
+      .input-focus {
+        background: var(--input-bg);
+        border: 1.5px solid var(--border-color);
+        color: var(--text-primary);
+        transition: all 0.2s ease;
+      }
+
+      .input-focus:focus {
+        outline: none;
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
+        background: var(--bg-card);
+      }
+
+      .btn-primary {
+        background: linear-gradient(
+          135deg,
+          var(--accent-primary) 0%,
+          var(--accent-secondary) 100%
+        );
+        color: var(--rage-black);
+        box-shadow: 0 4px 15px rgba(217, 119, 6, 0.3);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 600;
+      }
+
+      .btn-primary:hover {
+        box-shadow: 0 8px 25px rgba(217, 119, 6, 0.4);
+        transform: translateY(-2px);
+      }
+
+      .btn-success {
+        background: linear-gradient(
+          135deg,
+          var(--success-color) 0%,
+          var(--accent-primary) 100%
+        );
+        color: white;
+        box-shadow: 0 4px 15px rgba(180, 83, 9, 0.3);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .btn-success:hover {
+        box-shadow: 0 8px 25px rgba(180, 83, 9, 0.4);
+        transform: translateY(-2px);
+      }
+
+      .table-row-hover {
+        transition: all 0.2s ease;
+      }
+
+      .table-row-hover:hover {
+        background-color: var(--input-bg);
+      }
+
+      .toggle-dark {
+        position: relative;
+        width: 52px;
+        height: 28px;
+        background: var(--border-color);
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: none;
+        padding: 0;
+      }
+
+      .toggle-dark::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 22px;
+        height: 22px;
+        background: white;
+        border-radius: 50%;
+        transition: transform 0.3s ease;
+      }
+
+      .dark .toggle-dark {
+        background: var(--accent-primary);
+      }
+
+      .dark .toggle-dark::after {
+        transform: translateX(24px);
+      }
+
+      .header-bg {
+        background: var(--bg-card);
+        border-color: var(--border-color);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        position: relative;
+        z-index: 50;
+      }
+
+      .section-title {
+        color: var(--text-primary);
+      }
+
+      .section-divider {
+        background: linear-gradient(
+          to bottom,
+          var(--accent-primary),
+          var(--accent-secondary)
+        );
+      }
+
+      .gradient-text {
+        background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .table-row-hover {
+        animation: slideIn 0.3s ease;
+      }
+
+      .logo-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      /* .logo-img {
+        width: 58px;
+        height: 58px;
+        object-fit: contain;
+      } */
+
+      .brand-title {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .brand-title h1 {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--rage-black);
+        letter-spacing: -0.5px;
+      }
+
+      .dark .brand-title h1 {
+        color: var(--rage-gold);
+      }
+
+      .brand-subtitle {
+        font-size: 11px;
+        color: #a89968;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
       }
     </style>
   </head>
-  <body
-    class="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 min-h-screen"
-  >
-    <div
-      class="max-w-4xl mx-auto my-10 p-8 glass border border-slate-800 rounded-2xl shadow-2xl"
+  <body class="transition-colors duration-300">
+    <!-- Header -->
+    <header
+      class="bg-white dark:bg-[#1f1410] border-b border-[#f3e8d8] dark:border-[#3d342d] shadow sticky top-0 z-50"
     >
-      <h1
-        class="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent"
+      <div class="max-w-6xl mx-auto px-6 py-1">
+        <div class="flex items-center justify-between">
+          <div class="logo-container">
+            <img
+              src="public/images/LOGO_RAGE.png"
+              alt="R.A.G.E Logo"
+              class="w-14"
+            />
+            <div class="brand-title">
+              <h1>R.A.G.E</h1>
+              <p class="brand-subtitle">Order System</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-6">
+            <div class="text-right hidden sm:block">
+              <p
+                class="text-sm font-medium text-slate-700 dark:text-yellow-300"
+              >
+                Hari ini
+              </p>
+              <p
+                class="text-xs text-slate-500 dark:text-yellow-200/70"
+                id="current-date"
+              ></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto px-6 py-8 relative z-10">
+      <!-- Form Section -->
+      <div
+        class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mb-8"
       >
-        Catatan Orderan
-      </h1>
-      <section class="mt-6 grid gap-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="flex flex-col gap-2">
-            <label for="nama" class="text-sm font-medium text-slate-300"
-              >Nama Pemesan</label
-            >
-            <input
-              id="nama"
-              type="text"
-              placeholder="Masukkan nama"
-              class="px-4 py-3 rounded-xl border border-slate-700 bg-slate-900/60 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-            />
+        <h2
+          class="section-title text-xl font-bold mb-6 flex items-center gap-3"
+        >
+          <span class="section-divider w-1 h-6 rounded-full"></span>
+          Form Pesanan
+        </h2>
+
+        <div class="space-y-6">
+          <!-- Customer Info Row -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="flex flex-col gap-2">
+              <label
+                for="nama"
+                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
+              >
+                Nama Pemesan
+              </label>
+              <input
+                id="nama"
+                type="text"
+                placeholder="Masukkan nama customer"
+                class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+            <div class="flex flex-col gap-2">
+              <label
+                for="orderanke"
+                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
+              >
+                Orderan ke
+              </label>
+              <select
+                id="orderanke"
+                class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+              >
+                <option value="" disabled selected>Pilih nomor order</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+              </select>
+            </div>
+            <!-- Updated total items card to use gold theme -->
+            <div class="flex flex-col gap-2">
+              <label
+                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
+              >
+                Total Item
+              </label>
+              <div
+                class="px-4 py-3 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-yellow-900/30 dark:to-amber-900/30 border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 font-semibold"
+              >
+                <span id="total-items">0</span> item
+              </div>
+            </div>
           </div>
-          <div class="flex flex-col gap-2">
-            <label for="orderanke" class="text-sm font-medium text-slate-300"
-              >Orderan ke</label
+
+          <!-- Item Selection Row -->
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
+            <div class="flex flex-col gap-2">
+              <label
+                for="kategori"
+                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
+              >
+                Kategori
+              </label>
+              <select
+                id="kategori"
+                class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+              ></select>
+            </div>
+            <div class="flex flex-col gap-2 md:col-span-2">
+              <label
+                for="item"
+                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
+              >
+                Item
+              </label>
+              <select
+                id="item"
+                class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+              ></select>
+            </div>
+            <div class="flex flex-col gap-2">
+              <label
+                for="qty"
+                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
+              >
+                Qty
+              </label>
+              <input
+                id="qty"
+                type="number"
+                min="1"
+                value="1"
+                class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
+              />
+            </div>
+            <button
+              id="addBtn"
+              class="px-6 py-3 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-500 text-[#1f1410] font-semibold shadow hover:shadow-lg hover:-translate-y-0.5 transition"
             >
-            <select
-              id="orderanke"
-              class="px-4 py-3 rounded-xl border border-slate-700 bg-slate-900/60 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-            >
-              <option value="" disabled selected>Pilih nomor order</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-              <option value="6">6</option>
-              <option value="7">7</option>
-              <option value="8">8</option>
-              <option value="9">9</option>
-              <option value="10">10</option>
-            </select>
+              + Tambah
+            </button>
           </div>
         </div>
+      </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-          <div class="flex flex-col gap-2">
-            <label for="kategori" class="text-sm font-medium text-slate-300"
-              >Kategori</label
-            >
-            <select
-              id="kategori"
-              class="px-4 py-3 rounded-xl border border-slate-700 bg-slate-900/60 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-            ></select>
-          </div>
-          <div class="flex flex-col gap-2 md:col-span-2">
-            <label for="item" class="text-sm font-medium text-slate-300"
-              >Item</label
-            >
-            <select
-              id="item"
-              class="px-4 py-3 rounded-xl border border-slate-700 bg-slate-900/60 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-            ></select>
-          </div>
-          <div class="flex flex-col gap-2">
-            <label for="qty" class="text-sm font-medium text-slate-300"
-              >Qty</label
-            >
-            <input
-              id="qty"
-              type="number"
-              min="1"
-              value="1"
-              class="px-4 py-3 rounded-xl border border-slate-700 bg-slate-900/60 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-            />
-          </div>
-          <button
-            id="addBtn"
-            class="px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold btn-glow transition"
-          >
-            + Tambah
-          </button>
-        </div>
-      </section>
+      <!-- Cart Section -->
+      <div
+        class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8"
+      >
+        <h2
+          class="section-title text-xl font-bold mb-6 flex items-center gap-3"
+        >
+          <span class="section-divider w-1 h-6 rounded-full"></span>
+          Total Orderan
+        </h2>
 
-      <section class="mt-8">
-        <h2 class="text-lg font-semibold text-slate-200 mb-4">Keranjang</h2>
-        <div class="overflow-x-auto rounded-xl border border-slate-800">
-          <table id="cartTable" class="w-full text-sm text-left">
-            <thead class="bg-slate-800/60 text-slate-300 uppercase">
-              <tr>
-                <th class="px-4 py-3">Item</th>
-                <th class="px-4 py-3">Kategori</th>
-                <th class="px-4 py-3">Harga</th>
-                <th class="px-4 py-3">Qty</th>
-                <th class="px-4 py-3">Subtotal</th>
-                <th class="px-4 py-3">Aksi</th>
+        <!-- Table -->
+        <div class="overflow-x-auto mb-8">
+          <table id="cartTable" class="w-full text-sm">
+            <thead>
+              <tr class="border-b-2 border-slate-200 dark:border-yellow-700/30">
+                <th
+                  class="px-4 py-4 text-left font-semibold text-slate-700 dark:text-yellow-200"
+                >
+                  Item
+                </th>
+                <th
+                  class="px-4 py-4 text-left font-semibold text-slate-700 dark:text-yellow-200"
+                >
+                  Kategori
+                </th>
+                <th
+                  class="px-4 py-4 text-right font-semibold text-slate-700 dark:text-yellow-200"
+                >
+                  Harga
+                </th>
+                <th
+                  class="px-4 py-4 text-center font-semibold text-slate-700 dark:text-yellow-200"
+                >
+                  Qty
+                </th>
+                <th
+                  class="px-4 py-4 text-right font-semibold text-slate-700 dark:text-yellow-200"
+                >
+                  Subtotal
+                </th>
+                <th
+                  class="px-4 py-4 text-center font-semibold text-slate-700 dark:text-yellow-200"
+                >
+                  Aksi
+                </th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-slate-800"></tbody>
+            <tbody
+              id="cartBody"
+              class="divide-y divide-slate-100 dark:divide-yellow-700/20"
+            ></tbody>
           </table>
+
+          <!-- Empty State -->
+          <div id="emptyState" class="text-center py-12">
+            <svg
+              class="w-16 h-16 mx-auto mb-4 opacity-40"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+              ></path>
+            </svg>
+            <p class="text-slate-600 dark:text-yellow-200 font-medium">
+              Orderan masih kosong
+            </p>
+            <p class="text-slate-400 dark:text-yellow-300/60 text-sm">
+              Tambahkan item untuk memulai
+            </p>
+          </div>
         </div>
-        <div class="flex justify-between items-center mt-4 text-xl font-bold">
-          <span>Total</span>
-          <strong id="totalAmount" class="text-green-400">Rp 0</strong>
-        </div>
-        <div class="flex items-center gap-4 mt-4">
-          <button
-            id="submitBtn"
-            class="px-5 py-3 rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white font-semibold btn-green-glow transition"
+
+        <div class="space-y-4">
+          <div
+            class="flex justify-between items-center p-6 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-yellow-900/40 dark:to-amber-900/40 rounded-xl border-2 border-amber-300 dark:border-yellow-600"
           >
-            Simpan
-          </button>
-          <div id="status" class="text-sm text-slate-300"></div>
+            <span class="text-lg font-bold text-slate-800 dark:text-yellow-100"
+              >Total Harga</span
+            >
+            <strong id="totalAmount" class="text-4xl bg-gradient-to-br from-amber-600 to-yellow-500 bg-clip-text text-transparent">
+              $0.00
+            </strong>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-4 items-stretch">
+            <button
+              id="submitBtn"
+              class="px-6 py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow hover:shadow-lg hover:-translate-y-0.5 transition flex-1 sm:flex-none"
+            >
+              Simpan Pesanan
+            </button>
+            <button
+              id="resetBtn"
+              class="px-6 py-3 rounded-lg border-2 border-yellow-600 dark:border-yellow-500 text-yellow-700 dark:text-yellow-300 font-semibold hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition"
+            >
+              Reset
+            </button>
+            <div
+              id="status"
+              class="flex-1 text-sm text-slate-600 dark:text-yellow-300/70 flex items-center"
+            ></div>
+          </div>
         </div>
-      </section>
-    </div>
+      </div>
+    </main>
 
     <script src="config.js"></script>
     <script type="module" src="script.js"></script>
+    <script>
+      const today = new Date();
+      document.getElementById("current-date").textContent =
+        today.toLocaleDateString("id-ID", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        });
+    </script>
   </body>
 </html>
