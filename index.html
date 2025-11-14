@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" class="dark">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -266,7 +266,7 @@
               <p
                 class="text-sm font-medium text-slate-700 dark:text-yellow-300"
               >
-                Hari ini
+                Today
               </p>
               <p
                 class="text-xs text-slate-500 dark:text-yellow-200/70"
@@ -288,7 +288,7 @@
           class="section-title text-xl font-bold mb-6 flex items-center gap-3"
         >
           <span class="section-divider w-1 h-6 rounded-full"></span>
-          Form Pesanan
+          Order Form
         </h2>
 
         <div class="space-y-6">
@@ -298,14 +298,14 @@
                 for="nama"
                 class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
               >
-                Nama Pemesan
+                Customer Name
               </label>
               <div class="relative">
                 <input
                   id="nama"
                   type="text"
                   autocomplete="off"
-                  placeholder="Masukkan nama"
+                  placeholder="Enter name"
                   class="w-full px-4 py-3 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
                 <input id="memberId" type="hidden" />
@@ -320,13 +320,13 @@
                 for="orderanke"
                 class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
               >
-                Orderan ke
+                Order No.
               </label>
               <select
                 id="orderanke"
                 class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
               >
-                <option value="" disabled selected>Pilih nomor order</option>
+                <option value="" disabled selected>Select order number</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
                 <option value="3">3</option>
@@ -344,12 +344,12 @@
               <label
                 class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
               >
-                Total Item
+                Total Items
               </label>
               <div
                 class="px-4 py-3 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-yellow-900/30 dark:to-amber-900/30 border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 font-semibold"
               >
-                <span id="total-items">0</span> item
+                <span id="total-items">0</span> items
               </div>
             </div>
           </div>
@@ -361,7 +361,7 @@
                 for="kategori"
                 class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
               >
-                Kategori
+                Category
               </label>
               <select
                 id="kategori"
@@ -399,7 +399,7 @@
               id="addBtn"
               class="px-6 py-3 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-500 text-[#1f1410] font-semibold shadow hover:shadow-lg hover:-translate-y-0.5 transition"
             >
-              + Tambah
+              + Add
             </button>
           </div>
         </div>
@@ -413,7 +413,7 @@
           class="section-title text-xl font-bold mb-6 flex items-center gap-3"
         >
           <span class="section-divider w-1 h-6 rounded-full"></span>
-          Total Orderan
+          Order Summary
         </h2>
 
         
@@ -429,12 +429,12 @@
                 <th
                   class="px-4 py-4 text-left font-semibold text-slate-700 dark:text-yellow-200"
                 >
-                  Kategori
+                  Category
                 </th>
                 <th
                   class="px-4 py-4 text-right font-semibold text-slate-700 dark:text-yellow-200"
                 >
-                  Harga
+                  Price
                 </th>
                 <th
                   class="px-4 py-4 text-center font-semibold text-slate-700 dark:text-yellow-200"
@@ -449,7 +449,7 @@
                 <th
                   class="px-4 py-4 text-center font-semibold text-slate-700 dark:text-yellow-200"
                 >
-                  Aksi
+                  Action
                 </th>
               </tr>
             </thead>
@@ -475,10 +475,10 @@
               ></path>
             </svg>
             <p class="text-slate-600 dark:text-yellow-200 font-medium">
-              Orderan masih kosong
+              Your order is empty
             </p>
             <p class="text-slate-400 dark:text-yellow-300/60 text-sm">
-              Tambahkan item untuk memulai
+              Add items to get started
             </p>
           </div>
         </div>
@@ -488,7 +488,7 @@
             class="flex justify-between items-center p-4 sm:p-6 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-yellow-900/40 dark:to-amber-900/40 rounded-xl border-2 border-amber-300 dark:border-yellow-600"
           >
             <span class="text-base sm:text-lg font-bold text-slate-800 dark:text-yellow-100"
-              >Total Harga</span
+              >Total Price</span
             >
             <strong id="totalAmount" class="text-base sm:text-2xl bg-gradient-to-br from-amber-600 to-yellow-500 bg-clip-text text-transparent">
               $0.00
@@ -500,7 +500,7 @@
               id="submitBtn"
               class="px-4 py-2.5 sm:px-6 sm:py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow hover:shadow-lg hover:-translate-y-0.5 transition flex-1 sm:flex-none text-sm sm:text-base"
             >
-              Simpan Pesanan
+              Save Order
             </button>
             <button
               id="resetBtn"
@@ -526,7 +526,7 @@
     <script>
       const today = new Date();
       document.getElementById("current-date").textContent =
-        today.toLocaleDateString("id-ID", {
+        today.toLocaleDateString("en-US", {
           weekday: "short",
           month: "short",
           day: "numeric",
