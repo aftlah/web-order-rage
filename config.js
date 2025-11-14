@@ -1,0 +1,4 @@
+const SHEETS_WEB_APP_URL = "";
+window.SUPABASE_URL = "https://yjlzvjespvgclxefwbud.supabase.co";
+window.SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlqbHp2amVzcHZnY2x4ZWZ3YnVkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNDM0OTUsImV4cCI6MjA3ODcxOTQ5NX0.hsWynIar1QaURIe5-g0T59SF0rXk_2IUVro2H7-IEIs";
