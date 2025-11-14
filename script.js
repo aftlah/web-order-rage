@@ -1,4 +1,8 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm'
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+const supabase =
+  window.SUPABASE_URL && window.SUPABASE_ANON_KEY
+    ? createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
+    : null;
 
 const CATALOG = {
   Gun: [
@@ -45,7 +49,10 @@ const CATALOG = {
 const state = { cart: [] };
 
 function fmt(n) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(n);
 }
 
 function init() {
@@ -62,6 +69,8 @@ function init() {
   populateItems();
   document.getElementById("addBtn").addEventListener("click", addToCart);
   document.getElementById("submitBtn").addEventListener("click", submitOrder);
+  setupCustomerSearch();
+  seedCustomers();
 }
 
 function populateItems() {
@@ -93,12 +102,12 @@ function addToCart() {
 }
 
 function renderCart() {
-  const tbody = document.getElementById('cartBody');
-  const emptyEl = document.getElementById('emptyState');
-  tbody.innerHTML = '';
+  const tbody = document.getElementById("cartBody");
+  const emptyEl = document.getElementById("emptyState");
+  tbody.innerHTML = "";
   let total = 0;
   state.cart.forEach((c, idx) => {
-    const tr = document.createElement('tr');
+    const tr = document.createElement("tr");
     const subtotal = c.price * c.qty;
     total += subtotal;
     tr.innerHTML = `
@@ -111,12 +120,15 @@ function renderCart() {
     `;
     tbody.appendChild(tr);
   });
-  document.getElementById('totalAmount').textContent = fmt(total);
-  document.getElementById('total-items').textContent = state.cart.reduce((a, c) => a + c.qty, 0);
-  if (emptyEl) emptyEl.classList.toggle('hidden', state.cart.length > 0);
-  tbody.querySelectorAll('button[data-idx]').forEach((b) =>
-    b.addEventListener('click', (e) => {
-      const i = parseInt(e.currentTarget.getAttribute('data-idx'), 10);
+  document.getElementById("totalAmount").textContent = fmt(total);
+  document.getElementById("total-items").textContent = state.cart.reduce(
+    (a, c) => a + c.qty,
+    0
+  );
+  if (emptyEl) emptyEl.classList.toggle("hidden", state.cart.length > 0);
+  tbody.querySelectorAll("button[data-idx]").forEach((b) =>
+    b.addEventListener("click", (e) => {
+      const i = parseInt(e.currentTarget.getAttribute("data-idx"), 10);
       state.cart.splice(i, 1);
       renderCart();
     })
@@ -140,10 +152,38 @@ async function submitOrder() {
     return;
   }
   statusEl.textContent = "Menyimpan...";
-  const supabase = createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  if (!supabase) {
+    statusEl.textContent = "Koneksi Supabase belum dikonfigurasi";
+    return;
+  }
+  const hiddenEl = document.getElementById("memberId");
+  let member_id = parseInt((hiddenEl && hiddenEl.value) || "", 10);
+  if (!member_id || Number.isNaN(member_id)) {
+    const { data: found, error: findErr } = await supabase
+      .from("members")
+      .select("id")
+      .eq("nama", nama)
+      .limit(1);
+    if (!findErr && found && found.length) {
+      member_id = found[0].id;
+    } else {
+      const { data: created, error: createErr } = await supabase
+        .from("members")
+        .upsert({ nama }, { onConflict: "nama" })
+        .select("id")
+        .limit(1);
+      if (createErr || !created || !created.length) {
+        statusEl.textContent = "Gagal menyiapkan member";
+        return;
+      }
+      member_id = created[0].id;
+    }
+    if (hiddenEl) hiddenEl.value = String(member_id);
+  }
   const orderId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const rows = state.cart.map((c) => ({
     order_id: orderId,
+    member_id,
     nama,
     orderanke: parseInt(orderanke, 10),
     waktu: new Date().toISOString(),
@@ -154,9 +194,10 @@ async function submitOrder() {
     subtotal: c.price * c.qty,
   }));
   try {
-    const { error } = await supabase.from("orders").insert(rows);
+    const { error } = await supabase.from("orders").insert(rows).select("id");
     if (error) {
-      statusEl.textContent = "Gagal menyimpan";
+      const hint = (error.hint || "").includes("apikey") ? ". Periksa SUPABASE_ANON_KEY di config.js" : "";
+      statusEl.textContent = `Gagal menyimpan: ${error.message || "unknown"}${hint}`;
       return;
     }
     statusEl.textContent = "Berhasil disimpan";
@@ -168,3 +209,97 @@ async function submitOrder() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+function debounce(fn, ms) {
+  let t;
+  return (...a) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...a), ms);
+  };
+}
+
+function setupCustomerSearch() {
+  const input = document.getElementById("nama");
+  const dd = document.getElementById("namaDropdown");
+  const hidden = document.getElementById("memberId");
+  let active = -1;
+  const render = (items) => {
+    dd.innerHTML = items
+      .map(
+        (r, i) =>
+          `<div class="px-3 py-2 cursor-pointer ${
+            i === active ? "bg-yellow-900/30" : ""
+          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`
+      )
+      .join("");
+    dd.classList.toggle("hidden", items.length === 0);
+    dd.querySelectorAll("[data-id]").forEach((el) =>
+      el.addEventListener("mousedown", (e) => {
+        input.value = e.currentTarget.getAttribute("data-name");
+        hidden.value = e.currentTarget.getAttribute("data-id");
+        dd.classList.add("hidden");
+      })
+    );
+  };
+  const run = debounce(async (term) => {
+    if (!supabase) return;
+    let q;
+    if (term)
+      q = supabase
+        .from("members")
+        .select("id,nama")
+        .ilike("nama", `%${term}%`)
+        .order("nama", { ascending: true })
+        .limit(20);
+    else
+      q = supabase
+        .from("members")
+        .select("id,nama")
+        .order("nama", { ascending: true })
+        .limit(20);
+    const { data, error } = await q;
+    if (error) return;
+    active = -1;
+    render(data || []);
+  }, 200);
+  input.addEventListener("input", (e) => run(e.target.value.trim()));
+  input.addEventListener("focus", () => run(""));
+  input.addEventListener("keydown", (e) => {
+    const items = Array.from(dd.querySelectorAll("[data-id]"));
+    if (!items.length) return;
+    if (e.key === "ArrowDown") {
+      active = Math.min(items.length - 1, active + 1);
+      e.preventDefault();
+    } else if (e.key === "ArrowUp") {
+      active = Math.max(0, active - 1);
+      e.preventDefault();
+    } else if (e.key === "Enter" && active >= 0) {
+      input.value = items[active].getAttribute("data-name");
+      hidden.value = items[active].getAttribute("data-id");
+      dd.classList.add("hidden");
+    } else if (e.key === "Escape") {
+      dd.classList.add("hidden");
+    }
+    items.forEach((el, i) =>
+      el.classList.toggle("bg-yellow-900/30", i === active)
+    );
+  });
+  input.addEventListener("blur", () =>
+    setTimeout(() => dd.classList.add("hidden"), 150)
+  );
+}
+async function seedCustomers() {
+  if (!supabase || !window.SEED_CUSTOMERS) return;
+  const done = localStorage.getItem("customersSeeded") === "1";
+  if (done) return;
+  const names = Array.from(
+    new Set(
+      (window.SEED_CUSTOMERS || []).map((n) => (n || "").trim()).filter(Boolean)
+    )
+  );
+  if (names.length === 0) return;
+  const rows = names.map((n) => ({ nama: n }));
+  const { error } = await supabase
+    .from("members")
+    .upsert(rows, { onConflict: "nama" });
+  if (!error) localStorage.setItem("customersSeeded", "1");
+}
