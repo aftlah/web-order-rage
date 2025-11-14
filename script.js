@@ -12,7 +12,7 @@ const CATALOG = {
     { name: "MINI SMG", price: 29900 },
     { name: "MICRO SMG", price: 29900 },
     { name: "SMG", price: 39000 },
-    { name: "SHOTGUN", price: 39000 },
+    { name: "SHOTGUN", price: 65000 },
     { name: "NAVY REVOLVER", price: 71500 },
     { name: "PISTOL X17", price: 32500 },
     { name: "BLACK REVOLVER", price: 91000 },
@@ -32,7 +32,7 @@ const CATALOG = {
     { name: "Grip", price: 3000 },
     { name: "Extended Pistol Clip", price: 3000 },
     { name: "Extended SMG Clip", price: 5000 },
-    { name: "Extended Rifle Clip", price: 5000 },
+    { name: "Extended Rifle Clip", price: 15000 },
     { name: "SMG Drum", price: 10000 },
     { name: "Rifle Drum", price: 20000 },
     { name: "Macro Scope", price: 3000 },
@@ -41,8 +41,8 @@ const CATALOG = {
   Others: [
     { name: "VEST", price: 2600 },
     { name: "VEST MEDIUM", price: 1300 },
-    { name: "LOCKPICK", price: 3000 },
-    { name: "TABLET HEIST", price: 10900 },
+    { name: "LOCKPICK", price: 1300 },
+    { name: "TABLET HEIST", price: 3900 },
   ],
 };
 
