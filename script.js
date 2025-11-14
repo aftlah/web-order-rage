@@ -140,20 +140,25 @@ async function submitOrder() {
   const nama = document.getElementById("nama").value.trim();
   const orderanke = (document.getElementById("orderanke") || {}).value || "";
   if (!nama) {
-    statusEl.textContent = "Nama pemesan wajib diisi";
+    //  statusEl.textContent = "Nama pemesan wajib diisi";
+    showAlert("Nama pemesan wajib diisi", "error");
     return;
   }
   if (!orderanke) {
-    statusEl.textContent = "Pilih nomor order";
+    //  statusEl.textContent = "Pilih nomor order";
+    showAlert("Pilih nomor order", "error");
     return;
   }
   if (state.cart.length === 0) {
-    statusEl.textContent = "Keranjang kosong";
+    //  statusEl.textContent = "Keranjang kosong";
+    showAlert("Keranjang kosong", "error");
     return;
   }
-  statusEl.textContent = "Menyimpan...";
+  //   statusEl.textContent = "Menyimpan...";
+  showAlert("Menyimpan...", "info");
   if (!supabase) {
-    statusEl.textContent = "Koneksi Supabase belum dikonfigurasi";
+    //  statusEl.textContent = "Koneksi Supabase belum dikonfigurasi";
+    showAlert("Koneksi Supabase belum dikonfigurasi", "error");
     return;
   }
   const hiddenEl = document.getElementById("memberId");
@@ -167,16 +172,9 @@ async function submitOrder() {
     if (!findErr && found && found.length) {
       member_id = found[0].id;
     } else {
-      const { data: created, error: createErr } = await supabase
-        .from("members")
-        .upsert({ nama }, { onConflict: "nama" })
-        .select("id")
-        .limit(1);
-      if (createErr || !created || !created.length) {
-        statusEl.textContent = "Gagal menyiapkan member";
-        return;
-      }
-      member_id = created[0].id;
+      //  statusEl.textContent = "Nama yang diinput tidak ada di database";
+      showAlert("Nama tidak ditemukan di database", "error");
+      return;
     }
     if (hiddenEl) hiddenEl.value = String(member_id);
   }
@@ -196,15 +194,23 @@ async function submitOrder() {
   try {
     const { error } = await supabase.from("orders").insert(rows).select("id");
     if (error) {
-      const hint = (error.hint || "").includes("apikey") ? ". Periksa SUPABASE_ANON_KEY di config.js" : "";
-      statusEl.textContent = `Gagal menyimpan: ${error.message || "unknown"}${hint}`;
+      const hint = (error.hint || "").includes("apikey")
+        ? ". Periksa SUPABASE_ANON_KEY di config.js"
+        : "";
+      //  statusEl.textContent = `Gagal menyimpan: ${error.message || "unknown"}${hint}`;
+      showAlert(
+        `Gagal menyimpan: ${error.message || "unknown"}${hint}`,
+        "error"
+      );
       return;
     }
-    statusEl.textContent = "Berhasil disimpan";
+    //   statusEl.textContent = "Berhasil disimpan";
+    showAlert("Berhasil disimpan", "success");
     state.cart = [];
     renderCart();
   } catch (e) {
-    statusEl.textContent = "Gagal menyimpan (network error)";
+    // statusEl.textContent = "Gagal menyimpan (network error)";
+    showAlert("Gagal menyimpan (network error)", "error");
   }
 }
 
@@ -302,4 +308,26 @@ async function seedCustomers() {
     .from("members")
     .upsert(rows, { onConflict: "nama" });
   if (!error) localStorage.setItem("customersSeeded", "1");
+}
+function showAlert(message, type = "info") {
+  const box = document.getElementById("appAlertBox");
+  if (!box) {
+    alert(message);
+    return;
+  }
+  const base = "px-4 py-2 rounded-lg text-white shadow-lg";
+  const color =
+    type === "success"
+      ? "bg-green-600"
+      : type === "error"
+      ? "bg-red-600"
+      : "bg-yellow-600";
+  box.className = `${base} ${color}`;
+  box.textContent = message;
+  box.classList.remove("hidden");
+  box.style.opacity = "1";
+  setTimeout(() => {
+    box.style.opacity = "0";
+    box.classList.add("hidden");
+  }, 3000);
 }
