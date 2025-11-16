@@ -71,6 +71,13 @@ function init() {
   document.getElementById("submitBtn").addEventListener("click", submitOrder);
   setupCustomerSearch();
   seedCustomers();
+  setOrderNoUI();
+  initDashboard();
+  const navOrder = document.getElementById("navOrder");
+  const navDashboard = document.getElementById("navDashboard");
+  if (navOrder) navOrder.addEventListener("click", () => showSection("order"));
+  if (navDashboard) navDashboard.addEventListener("click", () => showSection("dashboard"));
+  showSection("order");
 }
 
 function populateItems() {
@@ -138,15 +145,9 @@ function renderCart() {
 async function submitOrder() {
   const statusEl = document.getElementById("status");
   const nama = document.getElementById("nama").value.trim();
-  const orderanke = (document.getElementById("orderanke") || {}).value || "";
+  const { value: computedOrderNo } = computeOrderNo();
   if (!nama) {
-    //  statusEl.textContent = "Nama pemesan wajib diisi";
     showAlert("Nama pemesan wajib diisi", "error");
-    return;
-  }
-  if (!orderanke) {
-    //  statusEl.textContent = "Pilih nomor order";
-    showAlert("Pilih nomor order", "error");
     return;
   }
   if (state.cart.length === 0) {
@@ -161,47 +162,19 @@ async function submitOrder() {
     showAlert("Koneksi Supabase belum dikonfigurasi", "error");
     return;
   }
-  const hiddenEl = document.getElementById("memberId");
-  let member_id = parseInt((hiddenEl && hiddenEl.value) || "", 10);
-  if (!member_id || Number.isNaN(member_id)) {
-    const { data: found, error: findErr } = await supabase
-      .from("members")
-      .select("id")
-      .eq("nama", nama)
-      .limit(1);
-    if (!findErr && found && found.length) {
-      member_id = found[0].id;
-    } else {
-      //  statusEl.textContent = "Nama yang diinput tidak ada di database";
-      showAlert("Nama tidak ditemukan di database", "error");
-      return;
-    }
-    if (hiddenEl) hiddenEl.value = String(member_id);
+  const memberIdFromHidden = parseInt((document.getElementById("memberId") || {}).value || "", 10);
+  let member_id = !Number.isNaN(memberIdFromHidden) && memberIdFromHidden ? memberIdFromHidden : await getMemberIdByName(nama);
+  if (!member_id) {
+    showAlert("Nama tidak ditemukan di database", "error");
+    return;
   }
   const orderId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const rows = state.cart.map((c) => ({
-    order_id: orderId,
-    member_id,
-    nama,
-    orderanke: parseInt(orderanke, 10),
-    waktu: new Date().toISOString(),
-    kategori: c.kategori,
-    item: c.item,
-    harga: c.price,
-    qty: c.qty,
-    subtotal: c.price * c.qty,
-  }));
+  const rows = buildOrderRows(orderId, member_id, nama, computedOrderNo);
   try {
-    const { error } = await supabase.from("orders").insert(rows).select("id");
+    const { error } = await insertOrders(rows);
     if (error) {
-      const hint = (error.hint || "").includes("apikey")
-        ? ". Periksa SUPABASE_ANON_KEY di config.js"
-        : "";
-      //  statusEl.textContent = `Gagal menyimpan: ${error.message || "unknown"}${hint}`;
-      showAlert(
-        `Gagal menyimpan: ${error.message || "unknown"}${hint}`,
-        "error"
-      );
+      const hint = (error.hint || "").includes("apikey") ? ". Periksa SUPABASE_ANON_KEY di config.js" : "";
+      showAlert(`Gagal menyimpan: ${error.message || "unknown"}${hint}`, "error");
       return;
     }
     //   statusEl.textContent = "Berhasil disimpan";
@@ -221,6 +194,67 @@ function debounce(fn, ms) {
     clearTimeout(t);
     t = setTimeout(() => fn(...a), ms);
   };
+}
+function computeOrderNo(d = new Date()) {
+  const month = d.getMonth() + 1;
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  const offset = first.getDay();
+  const week = Math.ceil((d.getDate() + offset) / 7);
+  const value = month * 10 + week;
+  const label = `M${month}-W${week}`;
+  return { month, week, value, label };
+}
+function setOrderNoUI() {
+  const { value, label } = computeOrderNo();
+  const display = document.getElementById("orderNo");
+  const hidden = document.getElementById("orderankeHidden");
+  if (display) display.value = `${label} (#${value})`;
+  if (hidden) hidden.value = String(value);
+}
+function showSection(name) {
+  const order = document.getElementById("orderSection");
+  const dash = document.getElementById("dashboardSection");
+  const navOrder = document.getElementById("navOrder");
+  const navDashboard = document.getElementById("navDashboard");
+  const showOrder = name === "order";
+  if (order) order.classList.toggle("hidden", !showOrder);
+  if (dash) dash.classList.toggle("hidden", showOrder);
+  if (navOrder) navOrder.classList.toggle("btn-success", showOrder);
+  if (navDashboard) navDashboard.classList.toggle("btn-success", !showOrder);
+  if (!showOrder) loadDashboard();
+}
+async function getMemberIdByName(nama) {
+  const { data, error } = await supabase
+    .from("members")
+    .select("id")
+    .eq("nama", nama)
+    .limit(1);
+  if (error || !data || !data.length) return null;
+  return data[0].id;
+}
+function buildOrderRows(orderId, member_id, nama, orderanke) {
+  return state.cart.map((c) => ({
+    order_id: orderId,
+    member_id,
+    nama,
+    orderanke,
+    waktu: new Date().toISOString(),
+    kategori: c.kategori,
+    item: c.item,
+    harga: c.price,
+    qty: c.qty,
+    subtotal: c.price * c.qty,
+  }));
+}
+async function insertOrders(rows) {
+  return await supabase.from("orders").insert(rows).select("id");
+}
+async function fetchOrders(limit = 500) {
+  return await supabase
+    .from("orders")
+    .select("order_id,nama,orderanke,waktu,kategori,item,harga,qty,subtotal")
+    .order("waktu", { ascending: false })
+    .limit(limit);
 }
 
 function setupCustomerSearch() {
@@ -267,9 +301,9 @@ function setupCustomerSearch() {
     active = -1;
     render(data || []);
   }, 200);
-  input.addEventListener("input", (e) => run(e.target.value.trim()));
-  input.addEventListener("focus", () => run(""));
-  input.addEventListener("keydown", (e) => {
+            input.addEventListener("input", (e) => run(e.target.value.trim()));
+            input.addEventListener("focus", () => run(""));
+            input.addEventListener("keydown", (e) => {
     const items = Array.from(dd.querySelectorAll("[data-id]"));
     if (!items.length) return;
     if (e.key === "ArrowDown") {
@@ -308,6 +342,78 @@ async function seedCustomers() {
     .from("members")
     .upsert(rows, { onConflict: "nama" });
   if (!error) localStorage.setItem("customersSeeded", "1");
+}
+function groupOrdersByBatch(rows) {
+  const groups = {};
+  (rows || []).forEach((r) => {
+    const batch = r.orderanke;
+    if (!groups[batch]) groups[batch] = { items: [], total: 0, count: 0 };
+    groups[batch].items.push(r);
+    groups[batch].total += r.subtotal || 0;
+    groups[batch].count += 1;
+  });
+  return groups;
+}
+function renderDashboard(groups) {
+  const container = document.getElementById("dashboardBody");
+  if (!container) return;
+  const keys = Object.keys(groups).sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+  container.innerHTML = keys
+    .map((k) => {
+      const g = groups[k];
+      const month = Math.floor(parseInt(k, 10) / 10);
+      const week = parseInt(k, 10) % 10;
+      const header = `<div class="mb-4"><h3 class="text-lg font-bold">Batch M${month}-W${week}</h3><p class="text-sm">Orders: ${g.count} • Total: ${fmt(g.total)}</p></div>`;
+      const table = `<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th class="text-left px-2 py-2">Order ID</th><th class="text-left px-2 py-2">Nama</th><th class="text-left px-2 py-2">Waktu</th><th class="text-left px-2 py-2">Item</th><th class="text-center px-2 py-2">Qty</th><th class="text-right px-2 py-2">Subtotal</th></tr></thead><tbody>` +
+        g.items
+          .map(
+            (r) =>
+              `<tr class="table-row-hover"><td class="px-2 py-2">${r.order_id}</td><td class="px-2 py-2">${r.nama}</td><td class="px-2 py-2">${new Date(r.waktu).toLocaleString()}</td><td class="px-2 py-2">${r.item}</td><td class="px-2 py-2 text-center">${r.qty}</td><td class="px-2 py-2 text-right">${fmt(r.subtotal)}</td></tr>`
+          )
+          .join("") +
+        `</tbody></table></div>`;
+      return `<div class="rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6">${header}${table}</div>`;
+    })
+    .join("");
+}
+async function loadDashboard() {
+  if (!supabase) return;
+  const mSel = document.getElementById("dashMonth");
+  const wSel = document.getElementById("dashWeek");
+  const { data, error } = await fetchOrders();
+  if (error) {
+    showAlert("Gagal memuat dashboard", "error");
+    return;
+  }
+  const month = mSel ? parseInt(mSel.value, 10) : NaN;
+  const weekVal = wSel ? wSel.value : "";
+  const filtered = (data || []).filter((r) => {
+    const m = Math.floor((r.orderanke || 0) / 10);
+    const w = (r.orderanke || 0) % 10;
+    if (month && m !== month) return false;
+    if (weekVal && String(w) !== String(weekVal)) return false;
+    return true;
+  });
+  const groups = groupOrdersByBatch(filtered);
+  renderDashboard(groups);
+}
+function initDashboard() {
+  const mSel = document.getElementById("dashMonth");
+  const wSel = document.getElementById("dashWeek");
+  if (mSel) {
+    mSel.innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+    const now = new Date();
+    mSel.value = String(now.getMonth() + 1);
+  }
+  if (wSel) {
+    wSel.innerHTML = `<option value="">Semua</option>` + Array.from({ length: 5 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+    wSel.value = "";
+  }
+  const btn = document.getElementById("refreshDashboard");
+  if (btn) btn.addEventListener("click", loadDashboard);
+  if (mSel) mSel.addEventListener("change", loadDashboard);
+  if (wSel) wSel.addEventListener("change", loadDashboard);
+  loadDashboard();
 }
 function showAlert(message, type = "info") {
   const box = document.getElementById("appAlertBox");

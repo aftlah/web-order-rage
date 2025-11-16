@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>R.A.G.E Order System</title>
-	 <link rel="icon" href="/images/LOGO_RAGE.png" type="image/png" />
+    <link rel="icon" href="/images/LOGO_RAGE.png" type="image/png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -244,43 +244,34 @@
     </style>
   </head>
   <body class="transition-colors duration-300">
-    
     <header
       class="bg-white dark:bg-[#1f1410] border-b border-[#f3e8d8] dark:border-[#3d342d] shadow sticky top-0 z-50"
     >
       <div class="max-w-6xl mx-auto px-6 py-1">
         <div class="flex items-center justify-between">
           <div class="logo-container">
-            <img
-              src="images/LOGO_RAGE.png"
-              alt="R.A.G.E Logo"
-              class="w-14"
-            />
+            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-14" />
             <div class="brand-title">
               <h1>R.A.G.E</h1>
               <p class="brand-subtitle">Order System</p>
             </div>
           </div>
           <div class="flex items-center gap-6">
+            <nav id="mainNav" class="flex gap-2">
+              <button id="navOrder" class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20">Order</button>
+              <button id="navDashboard" class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20">Dashboard</button>
+            </nav>
             <div class="text-right hidden sm:block">
-              <p
-                class="text-sm font-medium text-slate-700 dark:text-yellow-300"
-              >
-                Today
-              </p>
-              <p
-                class="text-xs text-slate-500 dark:text-yellow-200/70"
-                id="current-date"
-              ></p>
+              <p class="text-sm font-medium text-slate-700 dark:text-yellow-300">Today</p>
+              <p class="text-xs text-slate-500 dark:text-yellow-200/70" id="current-date"></p>
             </div>
           </div>
         </div>
       </div>
     </header>
 
-    
     <main class="max-w-6xl mx-auto px-6 py-8 relative z-10">
-      
+      <section id="orderSection">
       <div
         class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mb-8"
       >
@@ -317,29 +308,20 @@
             </div>
             <div class="flex flex-col gap-2">
               <label
-                for="orderanke"
+                for="orderNo"
                 class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
               >
                 Order No.
               </label>
-              <select
-                id="orderanke"
-                class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
-              >
-                <option value="" disabled selected>Select order number</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-                <option value="6">6</option>
-                <option value="7">7</option>
-                <option value="8">8</option>
-                <option value="9">9</option>
-                <option value="10">10</option>
-              </select>
+              <input
+                id="orderNo"
+                type="text"
+                readonly
+                class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none"
+              />
+              <input id="orderankeHidden" type="hidden" />
             </div>
-            
+
             <div class="flex flex-col gap-2">
               <label
                 class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
@@ -354,7 +336,6 @@
             </div>
           </div>
 
-          
           <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
             <div class="flex flex-col gap-2">
               <label
@@ -405,7 +386,6 @@
         </div>
       </div>
 
-      
       <div
         class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8"
       >
@@ -416,7 +396,6 @@
           Order Summary
         </h2>
 
-        
         <div class="overflow-x-auto mb-8">
           <table id="cartTable" class="w-full text-sm">
             <thead>
@@ -459,7 +438,6 @@
             ></tbody>
           </table>
 
-          
           <div id="emptyState" class="text-center py-12">
             <svg
               class="w-16 h-16 mx-auto mb-4 opacity-40"
@@ -487,10 +465,14 @@
           <div
             class="flex justify-between items-center p-4 sm:p-6 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-yellow-900/40 dark:to-amber-900/40 rounded-xl border-2 border-amber-300 dark:border-yellow-600"
           >
-            <span class="text-base sm:text-lg font-bold text-slate-800 dark:text-yellow-100"
+            <span
+              class="text-base sm:text-lg font-bold text-slate-800 dark:text-yellow-100"
               >Total Price</span
             >
-            <strong id="totalAmount" class="text-base sm:text-2xl bg-gradient-to-br from-amber-600 to-yellow-500 bg-clip-text text-transparent">
+            <strong
+              id="totalAmount"
+              class="text-base sm:text-2xl bg-gradient-to-br from-amber-600 to-yellow-500 bg-clip-text text-transparent"
+            >
               $0.00
             </strong>
           </div>
@@ -515,10 +497,36 @@
           </div>
         </div>
       </div>
+
+      </section>
+      <div id="dashboardSection" class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mt-8 hidden">
+        <h2 class="section-title text-xl font-bold mb-6 flex items-center gap-3">
+          <span class="section-divider w-1 h-6 rounded-full"></span>
+          Dashboard
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end mb-6">
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-semibold text-slate-700 dark:text-yellow-200">Bulan</label>
+            <select id="dashMonth" class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"></select>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-semibold text-slate-700 dark:text-yellow-200">Minggu</label>
+            <select id="dashWeek" class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"></select>
+          </div>
+          <button id="refreshDashboard" class="px-6 py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow">Refresh</button>
+        </div>
+        <div id="dashboardBody"></div>
+      </div>
     </main>
 
-    <div id="appAlert" class="fixed inset-x-0 top-16 flex justify-center z-50 pointer-events-none">
-      <div id="appAlertBox" class="hidden px-4 py-2 rounded-lg bg-red-600 text-white shadow-lg pointer-events-auto"></div>
+    <div
+      id="appAlert"
+      class="fixed inset-x-0 top-16 flex justify-center z-50 pointer-events-none"
+    >
+      <div
+        id="appAlertBox"
+        class="hidden px-4 py-2 rounded-lg bg-red-600 text-white shadow-lg pointer-events-auto"
+      ></div>
     </div>
 
     <script src="config.js"></script>
