@@ -57,27 +57,38 @@ function fmt(n) {
 
 function init() {
   if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) return;
-  const kategoriEl = document.getElementById("kategori");
-  const itemEl = document.getElementById("item");
-  Object.keys(CATALOG).forEach((k) => {
-    const o = document.createElement("option");
-    o.value = k;
-    o.textContent = k;
-    kategoriEl.appendChild(o);
-  });
-  kategoriEl.addEventListener("change", () => populateItems());
-  populateItems();
-  document.getElementById("addBtn").addEventListener("click", addToCart);
-  document.getElementById("submitBtn").addEventListener("click", submitOrder);
-  setupCustomerSearch();
-  seedCustomers();
-  setOrderNoUI();
-  initDashboard();
+  const isOrder = !!document.getElementById("orderSection") || !!document.getElementById("nama") || !!document.getElementById("kategori");
+  const isDashboard = !!document.getElementById("dashboardSection") || !!document.getElementById("dashboardBody") || !!document.getElementById("dashMonth");
+  if (isOrder) {
+    const kategoriEl = document.getElementById("kategori");
+    const itemEl = document.getElementById("item");
+    if (kategoriEl && itemEl) {
+      Object.keys(CATALOG).forEach((k) => {
+        const o = document.createElement("option");
+        o.value = k;
+        o.textContent = k;
+        kategoriEl.appendChild(o);
+      });
+      kategoriEl.addEventListener("change", () => populateItems());
+      populateItems();
+    }
+    const addBtn = document.getElementById("addBtn");
+    const submitBtn = document.getElementById("submitBtn");
+    if (addBtn) addBtn.addEventListener("click", addToCart);
+    if (submitBtn) submitBtn.addEventListener("click", submitOrder);
+    setupCustomerSearch();
+    seedCustomers();
+    setOrderNoUI();
+  }
+  if (isDashboard) {
+    initDashboard();
+  }
   const navOrder = document.getElementById("navOrder");
   const navDashboard = document.getElementById("navDashboard");
   if (navOrder) navOrder.addEventListener("click", () => showSection("order"));
   if (navDashboard) navDashboard.addEventListener("click", () => showSection("dashboard"));
-  showSection("order");
+  if (isOrder) showSection("order");
+  else if (isDashboard) showSection("dashboard");
 }
 
 function populateItems() {

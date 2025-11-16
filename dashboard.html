@@ -1,0 +1,274 @@
+<!-- c:\Users\ACER PREDATOR\Documents\ALTAF\PROJECT\Web-orderan-rage\dashboard.html -->
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>R.A.G.E Dashboard</title>
+    <link rel="icon" href="/images/LOGO_RAGE.png" type="image/png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        font-family: "Poppins", sans-serif;
+      }
+      :root {
+        --bg-main: linear-gradient(135deg, #fefdf2 0%, #fef3c7 100%);
+        --bg-card: #ffffff;
+        --text-primary: #1a1410;
+        --text-secondary: #78716c;
+        --border-color: #f3e8d8;
+        --input-bg: #fffbf0;
+        --accent-primary: #d97706;
+        --accent-secondary: #f59e0b;
+        --success-color: #b45309;
+        --rage-gold: #fbbf24;
+        --rage-black: #1f1410;
+      }
+      .dark {
+        --bg-main: linear-gradient(135deg, #0a0805 0%, #1a1410 100%);
+        --bg-card: #1f1410;
+        --text-primary: #fef3c7;
+        --text-secondary: #d4a574;
+        --border-color: #3d342d;
+        --input-bg: #0a0805;
+        --accent-primary: #f59e0b;
+        --accent-secondary: #fbbf24;
+        --success-color: #d97706;
+      }
+      body {
+        background-image: url("/images/foto_rage1.png");
+        background-attachment: fixed;
+        background-size: cover;
+        background-position: center;
+        color: var(--text-primary);
+        transition: color 0.3s ease;
+        min-height: 100vh;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .card-shadow {
+        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+      }
+      .card-shadow:hover {
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12);
+        transform: translateY(-2px);
+      }
+      .btn-primary {
+        background: linear-gradient(
+          135deg,
+          var(--accent-primary) 0%,
+          var(--accent-secondary) 100%
+        );
+        color: var(--rage-black);
+        box-shadow: 0 4px 15px rgba(217, 119, 6, 0.3);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-weight: 600;
+      }
+      .btn-success {
+        background: linear-gradient(
+          135deg,
+          var(--success-color) 0%,
+          var(--accent-primary) 100%
+        );
+        color: white;
+        box-shadow: 0 4px 15px rgba(180, 83, 9, 0.3);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .table-row-hover {
+        transition: all 0.2s ease;
+        animation: slideIn 0.3s ease;
+      }
+      .table-row-hover:hover {
+        background-color: var(--input-bg);
+      }
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .header-bg {
+        background: var(--bg-card);
+        border-color: var(--border-color);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        position: relative;
+        z-index: 50;
+      }
+      .section-title {
+        color: var(--text-primary);
+      }
+      .section-divider {
+        background: linear-gradient(
+          to bottom,
+          var(--accent-primary),
+          var(--accent-secondary)
+        );
+      }
+      .brand-title {
+        display: flex;
+        flex-direction: column;
+      }
+      .brand-title h1 {
+        font-size: 24px;
+        font-weight: 800;
+        color: var(--rage-black);
+        letter-spacing: -0.5px;
+      }
+      .dark .brand-title h1 {
+        color: var(--rage-gold);
+      }
+      .brand-subtitle {
+        font-size: 11px;
+        color: #a89968;
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+      }
+    </style>
+  </head>
+  <body class="transition-colors duration-300">
+    <header
+      class="bg-white dark:bg-[#1f1410] border-b border-[#f3e8d8] dark:border-[#3d342d] shadow sticky top-0 z-50"
+    >
+      <div class="max-w-6xl mx-auto px-6 py-1">
+        <div class="flex items-center justify-between">
+          <div class="logo-container flex items-center gap-3">
+            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-14" />
+            <div class="brand-title">
+              <h1>R.A.G.E</h1>
+              <p class="brand-subtitle">Order System</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-6">
+            <nav id="mainNav" class="flex gap-2">
+              <a
+                href="index.html"
+                class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20"
+                >Order</a
+              >
+              <a
+                href="dashboard.html"
+                class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20"
+                >Dashboard</a
+              >
+            </nav>
+            <div class="text-right hidden sm:block">
+              <p
+                class="text-sm font-medium text-slate-700 dark:text-yellow-300"
+              >
+                Today
+              </p>
+              <p
+                class="text-xs text-slate-500 dark:text-yellow-200/70"
+                id="current-date"
+              ></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 py-8 relative z-10">
+      <div
+        class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8"
+      >
+        <h2
+          class="section-title text-xl font-bold mb-6 flex items-center gap-3"
+        >
+          <span class="section-divider w-1 h-6 rounded-full"></span>
+          Dashboard
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-end mb-6">
+          <div class="flex flex-col gap-2">
+            <label
+              class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
+              >Bulan</label
+            >
+            <select
+              id="dashMonth"
+              class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"
+            ></select>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label
+              class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
+              >Minggu</label
+            >
+            <select
+              id="dashWeek"
+              class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"
+            ></select>
+          </div>
+          <div class="flex flex-col gap-2">
+            <label
+              class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
+              >Group By</label
+            >
+            <select
+              id="dashGroup"
+              class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"
+            >
+              <option value="batch">Batch</option>
+              <option value="order">Order ID</option>
+              <option value="member">Member ID</option>
+            </select>
+          </div>
+          <button
+            id="refreshDashboard"
+            class="px-6 py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow"
+          >
+            Refresh
+          </button>
+        </div>
+
+        <div id="dashboardBody"></div>
+      </div>
+    </main>
+
+    <div
+      id="appAlert"
+      class="fixed inset-x-0 top-16 flex justify-center z-50 pointer-events-none"
+    >
+      <div
+        id="appAlertBox"
+        class="hidden px-4 py-2 rounded-lg bg-red-600 text-white shadow-lg pointer-events-auto"
+      ></div>
+    </div>
+
+    <script src="config.js"></script>
+    <script type="module" src="script.js"></script>
+    <script>
+      const today = new Date();
+      const el = document.getElementById("current-date");
+      if (el)
+        el.textContent = today.toLocaleDateString("en-US", {
+          weekday: "short",
+          month: "short",
+          day: "numeric",
+        });
+    </script>
+  </body>
+</html>

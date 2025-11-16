@@ -258,8 +258,8 @@
           </div>
           <div class="flex items-center gap-6">
             <nav id="mainNav" class="flex gap-2">
-              <button id="navOrder" class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20">Order</button>
-              <button id="navDashboard" class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20">Dashboard</button>
+              <a href="index.html" class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20">Order</a>
+              <a href="dashboard.html" class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20">Dashboard</a>
             </nav>
             <div class="text-right hidden sm:block">
               <p class="text-sm font-medium text-slate-700 dark:text-yellow-300">Today</p>
@@ -499,24 +499,7 @@
       </div>
 
       </section>
-      <div id="dashboardSection" class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mt-8 hidden">
-        <h2 class="section-title text-xl font-bold mb-6 flex items-center gap-3">
-          <span class="section-divider w-1 h-6 rounded-full"></span>
-          Dashboard
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end mb-6">
-          <div class="flex flex-col gap-2">
-            <label class="text-sm font-semibold text-slate-700 dark:text-yellow-200">Bulan</label>
-            <select id="dashMonth" class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"></select>
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-sm font-semibold text-slate-700 dark:text-yellow-200">Minggu</label>
-            <select id="dashWeek" class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"></select>
-          </div>
-          <button id="refreshDashboard" class="px-6 py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow">Refresh</button>
-        </div>
-        <div id="dashboardBody"></div>
-      </div>
+
     </main>
 
     <div
