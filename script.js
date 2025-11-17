@@ -365,6 +365,17 @@ function groupOrdersByBatch(rows) {
   });
   return groups;
 }
+function summarizeItems(items) {
+  const map = {};
+  (items || []).forEach((r) => {
+    const key = r.item;
+    if (!key) return;
+    map[key] = (map[key] || 0) + (r.qty || 0);
+  });
+  return Object.keys(map)
+    .sort()
+    .map((item) => ({ item, qty: map[item] }));
+}
 function renderDashboard(groups) {
   const container = document.getElementById("dashboardBody");
   if (!container) return;
@@ -375,6 +386,10 @@ function renderDashboard(groups) {
       const month = Math.floor(parseInt(k, 10) / 10);
       const week = parseInt(k, 10) % 10;
       const header = `<div class="mb-4"><h3 class="text-lg font-bold">Batch M${month}-W${week}</h3><p class="text-sm">Orders: ${g.count} • Total: ${fmt(g.total)}</p></div>`;
+      const summaryData = summarizeItems(g.items);
+      const summary = `<div class=\"mb-4\"><h4 class=\"font-semibold mb-2\">Total Qty per Item</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-right px-2 py-2\">Total Qty</th></tr></thead><tbody>` +
+        summaryData.map((s) => `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${s.item}</td><td class=\"px-2 py-2 text-right\">${s.qty}</td></tr>`).join("") +
+        `</tbody></table></div></div>`;
       const table = `<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th class="text-left px-2 py-2">Order ID</th><th class="text-left px-2 py-2">Nama</th><th class="text-left px-2 py-2">Waktu</th><th class="text-left px-2 py-2">Item</th><th class="text-center px-2 py-2">Qty</th><th class="text-right px-2 py-2">Subtotal</th></tr></thead><tbody>` +
         g.items
           .map(
@@ -383,7 +398,7 @@ function renderDashboard(groups) {
           )
           .join("") +
         `</tbody></table></div>`;
-      return `<div class="rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6">${header}${table}</div>`;
+      return `<div class="rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6">${header}${summary}${table}</div>`;
     })
     .join("");
 }
