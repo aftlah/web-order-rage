@@ -201,47 +201,16 @@
           Dashboard
         </h2>
 
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-end mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end mb-6">
           <div class="flex flex-col gap-2">
-            <label
-              class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >Bulan</label
-            >
-            <select
-              id="dashMonth"
-              class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"
-            ></select>
+            <label class="text-sm font-semibold text-slate-700 dark:text-yellow-200">Bulan</label>
+            <select id="dashMonth" class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"></select>
           </div>
           <div class="flex flex-col gap-2">
-            <label
-              class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >Minggu</label
-            >
-            <select
-              id="dashWeek"
-              class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"
-            ></select>
+            <label class="text-sm font-semibold text-slate-700 dark:text-yellow-200">Minggu</label>
+            <select id="dashWeek" class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"></select>
           </div>
-          <div class="flex flex-col gap-2">
-            <label
-              class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >Group By</label
-            >
-            <select
-              id="dashGroup"
-              class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"
-            >
-              <option value="batch">Batch</option>
-              <option value="order">Order ID</option>
-              <option value="member">Member ID</option>
-            </select>
-          </div>
-          <button
-            id="refreshDashboard"
-            class="px-6 py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow"
-          >
-            Refresh
-          </button>
+          <button id="refreshDashboard" class="px-6 py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow">Refresh</button>
         </div>
 
         <div id="dashboardBody"></div>
