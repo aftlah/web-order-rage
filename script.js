@@ -57,8 +57,14 @@ function fmt(n) {
 
 function init() {
   if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) return;
-  const isOrder = !!document.getElementById("orderSection") || !!document.getElementById("nama") || !!document.getElementById("kategori");
-  const isDashboard = !!document.getElementById("dashboardSection") || !!document.getElementById("dashboardBody") || !!document.getElementById("dashMonth");
+  const isOrder =
+    !!document.getElementById("orderSection") ||
+    !!document.getElementById("nama") ||
+    !!document.getElementById("kategori");
+  const isDashboard =
+    !!document.getElementById("dashboardSection") ||
+    !!document.getElementById("dashboardBody") ||
+    !!document.getElementById("dashMonth");
   if (isOrder) {
     const kategoriEl = document.getElementById("kategori");
     const itemEl = document.getElementById("item");
@@ -86,7 +92,8 @@ function init() {
   const navOrder = document.getElementById("navOrder");
   const navDashboard = document.getElementById("navDashboard");
   if (navOrder) navOrder.addEventListener("click", () => showSection("order"));
-  if (navDashboard) navDashboard.addEventListener("click", () => showSection("dashboard"));
+  if (navDashboard)
+    navDashboard.addEventListener("click", () => showSection("dashboard"));
   if (isOrder) showSection("order");
   else if (isDashboard) showSection("dashboard");
 }
@@ -173,8 +180,14 @@ async function submitOrder() {
     showAlert("Koneksi Supabase belum dikonfigurasi", "error");
     return;
   }
-  const memberIdFromHidden = parseInt((document.getElementById("memberId") || {}).value || "", 10);
-  let member_id = !Number.isNaN(memberIdFromHidden) && memberIdFromHidden ? memberIdFromHidden : await getMemberIdByName(nama);
+  const memberIdFromHidden = parseInt(
+    (document.getElementById("memberId") || {}).value || "",
+    10
+  );
+  let member_id =
+    !Number.isNaN(memberIdFromHidden) && memberIdFromHidden
+      ? memberIdFromHidden
+      : await getMemberIdByName(nama);
   if (!member_id) {
     showAlert("Nama tidak ditemukan di database", "error");
     return;
@@ -184,8 +197,13 @@ async function submitOrder() {
   try {
     const { error } = await insertOrders(rows);
     if (error) {
-      const hint = (error.hint || "").includes("apikey") ? ". Periksa SUPABASE_ANON_KEY di config.js" : "";
-      showAlert(`Gagal menyimpan: ${error.message || "unknown"}${hint}`, "error");
+      const hint = (error.hint || "").includes("apikey")
+        ? ". Periksa SUPABASE_ANON_KEY di config.js"
+        : "";
+      showAlert(
+        `Gagal menyimpan: ${error.message || "unknown"}${hint}`,
+        "error"
+      );
       return;
     }
     //   statusEl.textContent = "Berhasil disimpan";
@@ -312,9 +330,9 @@ function setupCustomerSearch() {
     active = -1;
     render(data || []);
   }, 200);
-            input.addEventListener("input", (e) => run(e.target.value.trim()));
-            input.addEventListener("focus", () => run(""));
-            input.addEventListener("keydown", (e) => {
+  input.addEventListener("input", (e) => run(e.target.value.trim()));
+  input.addEventListener("focus", () => run(""));
+  input.addEventListener("keydown", (e) => {
     const items = Array.from(dd.querySelectorAll("[data-id]"));
     if (!items.length) return;
     if (e.key === "ArrowDown") {
@@ -379,24 +397,46 @@ function summarizeItems(items) {
 function renderDashboard(groups) {
   const container = document.getElementById("dashboardBody");
   if (!container) return;
-  const keys = Object.keys(groups).sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+  const keys = Object.keys(groups).sort(
+    (a, b) => parseInt(b, 10) - parseInt(a, 10)
+  );
   container.innerHTML = keys
     .map((k) => {
       const g = groups[k];
       const month = Math.floor(parseInt(k, 10) / 10);
       const week = parseInt(k, 10) % 10;
-      const header = `<div class="mb-4"><h3 class="text-lg font-bold">Batch M${month}-W${week}</h3><p class="text-sm">Orders: ${g.count} • Total: ${fmt(g.total)}</p></div>`;
+      const header = `<div class="mb-4"><h3 class="text-lg font-bold">Batch M${month}-W${week}</h3><p class="text-sm">Orders: ${
+        g.count
+      } • Total: ${fmt(g.total)}</p></div>`;
       const summaryData = summarizeItems(g.items);
-      const summary = `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Qty per Item</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-right px-2 py-2\">Total Qty</th></tr></thead><tbody>` +
-        summaryData.map((s) => `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${s.item}</td><td class=\"px-2 py-2 text-right\">${s.qty}</td></tr>`).join("") +
-        `</tbody></table></div></div>`;
-      const orderDetails = `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order ID</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th></tr></thead><tbody>` +
-        g.items
+      const summary =
+        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Qty per Item</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-right px-2 py-2\">Total Qty</th></tr></thead><tbody>` +
+        summaryData
           .map(
-            (r) =>
-              `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${r.order_id}</td><td class=\"px-2 py-2\">${r.nama}</td><td class=\"px-2 py-2\">${new Date(r.waktu).toLocaleString()}</td><td class=\"px-2 py-2\">${r.item}</td><td class=\"px-2 py-2 text-center\">${r.qty}</td><td class=\"px-2 py-2 text-right\">${fmt(r.subtotal)}</td></tr>`
+            (s) =>
+              `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${s.item}</td><td class=\"px-2 py-2 text-right\">${s.qty}</td></tr>`
           )
           .join("") +
+        `</tbody></table></div></div>`;
+      const byName = {};
+      g.items.forEach((r) => {
+        const key = r.nama || "Unknown";
+        (byName[key] ||= []).push(r);
+      });
+      const nameKeys = Object.keys(byName).sort((a, b) => a.localeCompare(b));
+      const rowsHtml = nameKeys
+        .map((name) =>
+          byName[name]
+            .map((r, idx) => {
+              const nameCell = idx === 0 ? `<td class="px-2 py-2 align-top" rowspan="${byName[name].length}">${name}</td>` : "";
+              return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${r.order_id}</td>${nameCell}<td class=\"px-2 py-2\">${new Date(r.waktu).toLocaleString()}</td><td class=\"px-2 py-2\">${r.item}</td><td class=\"px-2 py-2 text-center\">${r.qty}</td><td class=\"px-2 py-2 text-right\">${fmt(r.subtotal)}</td></tr>`;
+            })
+            .join("")
+        )
+        .join("");
+      const orderDetails =
+        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order ID</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th></tr></thead><tbody>` +
+        rowsHtml +
         `</tbody></table></div></div>`;
       return `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-4\">${header}</div>${summary}${orderDetails}`;
     })
@@ -427,12 +467,20 @@ function initDashboard() {
   const mSel = document.getElementById("dashMonth");
   const wSel = document.getElementById("dashWeek");
   if (mSel) {
-    mSel.innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+    mSel.innerHTML = Array.from(
+      { length: 12 },
+      (_, i) => `<option value="${i + 1}">${i + 1}</option>`
+    ).join("");
     const now = new Date();
     mSel.value = String(now.getMonth() + 1);
   }
   if (wSel) {
-    wSel.innerHTML = `<option value="">Semua</option>` + Array.from({ length: 5 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+    wSel.innerHTML =
+      `<option value="">Semua</option>` +
+      Array.from(
+        { length: 5 },
+        (_, i) => `<option value="${i + 1}">${i + 1}</option>`
+      ).join("");
     wSel.value = "";
   }
   const btn = document.getElementById("refreshDashboard");
