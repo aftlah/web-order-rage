@@ -637,17 +637,6 @@ function renderDashboard(groups) {
     })
     .join("");
 }
-function renderAllOrders(rows) {
-  const body = document.getElementById("allOrdersBody");
-  if (!body) return;
-  body.innerHTML = (rows || [])
-    .map((r) => {
-      const batchVal = r.orderanke || 0;
-      const batchLabel = batchVal ? `M${Math.floor(batchVal/10)}-W${batchVal%10}` : "-";
-      return `<tr class="table-row-hover"><td class="px-2 py-2">${r.order_no || r.order_id}</td><td class="px-2 py-2">${r.nama || ""}</td><td class="px-2 py-2">${new Date(r.waktu).toLocaleString()}</td><td class="px-2 py-2">${r.item}</td><td class="px-2 py-2 text-center">${r.qty}</td><td class="px-2 py-2 text-right">${fmt(r.subtotal)}</td><td class="px-2 py-2">${batchLabel}</td></tr>`;
-    })
-    .join("");
-}
 async function loadDashboard(force = false) {
   if (!supabase) return;
   const mSel = document.getElementById("dashMonth");
@@ -666,9 +655,16 @@ async function loadDashboard(force = false) {
       }
     }
     if (!data) {
-      showAlert("Data belum dimuat. Klik Refresh untuk mengambil data.", "info");
-      renderDashboard({});
-      return;
+      const { data: fetched, error } = await fetchOrders();
+      if (error) {
+        showAlert("Gagal memuat dashboard", "error");
+        renderDashboard({});
+        return;
+      }
+      data = fetched || [];
+      dashboardCache.orders = data;
+      dashboardCache.lastFetch = Date.now();
+      saveStoredDashboard(data);
     }
   } else {
     const { data: fetched, error } = await fetchOrders();
@@ -681,17 +677,17 @@ async function loadDashboard(force = false) {
     dashboardCache.lastFetch = Date.now();
     saveStoredDashboard(data);
   }
-  renderAllOrders(data);
   updateDashNameSuggestions();
   const month = mSel ? parseInt(mSel.value, 10) : NaN;
   const weekVal = wSel ? wSel.value : "";
   const nameVal = nameInput ? nameInput.value.trim() : "";
+  const nameIsAll = nameVal.toLowerCase() === "semua";
   const filtered = (data || []).filter((r) => {
     const m = Math.floor((r.orderanke || 0) / 10);
     const w = (r.orderanke || 0) % 10;
     if (month && m !== month) return false;
     if (weekVal && String(w) !== String(weekVal)) return false;
-    if (nameVal && String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()) return false;
+    if (nameVal && !nameIsAll && String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()) return false;
     return true;
   });
   const groups = groupOrdersByBatch(filtered);
@@ -742,7 +738,15 @@ function renderOrderWindows(rows) {
     .map((r) => {
       const val = r.orderanke || null;
       const label = val ? `M${Math.floor(val/10)}-W${val%10} (#${val})` : "-";
-      return `<tr class="table-row-hover"><td class="px-2 py-2">${label}</td><td class="px-2 py-2">${new Date(r.start_time).toLocaleString()}</td><td class="px-2 py-2">${new Date(r.end_time).toLocaleString()}</td><td class="px-2 py-2">${r.is_active ? "Aktif" : "Nonaktif"}</td></tr>`;
+      const now = Date.now();
+      const st = !r.is_active
+        ? "Nonaktif"
+        : (new Date(r.start_time).getTime() > now)
+        ? "Belum dimulai"
+        : (new Date(r.end_time).getTime() < now)
+        ? "Berakhir"
+        : "Aktif sekarang";
+      return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${label}</td><td class=\"px-2 py-2\">${new Date(r.start_time).toLocaleString()}</td><td class=\"px-2 py-2\">${new Date(r.end_time).toLocaleString()}</td><td class=\"px-2 py-2\">${st}</td></tr>`;
     })
     .join("");
 }
@@ -798,7 +802,7 @@ function initDashboard() {
   const wRefresh = document.getElementById("refreshWindows");
   if (wCreate) wCreate.addEventListener("click", createOrderWindow);
   if (wRefresh) wRefresh.addEventListener("click", loadWindows);
-  loadDashboard(false);
+  loadDashboard(true);
   loadWindows();
 }
 function showAlert(message, type = "info") {
