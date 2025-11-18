@@ -139,6 +139,7 @@ async function guardDashboard() {
 }
 
 async function init() {
+  document.documentElement.classList.add("dark");
   if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) return;
   const isOrder =
     !!document.getElementById("orderSection") ||
@@ -412,11 +413,26 @@ function setOrderControlsEnabled(enabled) {
 }
 async function updateOrderWindowUI() {
   const el = document.getElementById("orderWindowStatus");
+  const detailEl = document.getElementById("orderWindowDetail");
   const ok = await ensureOrderingOpen();
   if (el) {
     el.textContent = ok ? "Order sedang dibuka" : "Order ditutup";
     el.classList.toggle("bg-red-600", !ok);
     el.classList.toggle("bg-green-600", ok);
+  }
+  const win = await fetchActiveOrderWindow(null);
+  if (detailEl) {
+    if (win) {
+      const v = parseInt(win.orderanke, 10);
+      const m = Math.floor(v / 10);
+      const w = v % 10;
+      const open = new Date(win.start_time).toLocaleString();
+      const close = new Date(win.end_time).toLocaleString();
+      detailEl.textContent = `Buka: ${open} • Tutup: ${close} • Periode: M${m}-W${w} (#${v})`;
+    } else {
+      const c = computeOrderNo();
+      detailEl.textContent = `Tidak ada window aktif • Periode default: ${c.label} (#${c.value})`;
+    }
   }
   setOrderControlsEnabled(ok);
   setOrderNoUI();

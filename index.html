@@ -241,6 +241,12 @@
         letter-spacing: 0.5px;
         text-transform: uppercase;
       }
+      .bg-white { background-color: #1f1410 !important; }
+      .border { border-color: #3d342d !important; }
+      .border-\[\#f3e8d8\] { border-color: #3d342d !important; }
+      .border-amber-300 { border-color: #3d342d !important; }
+      .border-slate-200 { border-color: #3d342d !important; }
+      .divide-slate-100 > * + * { border-color: #3d342d !important; }
     </style>
   </head>
   <body class="transition-colors duration-300">
@@ -281,7 +287,8 @@
           <span class="section-divider w-1 h-6 rounded-full"></span>
           Order Form
         </h2>
-        <div id="orderWindowStatus" class="mb-4 px-4 py-2 rounded-lg text-white bg-green-600">Order sedang dibuka</div>
+        <div id="orderWindowStatus" class="mb-2 px-4 py-2 rounded-lg text-white bg-green-600">Order sedang dibuka</div>
+        <p id="orderWindowDetail" class="mb-4 text-xs text-slate-600 dark:text-yellow-300/80">Menunggu informasi jendela order…</p>
         <div class="space-y-6">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="flex flex-col gap-2">
