@@ -387,18 +387,18 @@ function renderDashboard(groups) {
       const week = parseInt(k, 10) % 10;
       const header = `<div class="mb-4"><h3 class="text-lg font-bold">Batch M${month}-W${week}</h3><p class="text-sm">Orders: ${g.count} • Total: ${fmt(g.total)}</p></div>`;
       const summaryData = summarizeItems(g.items);
-      const summary = `<div class=\"mb-4\"><h4 class=\"font-semibold mb-2\">Total Qty per Item</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-right px-2 py-2\">Total Qty</th></tr></thead><tbody>` +
+      const summary = `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Qty per Item</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-right px-2 py-2\">Total Qty</th></tr></thead><tbody>` +
         summaryData.map((s) => `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${s.item}</td><td class=\"px-2 py-2 text-right\">${s.qty}</td></tr>`).join("") +
         `</tbody></table></div></div>`;
-      const table = `<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr><th class="text-left px-2 py-2">Order ID</th><th class="text-left px-2 py-2">Nama</th><th class="text-left px-2 py-2">Waktu</th><th class="text-left px-2 py-2">Item</th><th class="text-center px-2 py-2">Qty</th><th class="text-right px-2 py-2">Subtotal</th></tr></thead><tbody>` +
+      const orderDetails = `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order ID</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th></tr></thead><tbody>` +
         g.items
           .map(
             (r) =>
-              `<tr class="table-row-hover"><td class="px-2 py-2">${r.order_id}</td><td class="px-2 py-2">${r.nama}</td><td class="px-2 py-2">${new Date(r.waktu).toLocaleString()}</td><td class="px-2 py-2">${r.item}</td><td class="px-2 py-2 text-center">${r.qty}</td><td class="px-2 py-2 text-right">${fmt(r.subtotal)}</td></tr>`
+              `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${r.order_id}</td><td class=\"px-2 py-2\">${r.nama}</td><td class=\"px-2 py-2\">${new Date(r.waktu).toLocaleString()}</td><td class=\"px-2 py-2\">${r.item}</td><td class=\"px-2 py-2 text-center\">${r.qty}</td><td class=\"px-2 py-2 text-right\">${fmt(r.subtotal)}</td></tr>`
           )
           .join("") +
-        `</tbody></table></div>`;
-      return `<div class="rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6">${header}${summary}${table}</div>`;
+        `</tbody></table></div></div>`;
+      return `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-4\">${header}</div>${summary}${orderDetails}`;
     })
     .join("");
 }
