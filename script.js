@@ -47,6 +47,24 @@ const CATALOG = {
 };
 
 const state = { cart: [] };
+const dashboardCache = { orders: null, lastFetch: 0 };
+const DASH_CACHE_KEY = "dashboardOrdersCacheV1";
+function loadStoredDashboard() {
+  try {
+    const raw = localStorage.getItem(DASH_CACHE_KEY);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || !Array.isArray(obj.data)) return null;
+    return obj;
+  } catch (e) {
+    return null;
+  }
+}
+function saveStoredDashboard(data) {
+  try {
+    localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+  } catch (e) {}
+}
 
 function fmt(n) {
   return new Intl.NumberFormat("en-US", {
@@ -464,22 +482,48 @@ function renderDashboard(groups) {
     })
     .join("");
 }
-async function loadDashboard() {
+async function loadDashboard(force = false) {
   if (!supabase) return;
   const mSel = document.getElementById("dashMonth");
   const wSel = document.getElementById("dashWeek");
-  const { data, error } = await fetchOrders();
-  if (error) {
-    showAlert("Gagal memuat dashboard", "error");
-    return;
+  const nSel = document.getElementById("dashName");
+  let data = null;
+  if (!force) {
+    if (dashboardCache.orders) {
+      data = dashboardCache.orders;
+    } else {
+      const stored = loadStoredDashboard();
+      if (stored) {
+        data = stored.data;
+        dashboardCache.orders = data;
+        dashboardCache.lastFetch = stored.ts;
+      }
+    }
+    if (!data) {
+      showAlert("Data belum dimuat. Klik Refresh untuk mengambil data.", "info");
+      renderDashboard({});
+      return;
+    }
+  } else {
+    const { data: fetched, error } = await fetchOrders();
+    if (error) {
+      showAlert("Gagal memuat dashboard", "error");
+      return;
+    }
+    data = fetched || [];
+    dashboardCache.orders = data;
+    dashboardCache.lastFetch = Date.now();
+    saveStoredDashboard(data);
   }
   const month = mSel ? parseInt(mSel.value, 10) : NaN;
   const weekVal = wSel ? wSel.value : "";
+  const nameVal = nSel ? nSel.value.trim() : "";
   const filtered = (data || []).filter((r) => {
     const m = Math.floor((r.orderanke || 0) / 10);
     const w = (r.orderanke || 0) % 10;
     if (month && m !== month) return false;
     if (weekVal && String(w) !== String(weekVal)) return false;
+    if (nameVal && String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()) return false;
     return true;
   });
   const groups = groupOrdersByBatch(filtered);
@@ -506,10 +550,12 @@ function initDashboard() {
     wSel.value = "";
   }
   const btn = document.getElementById("refreshDashboard");
-  if (btn) btn.addEventListener("click", loadDashboard);
-  if (mSel) mSel.addEventListener("change", loadDashboard);
-  if (wSel) wSel.addEventListener("change", loadDashboard);
-  loadDashboard();
+  if (btn) btn.addEventListener("click", () => loadDashboard(true));
+  if (mSel) mSel.addEventListener("change", () => loadDashboard(false));
+  if (wSel) wSel.addEventListener("change", () => loadDashboard(false));
+  const nSel = document.getElementById("dashName");
+  if (nSel) nSel.addEventListener("change", () => loadDashboard(false));
+  loadDashboard(false);
 }
 function showAlert(message, type = "info") {
   const box = document.getElementById("appAlertBox");
