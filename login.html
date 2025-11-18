@@ -147,11 +147,18 @@
       }
 
       async function checkSession() {
-        if (!supabase) return;
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        if (session) location.href = "dashboard.html";
+        try {
+          var keys = Object.keys(localStorage || {});
+          var key = keys.find(function(k){return k.startsWith('sb-') && k.endsWith('-auth-token');});
+          var raw = key ? localStorage.getItem(key) : null;
+          if (!raw) return;
+          var obj = JSON.parse(raw);
+          var expSec = 0;
+          if (typeof obj.expires_at === 'number') expSec = obj.expires_at;
+          else if (obj.currentSession && typeof obj.currentSession.expires_at === 'number') expSec = obj.currentSession.expires_at;
+          var hasToken = !!(obj.access_token || (obj.currentSession && obj.currentSession.access_token));
+          if (hasToken && (expSec*1000) > Date.now()) location.href = 'dashboard.html';
+        } catch (e) {}
       }
 
       async function handleLogin(e) {

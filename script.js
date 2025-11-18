@@ -792,7 +792,11 @@ function initDashboard() {
   if (wSel) wSel.addEventListener("change", () => loadDashboard(false));
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) logoutBtn.addEventListener("click", async () => {
-    await supabase.auth.signOut();
+    try { await supabase.auth.signOut(); } catch (e) {}
+    try {
+      const keys = Object.keys(localStorage || {});
+      keys.forEach((k) => { if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k); });
+    } catch (e) {}
     location.href = "login.html";
   });
   setupDashNameSearch();
