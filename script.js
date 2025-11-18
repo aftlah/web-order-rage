@@ -89,13 +89,17 @@ function init() {
   if (isDashboard) {
     initDashboard();
   }
-  const navOrder = document.getElementById("navOrder");
-  const navDashboard = document.getElementById("navDashboard");
-  if (navOrder) navOrder.addEventListener("click", () => showSection("order"));
-  if (navDashboard)
-    navDashboard.addEventListener("click", () => showSection("dashboard"));
-  if (isOrder) showSection("order");
-  else if (isDashboard) showSection("dashboard");
+  const nav = document.getElementById("mainNav");
+  if (nav) {
+    const links = Array.from(nav.querySelectorAll("a"));
+    const path = (location.pathname || "").toLowerCase();
+    const isIndex = path.endsWith("/index.html") || path === "/" || path === "";
+    links.forEach((a) => {
+      const href = a.getAttribute("href") || "";
+      const active = isIndex ? href.endsWith("index.html") : href.endsWith("dashboard.html");
+      a.classList.toggle("btn-success", active);
+    });
+  }
 }
 
 function populateItems() {
@@ -180,6 +184,20 @@ async function submitOrder() {
     showAlert("Koneksi Supabase belum dikonfigurasi", "error");
     return;
   }
+  const submitBtn = document.getElementById("submitBtn");
+  const originalBtnHtml = submitBtn ? submitBtn.innerHTML : "";
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.classList.add("opacity-60", "cursor-not-allowed");
+    submitBtn.innerHTML = `<span class=\"inline-flex items-center gap-2\"><svg class=\"animate-spin h-4 w-4\" viewBox=\"0 0 24 24\" fill=\"none\"><circle class=\"opacity-25\" cx=\"12\" cy=\"12\" r=\"10\" stroke=\"currentColor\" stroke-width=\"4\"></circle><path class=\"opacity-75\" fill=\"currentColor\" d=\"M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z\"></path></svg> Saving...</span>`;
+  }
+  const endLoading = () => {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove("opacity-60", "cursor-not-allowed");
+      submitBtn.innerHTML = originalBtnHtml;
+    }
+  };
   const memberIdFromHidden = parseInt(
     (document.getElementById("memberId") || {}).value || "",
     10
@@ -190,6 +208,7 @@ async function submitOrder() {
       : await getMemberIdByName(nama);
   if (!member_id) {
     showAlert("Nama tidak ditemukan di database", "error");
+    endLoading();
     return;
   }
   const orderId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -204,15 +223,18 @@ async function submitOrder() {
         `Gagal menyimpan: ${error.message || "unknown"}${hint}`,
         "error"
       );
+      endLoading();
       return;
     }
     //   statusEl.textContent = "Berhasil disimpan";
     showAlert("Berhasil disimpan", "success");
     state.cart = [];
     renderCart();
+    endLoading();
   } catch (e) {
     // statusEl.textContent = "Gagal menyimpan (network error)";
     showAlert("Gagal menyimpan (network error)", "error");
+    endLoading();
   }
 }
 
