@@ -65,6 +65,59 @@ function saveStoredDashboard(data) {
     localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
   } catch (e) {}
 }
+function getDistinctNamesFromData(data) {
+  const set = new Set();
+  (data || []).forEach((r) => {
+    const n = (r.nama || "").trim();
+    if (n) set.add(n);
+  });
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+function updateDashNameSuggestions() {
+  const dd = document.getElementById("dashNameDropdown");
+  if (!dd) return;
+  const data = dashboardCache.orders || (loadStoredDashboard() || {}).data || [];
+  const names = getDistinctNamesFromData(data);
+  dd.dataset.list = JSON.stringify(names);
+}
+function setupDashNameSearch() {
+  const input = document.getElementById("dashNameInput");
+  const dd = document.getElementById("dashNameDropdown");
+  if (!input || !dd) return;
+  let active = -1;
+  const render = (term) => {
+    let names = [];
+    try {
+      names = JSON.parse(dd.dataset.list || "[]");
+    } catch (e) {}
+    const q = (term || "").toLowerCase();
+    const items = names.filter((n) => n.toLowerCase().includes(q)).slice(0, 100);
+    dd.innerHTML = `<div class=\"px-3 py-2 cursor-pointer\" data-name=\"\">Semua</div>` + items.map((n, i) => `<div class=\"px-3 py-2 cursor-pointer ${i===active?"bg-yellow-900/30":""}\" data-name=\"${n}\">${n}</div>`).join("");
+    dd.classList.toggle("hidden", items.length === 0 && !q);
+    dd.querySelectorAll("[data-name]").forEach((el) => el.addEventListener("mousedown", (e) => {
+      const v = e.currentTarget.getAttribute("data-name") || "";
+      input.value = v;
+      dd.classList.add("hidden");
+      loadDashboard(false);
+    }));
+  };
+  input.addEventListener("input", (e) => render(e.target.value.trim()));
+  input.addEventListener("focus", () => render(""));
+  input.addEventListener("keydown", (e) => {
+    const items = Array.from(dd.querySelectorAll("[data-name]"));
+    if (!items.length) return;
+    if (e.key === "ArrowDown") { active = Math.min(items.length - 1, active + 1); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { active = Math.max(0, active - 1); e.preventDefault(); }
+    else if (e.key === "Enter" && active >= 0) {
+      const v = items[active].getAttribute("data-name") || "";
+      input.value = v;
+      dd.classList.add("hidden");
+      loadDashboard(false);
+    } else if (e.key === "Escape") { dd.classList.add("hidden"); }
+    items.forEach((el, i) => el.classList.toggle("bg-yellow-900/30", i === active));
+  });
+  input.addEventListener("blur", () => setTimeout(() => dd.classList.add("hidden"), 150));
+}
 
 function fmt(n) {
   return new Intl.NumberFormat("en-US", {
@@ -486,7 +539,7 @@ async function loadDashboard(force = false) {
   if (!supabase) return;
   const mSel = document.getElementById("dashMonth");
   const wSel = document.getElementById("dashWeek");
-  const nSel = document.getElementById("dashName");
+  const nameInput = document.getElementById("dashNameInput");
   let data = null;
   if (!force) {
     if (dashboardCache.orders) {
@@ -515,9 +568,10 @@ async function loadDashboard(force = false) {
     dashboardCache.lastFetch = Date.now();
     saveStoredDashboard(data);
   }
+  updateDashNameSuggestions();
   const month = mSel ? parseInt(mSel.value, 10) : NaN;
   const weekVal = wSel ? wSel.value : "";
-  const nameVal = nSel ? nSel.value.trim() : "";
+  const nameVal = nameInput ? nameInput.value.trim() : "";
   const filtered = (data || []).filter((r) => {
     const m = Math.floor((r.orderanke || 0) / 10);
     const w = (r.orderanke || 0) % 10;
@@ -553,8 +607,8 @@ function initDashboard() {
   if (btn) btn.addEventListener("click", () => loadDashboard(true));
   if (mSel) mSel.addEventListener("change", () => loadDashboard(false));
   if (wSel) wSel.addEventListener("change", () => loadDashboard(false));
-  const nSel = document.getElementById("dashName");
-  if (nSel) nSel.addEventListener("change", () => loadDashboard(false));
+  setupDashNameSearch();
+  updateDashNameSuggestions();
   loadDashboard(false);
 }
 function showAlert(message, type = "info") {
