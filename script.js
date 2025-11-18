@@ -125,8 +125,20 @@ function fmt(n) {
     currency: "USD",
   }).format(n);
 }
+async function getSession() {
+  const { data } = await supabase.auth.getSession();
+  return data ? data.session : null;
+}
+async function guardDashboard() {
+  const s = await getSession();
+  if (!s) {
+    location.href = "login.html";
+    return false;
+  }
+  return true;
+}
 
-function init() {
+async function init() {
   if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) return;
   const isOrder =
     !!document.getElementById("orderSection") ||
@@ -136,6 +148,10 @@ function init() {
     !!document.getElementById("dashboardSection") ||
     !!document.getElementById("dashboardBody") ||
     !!document.getElementById("dashMonth");
+  if (isDashboard) {
+    const ok = await guardDashboard();
+    if (!ok) return;
+  }
   if (isOrder) {
     const kategoriEl = document.getElementById("kategori");
     const itemEl = document.getElementById("item");
@@ -156,6 +172,9 @@ function init() {
     setupCustomerSearch();
     seedCustomers();
     setOrderNoUI();
+    updateOrderWindowUI();
+    updateNameValidity();
+    setInterval(updateOrderWindowUI, 60000);
   }
   if (isDashboard) {
     initDashboard();
@@ -186,7 +205,11 @@ function populateItems() {
   });
 }
 
-function addToCart() {
+async function addToCart() {
+  const ok = await ensureOrderingOpen();
+  if (!ok) { showAlert("Order belum dibuka atau sudah ditutup", "error"); return; }
+  const hiddenId = parseInt((document.getElementById("memberId") || {}).value || "", 10);
+  if (Number.isNaN(hiddenId) || !hiddenId) { showAlert("Pilih nama dari database", "error"); return; }
   const nama = document.getElementById("nama").value.trim();
   const kategori = document.getElementById("kategori").value;
   const itemName = document.getElementById("item").value;
@@ -238,7 +261,10 @@ function renderCart() {
 async function submitOrder() {
   const statusEl = document.getElementById("status");
   const nama = document.getElementById("nama").value.trim();
-  const { value: computedOrderNo } = computeOrderNo();
+  const hiddenEl = document.getElementById("orderankeHidden");
+  const hiddenVal = parseInt((hiddenEl && hiddenEl.value) || "", 10);
+  const { value: fallbackOrderNo } = computeOrderNo();
+  const effectiveOrderanke = !Number.isNaN(hiddenVal) && hiddenVal ? hiddenVal : fallbackOrderNo;
   if (!nama) {
     showAlert("Nama pemesan wajib diisi", "error");
     return;
@@ -273,17 +299,20 @@ async function submitOrder() {
     (document.getElementById("memberId") || {}).value || "",
     10
   );
-  let member_id =
-    !Number.isNaN(memberIdFromHidden) && memberIdFromHidden
-      ? memberIdFromHidden
-      : await getMemberIdByName(nama);
-  if (!member_id) {
-    showAlert("Nama tidak ditemukan di database", "error");
+  if (Number.isNaN(memberIdFromHidden) || !memberIdFromHidden) {
+    showAlert("Pilih nama dari database", "error");
+    endLoading();
+    return;
+  }
+  const member_id = memberIdFromHidden;
+  const open = await ensureOrderingOpen();
+  if (!open) {
+    showAlert("Order belum dibuka atau sudah ditutup", "error");
     endLoading();
     return;
   }
   const orderId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const rows = buildOrderRows(orderId, member_id, nama, computedOrderNo);
+  const rows = buildOrderRows(orderId, member_id, nama, effectiveOrderanke);
   try {
     const { error } = await insertOrders(rows);
     if (error) {
@@ -326,12 +355,71 @@ function computeOrderNo(d = new Date()) {
   const label = `M${month}-W${week}`;
   return { month, week, value, label };
 }
-function setOrderNoUI() {
-  const { value, label } = computeOrderNo();
+
+async function setOrderNoUI() {
   const display = document.getElementById("orderNo");
   const hidden = document.getElementById("orderankeHidden");
+  let value, label;
+  const win = supabase ? await fetchActiveOrderWindow(null) : null;
+  if (win && win.orderanke) {
+    const v = parseInt(win.orderanke, 10);
+    const m = Math.floor(v / 10);
+    const w = v % 10;
+    value = v;
+    label = `M${m}-W${w}`;
+  } else {
+    const c = computeOrderNo();
+    value = c.value;
+    label = c.label;
+  }
   if (display) display.value = `${label} (#${value})`;
   if (hidden) hidden.value = String(value);
+}
+
+function getNowIso() {
+  return new Date().toISOString();
+}
+
+async function fetchActiveOrderWindow(orderanke) {
+  const now = getNowIso();
+  let q = supabase
+    .from("order_windows")
+    .select("id,orderanke,start_time,end_time,is_active")
+    .eq("is_active", true)
+    .lte("start_time", now)
+    .gte("end_time", now)
+    .limit(1);
+  if (orderanke) q = q.eq("orderanke", orderanke);
+  const { data, error } = await q;
+  if (error) return null;
+  return (data || [])[0] || null;
+}
+
+async function ensureOrderingOpen() {
+  const win = await fetchActiveOrderWindow(null);
+  return !!win;
+}
+function setOrderControlsEnabled(enabled) {
+  const ids = ["nama", "kategori", "item", "qty", "addBtn", "submitBtn", "resetBtn"];
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const isControl = ["INPUT", "SELECT", "BUTTON"].includes(el.tagName);
+    if (isControl) el.disabled = !enabled;
+    el.classList.toggle("opacity-60", !enabled);
+    el.classList.toggle("cursor-not-allowed", !enabled);
+  });
+}
+async function updateOrderWindowUI() {
+  const el = document.getElementById("orderWindowStatus");
+  const ok = await ensureOrderingOpen();
+  if (el) {
+    el.textContent = ok ? "Order sedang dibuka" : "Order ditutup";
+    el.classList.toggle("bg-red-600", !ok);
+    el.classList.toggle("bg-green-600", ok);
+  }
+  setOrderControlsEnabled(ok);
+  setOrderNoUI();
 }
 function showSection(name) {
   const order = document.getElementById("orderSection");
@@ -374,7 +462,7 @@ async function insertOrders(rows) {
 async function fetchOrders(limit = 500) {
   return await supabase
     .from("orders")
-    .select("order_id,nama,orderanke,waktu,kategori,item,harga,qty,subtotal")
+    .select("order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal")
     .order("waktu", { ascending: false })
     .limit(limit);
 }
@@ -399,6 +487,7 @@ function setupCustomerSearch() {
         input.value = e.currentTarget.getAttribute("data-name");
         hidden.value = e.currentTarget.getAttribute("data-id");
         dd.classList.add("hidden");
+        updateNameValidity();
       })
     );
   };
@@ -423,8 +512,9 @@ function setupCustomerSearch() {
     active = -1;
     render(data || []);
   }, 200);
-  input.addEventListener("input", (e) => run(e.target.value.trim()));
+  input.addEventListener("input", (e) => { hidden.value = ""; updateNameValidity(); run(e.target.value.trim()); });
   input.addEventListener("focus", () => run(""));
+  input.addEventListener("click", () => run(input.value.trim()));
   input.addEventListener("keydown", (e) => {
     const items = Array.from(dd.querySelectorAll("[data-id]"));
     if (!items.length) return;
@@ -438,6 +528,7 @@ function setupCustomerSearch() {
       input.value = items[active].getAttribute("data-name");
       hidden.value = items[active].getAttribute("data-id");
       dd.classList.add("hidden");
+      updateNameValidity();
     } else if (e.key === "Escape") {
       dd.classList.add("hidden");
     }
@@ -448,6 +539,17 @@ function setupCustomerSearch() {
   input.addEventListener("blur", () =>
     setTimeout(() => dd.classList.add("hidden"), 150)
   );
+}
+function updateNameValidity() {
+  const hidden = document.getElementById("memberId");
+  const status = document.getElementById("namaStatus");
+  const v = hidden ? parseInt(hidden.value || "", 10) : NaN;
+  const ok = !Number.isNaN(v) && !!v;
+  if (status) {
+    status.textContent = ok ? "Nama valid" : "Pilih nama dari database";
+    status.classList.toggle("text-green-500", ok);
+    status.classList.toggle("text-red-500", !ok);
+  }
 }
 async function seedCustomers() {
   if (!supabase || !window.SEED_CUSTOMERS) return;
@@ -522,16 +624,27 @@ function renderDashboard(groups) {
           byName[name]
             .map((r, idx) => {
               const nameCell = idx === 0 ? `<td class="px-2 py-2 align-top" rowspan="${byName[name].length}">${name}</td>` : "";
-              return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${r.order_id}</td>${nameCell}<td class=\"px-2 py-2\">${new Date(r.waktu).toLocaleString()}</td><td class=\"px-2 py-2\">${r.item}</td><td class=\"px-2 py-2 text-center\">${r.qty}</td><td class=\"px-2 py-2 text-right\">${fmt(r.subtotal)}</td></tr>`;
+              return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${r.order_no || r.order_id}</td>${nameCell}<td class=\"px-2 py-2\">${new Date(r.waktu).toLocaleString()}</td><td class=\"px-2 py-2\">${r.item}</td><td class=\"px-2 py-2 text-center\">${r.qty}</td><td class=\"px-2 py-2 text-right\">${fmt(r.subtotal)}</td></tr>`;
             })
             .join("")
         )
         .join("");
       const orderDetails =
-        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order ID</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th></tr></thead><tbody>` +
+        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order No.</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th></tr></thead><tbody>` +
         rowsHtml +
         `</tbody></table></div></div>`;
       return `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-4\">${header}</div>${summary}${orderDetails}`;
+    })
+    .join("");
+}
+function renderAllOrders(rows) {
+  const body = document.getElementById("allOrdersBody");
+  if (!body) return;
+  body.innerHTML = (rows || [])
+    .map((r) => {
+      const batchVal = r.orderanke || 0;
+      const batchLabel = batchVal ? `M${Math.floor(batchVal/10)}-W${batchVal%10}` : "-";
+      return `<tr class="table-row-hover"><td class="px-2 py-2">${r.order_no || r.order_id}</td><td class="px-2 py-2">${r.nama || ""}</td><td class="px-2 py-2">${new Date(r.waktu).toLocaleString()}</td><td class="px-2 py-2">${r.item}</td><td class="px-2 py-2 text-center">${r.qty}</td><td class="px-2 py-2 text-right">${fmt(r.subtotal)}</td><td class="px-2 py-2">${batchLabel}</td></tr>`;
     })
     .join("");
 }
@@ -568,6 +681,7 @@ async function loadDashboard(force = false) {
     dashboardCache.lastFetch = Date.now();
     saveStoredDashboard(data);
   }
+  renderAllOrders(data);
   updateDashNameSuggestions();
   const month = mSel ? parseInt(mSel.value, 10) : NaN;
   const weekVal = wSel ? wSel.value : "";
@@ -582,6 +696,55 @@ async function loadDashboard(force = false) {
   });
   const groups = groupOrdersByBatch(filtered);
   renderDashboard(groups);
+}
+function loadWindows() {
+  fetchOrderWindows().then(({ data, error }) => {
+    if (error) {
+      showAlert("Gagal memuat jadwal", "error");
+      return;
+    }
+    renderOrderWindows(data || []);
+  });
+}
+async function fetchOrderWindows() {
+  return await supabase
+    .from("order_windows")
+    .select("id,orderanke,start_time,end_time,is_active")
+    .order("start_time", { ascending: false });
+}
+async function createOrderWindow() {
+  const s = document.getElementById("winStart");
+  const e = document.getElementById("winEnd");
+  const wm = document.getElementById("winMonth");
+  const ww = document.getElementById("winWeek");
+  if (!s || !e) return;
+  const m = wm ? parseInt(wm.value, 10) : NaN;
+  const w = ww ? parseInt(ww.value, 10) : NaN;
+  const orderanke = !Number.isNaN(m) && !Number.isNaN(w) && m && w ? m * 10 + w : null;
+  const row = {
+    start_time: new Date(s.value).toISOString(),
+    end_time: new Date(e.value).toISOString(),
+    orderanke,
+    is_active: true,
+  };
+  const { error } = await supabase.from("order_windows").insert([row]);
+  if (error) {
+    showAlert("Gagal membuat jadwal", "error");
+    return;
+  }
+  showAlert("Jadwal dibuat", "success");
+  loadWindows();
+}
+function renderOrderWindows(rows) {
+  const body = document.getElementById("windowsTableBody");
+  if (!body) return;
+  body.innerHTML = (rows || [])
+    .map((r) => {
+      const val = r.orderanke || null;
+      const label = val ? `M${Math.floor(val/10)}-W${val%10} (#${val})` : "-";
+      return `<tr class="table-row-hover"><td class="px-2 py-2">${label}</td><td class="px-2 py-2">${new Date(r.start_time).toLocaleString()}</td><td class="px-2 py-2">${new Date(r.end_time).toLocaleString()}</td><td class="px-2 py-2">${r.is_active ? "Aktif" : "Nonaktif"}</td></tr>`;
+    })
+    .join("");
 }
 function initDashboard() {
   const mSel = document.getElementById("dashMonth");
@@ -607,9 +770,36 @@ function initDashboard() {
   if (btn) btn.addEventListener("click", () => loadDashboard(true));
   if (mSel) mSel.addEventListener("change", () => loadDashboard(false));
   if (wSel) wSel.addEventListener("change", () => loadDashboard(false));
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) logoutBtn.addEventListener("click", async () => {
+    await supabase.auth.signOut();
+    location.href = "login.html";
+  });
   setupDashNameSearch();
   updateDashNameSuggestions();
+  const wm = document.getElementById("winMonth");
+  const ww = document.getElementById("winWeek");
+  const wl = document.getElementById("winOrderNoLabel");
+  const updateWinLabel = () => {
+    if (!wm || !ww || !wl) return;
+    const m = parseInt(wm.value, 10) || 0;
+    const w = parseInt(ww.value, 10) || 0;
+    wl.value = m && w ? `M${m}-W${w} (#${m*10+w})` : "";
+  };
+  if (wm && ww) {
+    const now = new Date();
+    wm.value = String(now.getMonth() + 1);
+    ww.value = "";
+    updateWinLabel();
+    wm.addEventListener("change", updateWinLabel);
+    ww.addEventListener("change", updateWinLabel);
+  }
+  const wCreate = document.getElementById("winCreateBtn");
+  const wRefresh = document.getElementById("refreshWindows");
+  if (wCreate) wCreate.addEventListener("click", createOrderWindow);
+  if (wRefresh) wRefresh.addEventListener("click", loadWindows);
   loadDashboard(false);
+  loadWindows();
 }
 function showAlert(message, type = "info") {
   const box = document.getElementById("appAlertBox");

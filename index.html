@@ -281,7 +281,7 @@
           <span class="section-divider w-1 h-6 rounded-full"></span>
           Order Form
         </h2>
-
+        <div id="orderWindowStatus" class="mb-4 px-4 py-2 rounded-lg text-white bg-green-600">Order sedang dibuka</div>
         <div class="space-y-6">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="flex flex-col gap-2">
@@ -305,6 +305,7 @@
                   class="absolute left-0 right-0 mt-1 bg-[#1f1410] border border-[#3d342d] rounded-lg shadow max-h-60 overflow-auto hidden z-50"
                 ></div>
               </div>
+              <p id="namaStatus" class="mt-1 text-xs text-red-500"></p>
             </div>
             <div class="flex flex-col gap-2">
               <label

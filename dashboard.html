@@ -174,6 +174,7 @@
                 >Dashboard</a
               >
             </nav>
+            <button id="logoutBtn" class="px-3 py-2 rounded-lg bg-gradient-to-r from-red-600 to-orange-600 text-white">Logout</button>
             <div class="text-right hidden sm:block">
               <p
                 class="text-sm font-medium text-slate-700 dark:text-yellow-300"
@@ -221,6 +222,78 @@
         </div>
 
         <div id="dashboardBody"></div>
+      </div>
+
+      <div class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mt-8">
+        <h2 class="section-title text-xl font-bold mb-6 flex items-center gap-3">
+          <span class="section-divider w-1 h-6 rounded-full"></span>
+          Order Window
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end mb-6">
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-semibold text-slate-700 dark:text-yellow-200">Start</label>
+            <input id="winStart" type="datetime-local" class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]" />
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-semibold text-slate-700 dark:text-yellow-200">End</label>
+            <input id="winEnd" type="datetime-local" class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]" />
+          </div>
+          <div class="flex flex-col gap-2">
+            <label class="text-sm font-semibold text-slate-700 dark:text-yellow-200">Order No.</label>
+            <div class="grid grid-cols-3 gap-3">
+              <select id="winMonth" class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]">
+                <option value="">Bulan</option>
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+              </select>
+              <select id="winWeek" class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]">
+                <option value="">Minggu</option>
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+              </select>
+              <input id="winOrderNoLabel" type="text" readonly class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]" />
+            </div>
+            <input id="winOrderanke" type="hidden" />
+          </div>
+          <div class="flex gap-3">
+            <button id="winCreateBtn" class="px-6 py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow">Create</button>
+            <button id="refreshWindows" class="px-6 py-3 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200">Refresh</button>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr>
+                <th class="text-left px-2 py-2">Order No.</th>
+                <th class="text-left px-2 py-2">Start</th>
+                <th class="text-left px-2 py-2">End</th>
+                <th class="text-left px-2 py-2">Status</th>
+              </tr>
+            </thead>
+            <tbody id="windowsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mt-8">
+        <h2 class="section-title text-xl font-bold mb-6 flex items-center gap-3">
+          <span class="section-divider w-1 h-6 rounded-full"></span>
+          All Orders
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr>
+                <th class="text-left px-2 py-2">Order No.</th>
+                <th class="text-left px-2 py-2">Nama</th>
+                <th class="text-left px-2 py-2">Waktu</th>
+                <th class="text-left px-2 py-2">Item</th>
+                <th class="text-center px-2 py-2">Qty</th>
+                <th class="text-right px-2 py-2">Subtotal</th>
+                <th class="text-left px-2 py-2">Batch</th>
+              </tr>
+            </thead>
+            <tbody id="allOrdersBody"></tbody>
+          </table>
+        </div>
       </div>
     </main>
 
