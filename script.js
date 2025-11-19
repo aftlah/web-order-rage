@@ -611,14 +611,30 @@ function renderDashboard(groups) {
   const keys = Object.keys(groups).sort(
     (a, b) => parseInt(b, 10) - parseInt(a, 10)
   );
-  container.innerHTML = keys
+  const totalsByUser = {};
+  keys.forEach((k) => {
+    const g = groups[k];
+    (g.items || []).forEach((r) => {
+      const name = r.nama || "Unknown";
+      (totalsByUser[name] ||= { count: 0, total: 0 });
+      totalsByUser[name].count += 1;
+      totalsByUser[name].total += r.subtotal || 0;
+    });
+  });
+  const userKeys = Object.keys(totalsByUser).sort(
+    (a, b) => totalsByUser[b].total - totalsByUser[a].total || a.localeCompare(b)
+  );
+  const totalsHtml = `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Orders per User</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-center px-2 py-2\">Orders</th><th class=\"text-right px-2 py-2\">Total</th></tr></thead><tbody>` +
+    userKeys
+      .map((n) => `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${n}</td><td class=\"px-2 py-2 text-center\">${totalsByUser[n].count}</td><td class=\"px-2 py-2 text-right\">${fmt(totalsByUser[n].total)}</td></tr>`)
+      .join("") +
+    `</tbody></table></div></div>`;
+  const batchesHtml = keys
     .map((k) => {
       const g = groups[k];
       const month = Math.floor(parseInt(k, 10) / 10);
       const week = parseInt(k, 10) % 10;
-      const header = `<div class="mb-4"><h3 class="text-lg font-bold">Batch M${month}-W${week}</h3><p class="text-sm">Orders: ${
-        g.count
-      } • Total: ${fmt(g.total)}</p></div>`;
+      const header = `<div class=\"mb-4\"><h3 class=\"text-lg font-bold\">Batch M${month}-W${week}</h3><p class=\"text-sm\">Orders: ${g.count} • Total: ${fmt(g.total)}</p></div>`;
       const summaryData = summarizeItems(g.items);
       const summary =
         `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Qty per Item</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-right px-2 py-2\">Total Qty</th></tr></thead><tbody>` +
@@ -639,7 +655,7 @@ function renderDashboard(groups) {
         .map((name) =>
           byName[name]
             .map((r, idx) => {
-              const nameCell = idx === 0 ? `<td class="px-2 py-2 align-top" rowspan="${byName[name].length}">${name}</td>` : "";
+              const nameCell = idx === 0 ? `<td class=\"px-2 py-2 align-top\" rowspan=\"${byName[name].length}\">${name}</td>` : "";
               return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${r.order_no || r.order_id}</td>${nameCell}<td class=\"px-2 py-2\">${new Date(r.waktu).toLocaleString()}</td><td class=\"px-2 py-2\">${r.item}</td><td class=\"px-2 py-2 text-center\">${r.qty}</td><td class=\"px-2 py-2 text-right\">${fmt(r.subtotal)}</td></tr>`;
             })
             .join("")
@@ -652,6 +668,7 @@ function renderDashboard(groups) {
       return `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-4\">${header}</div>${summary}${orderDetails}`;
     })
     .join("");
+  container.innerHTML = totalsHtml + batchesHtml;
 }
 async function loadDashboard(force = false) {
   if (!supabase) return;
