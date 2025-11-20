@@ -394,7 +394,6 @@ async function submitOrder() {
         .limit(100);
       if (qError) throw qError;
       const items = fetched || [];
-      console.log("Discord history items:", items);
       const orderIds = Array.from(new Set(items.map((r) => r.order_id))).filter(
         Boolean
       );
@@ -426,14 +425,14 @@ async function submitOrder() {
         `Detail Orderan :\n` +
         details;
 
-      console.log("Discord message:", msg);
+      // console.log("Discord message:", msg);
       await postToDiscord(msg);
     } catch (e) {
-      console.error("Discord post error", e);
+      // console.error("Discord post error", e);
     }
     endLoading();
   } catch (e) {
-    console.error("Error in submitOrder:", e);
+    // console.error("Error in submitOrder:", e);
     // statusEl.textContent = "Gagal menyimpan (network error)";
     showAlert("Gagal menyimpan (network error)", "error");
     endLoading();
