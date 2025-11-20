@@ -548,7 +548,7 @@ async function updateOrderWindowUI() {
     } else {
       const c = computeOrderNo();
       // detailEl.textContent = `Tidak ada jadwal aktif • Periode default: ${c.label} (#${c.value})`;
-      detailEl.textContent = `Tidak ada Periode Orderan Aktif`;
+      detailEl.textContent = `Tidak ada Periode Order Aktif`;
     }
   }
   setOrderControlsEnabled(ok);
