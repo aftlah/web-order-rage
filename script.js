@@ -60,6 +60,18 @@ function loadStoredDashboard() {
     return null;
   }
 }
+
+async function postToDiscord(message) {
+  try {
+    const url = (window && window.DISCORD_WEBHOOK_URL) || "";
+    if (!url) return;
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: message }),
+    });
+  } catch (e) {}
+}
 function saveStoredDashboard(data) {
   try {
     localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
@@ -331,6 +343,17 @@ async function submitOrder() {
     showAlert("Berhasil disimpan", "success");
     state.cart = [];
     renderCart();
+    try {
+      const { data } = await fetchMemberBatchOrders(member_id, effectiveOrderanke);
+      const items = data || [];
+      const orderIds = Array.from(new Set(items.map((r) => r.order_id))).filter(Boolean);
+      const count = orderIds.length;
+      const total = items.reduce((a, r) => a + (r.subtotal || 0), 0);
+      const m = Math.floor(effectiveOrderanke / 10);
+      const w = effectiveOrderanke % 10;
+      const msg = `Customer ${nama} • Periode M${m}-W${w} (#${effectiveOrderanke})\nOrders: ${count} • Total: ${fmt(total)}`;
+      await postToDiscord(msg);
+    } catch (e) {}
     endLoading();
   } catch (e) {
     // statusEl.textContent = "Gagal menyimpan (network error)";

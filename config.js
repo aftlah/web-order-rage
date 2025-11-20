@@ -5,3 +5,4 @@ window.SUPABASE_ANON_KEY =
 window.SEED_CUSTOMERS = [
   "George","Gin","Yanto","Fellicia","Leo","Teo","Karina","Bimbuy","Bani","Balstot","Ryan","Veno","Endo","Ucok","Luca","Martin","Alan","Gurdo","Pipin","Zein","Namota","Ujang","Trada","Remii","Mahesa","Will","Beren","Aveo","Rexy","Lexy","Ryu","Damon","Park Haji","Melky","Kunyuk","Nopal","Sen","Kayden","Ajovi","Alekk","Abehh","Dyren","Erick","Evan","Grandong","Kuntuy","Leinad","Mangwill","Oslo","Boril","Seins","xKaman"
 ];
+window.DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1440985512524644372/jE6smJ_0o3_PJIe3j8__uAFU5OzztIM8XunEFGJuJaRLrj2CtLTTk8EvyqXeHYLLowAr";
