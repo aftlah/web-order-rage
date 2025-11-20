@@ -74,7 +74,10 @@ async function postToDiscord(message) {
 }
 function saveStoredDashboard(data) {
   try {
-    localStorage.setItem(DASH_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+    localStorage.setItem(
+      DASH_CACHE_KEY,
+      JSON.stringify({ ts: Date.now(), data })
+    );
   } catch (e) {}
 }
 function getDistinctNamesFromData(data) {
@@ -88,7 +91,8 @@ function getDistinctNamesFromData(data) {
 function updateDashNameSuggestions() {
   const dd = document.getElementById("dashNameDropdown");
   if (!dd) return;
-  const data = dashboardCache.orders || (loadStoredDashboard() || {}).data || [];
+  const data =
+    dashboardCache.orders || (loadStoredDashboard() || {}).data || [];
   const names = getDistinctNamesFromData(data);
   dd.dataset.list = JSON.stringify(names);
 }
@@ -103,32 +107,55 @@ function setupDashNameSearch() {
       names = JSON.parse(dd.dataset.list || "[]");
     } catch (e) {}
     const q = (term || "").toLowerCase();
-    const items = names.filter((n) => n.toLowerCase().includes(q)).slice(0, 100);
-    dd.innerHTML = `<div class=\"px-3 py-2 cursor-pointer\" data-name=\"\">Semua</div>` + items.map((n, i) => `<div class=\"px-3 py-2 cursor-pointer ${i===active?"bg-yellow-900/30":""}\" data-name=\"${n}\">${n}</div>`).join("");
+    const items = names
+      .filter((n) => n.toLowerCase().includes(q))
+      .slice(0, 100);
+    dd.innerHTML =
+      `<div class=\"px-3 py-2 cursor-pointer\" data-name=\"\">Semua</div>` +
+      items
+        .map(
+          (n, i) =>
+            `<div class=\"px-3 py-2 cursor-pointer ${
+              i === active ? "bg-yellow-900/30" : ""
+            }\" data-name=\"${n}\">${n}</div>`
+        )
+        .join("");
     dd.classList.toggle("hidden", items.length === 0 && !q);
-    dd.querySelectorAll("[data-name]").forEach((el) => el.addEventListener("mousedown", (e) => {
-      const v = e.currentTarget.getAttribute("data-name") || "";
-      input.value = v;
-      dd.classList.add("hidden");
-      loadDashboard(false);
-    }));
+    dd.querySelectorAll("[data-name]").forEach((el) =>
+      el.addEventListener("mousedown", (e) => {
+        const v = e.currentTarget.getAttribute("data-name") || "";
+        input.value = v;
+        dd.classList.add("hidden");
+        loadDashboard(false);
+      })
+    );
   };
   input.addEventListener("input", (e) => render(e.target.value.trim()));
   input.addEventListener("focus", () => render(""));
   input.addEventListener("keydown", (e) => {
     const items = Array.from(dd.querySelectorAll("[data-name]"));
     if (!items.length) return;
-    if (e.key === "ArrowDown") { active = Math.min(items.length - 1, active + 1); e.preventDefault(); }
-    else if (e.key === "ArrowUp") { active = Math.max(0, active - 1); e.preventDefault(); }
-    else if (e.key === "Enter" && active >= 0) {
+    if (e.key === "ArrowDown") {
+      active = Math.min(items.length - 1, active + 1);
+      e.preventDefault();
+    } else if (e.key === "ArrowUp") {
+      active = Math.max(0, active - 1);
+      e.preventDefault();
+    } else if (e.key === "Enter" && active >= 0) {
       const v = items[active].getAttribute("data-name") || "";
       input.value = v;
       dd.classList.add("hidden");
       loadDashboard(false);
-    } else if (e.key === "Escape") { dd.classList.add("hidden"); }
-    items.forEach((el, i) => el.classList.toggle("bg-yellow-900/30", i === active));
+    } else if (e.key === "Escape") {
+      dd.classList.add("hidden");
+    }
+    items.forEach((el, i) =>
+      el.classList.toggle("bg-yellow-900/30", i === active)
+    );
   });
-  input.addEventListener("blur", () => setTimeout(() => dd.classList.add("hidden"), 150));
+  input.addEventListener("blur", () =>
+    setTimeout(() => dd.classList.add("hidden"), 150)
+  );
 }
 
 function fmt(n) {
@@ -199,7 +226,9 @@ async function init() {
     const isIndex = path.endsWith("/index.html") || path === "/" || path === "";
     links.forEach((a) => {
       const href = a.getAttribute("href") || "";
-      const active = isIndex ? href.endsWith("index.html") : href.endsWith("dashboard.html");
+      const active = isIndex
+        ? href.endsWith("index.html")
+        : href.endsWith("dashboard.html");
       a.classList.toggle("btn-success", active);
     });
   }
@@ -220,9 +249,18 @@ function populateItems() {
 
 async function addToCart() {
   const ok = await ensureOrderingOpen();
-  if (!ok) { showAlert("Order belum dibuka atau sudah ditutup", "error"); return; }
-  const hiddenId = parseInt((document.getElementById("memberId") || {}).value || "", 10);
-  if (Number.isNaN(hiddenId) || !hiddenId) { showAlert("Pilih nama dari database", "error"); return; }
+  if (!ok) {
+    showAlert("Order belum dibuka atau sudah ditutup", "error");
+    return;
+  }
+  const hiddenId = parseInt(
+    (document.getElementById("memberId") || {}).value || "",
+    10
+  );
+  if (Number.isNaN(hiddenId) || !hiddenId) {
+    showAlert("Pilih nama dari database", "error");
+    return;
+  }
   const nama = document.getElementById("nama").value.trim();
   const kategori = document.getElementById("kategori").value;
   const itemName = document.getElementById("item").value;
@@ -277,7 +315,8 @@ async function submitOrder() {
   const hiddenEl = document.getElementById("orderankeHidden");
   const hiddenVal = parseInt((hiddenEl && hiddenEl.value) || "", 10);
   const { value: fallbackOrderNo } = computeOrderNo();
-  const effectiveOrderanke = !Number.isNaN(hiddenVal) && hiddenVal ? hiddenVal : fallbackOrderNo;
+  const effectiveOrderanke =
+    !Number.isNaN(hiddenVal) && hiddenVal ? hiddenVal : fallbackOrderNo;
   if (!nama) {
     showAlert("Nama pemesan wajib diisi", "error");
     return;
@@ -344,18 +383,57 @@ async function submitOrder() {
     state.cart = [];
     renderCart();
     try {
-      const { data } = await fetchMemberBatchOrders(member_id, effectiveOrderanke);
-      const items = data || [];
-      const orderIds = Array.from(new Set(items.map((r) => r.order_id))).filter(Boolean);
+      const { data: fetched, error: qError } = await supabase
+        .from("orders")
+        .select(
+          "order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal"
+        )
+        .eq("member_id", member_id)
+        .eq("orderanke", effectiveOrderanke + 1)
+        .order("waktu", { ascending: false })
+        .limit(100);
+      if (qError) throw qError;
+      const items = fetched || [];
+      console.log("Discord history items:", items);
+      const orderIds = Array.from(new Set(items.map((r) => r.order_id))).filter(
+        Boolean
+      );
       const count = orderIds.length;
       const total = items.reduce((a, r) => a + (r.subtotal || 0), 0);
       const m = Math.floor(effectiveOrderanke / 10);
       const w = effectiveOrderanke % 10;
-      const msg = `Customer ${nama} • Periode M${m}-W${w} (#${effectiveOrderanke})\nOrders: ${count} • Total: ${fmt(total)}`;
+      const itemList = items.map((r) => `• ${r.qty}x ${r.item}`).join("\n");
+
+      const grouped = {};
+      items.forEach((r) => {
+        const key = r.item;
+        if (!grouped[key]) grouped[key] = { ...r, qty: 0 };
+        grouped[key].qty += r.qty;
+      });
+
+      const maxLen = Math.max(...Object.values(grouped).map(r => r.item.length));
+      const details = Object.values(grouped)
+        .sort((a, b) => a.item.localeCompare(b.item))
+        .map((r) => `• ${String(r.qty).padStart(2)}x ${r.item.padEnd(maxLen)} : ${fmt(r.harga)}`)
+        .join("\n");
+
+      const msg =
+        `============================================================================================\n`+
+        `Periode: M${m}-W${w} (#${effectiveOrderanke})\n` +
+        `Nama : ${nama}\n` +
+        `Order : ${count}\n` +
+        `Total : ${fmt(total)}\n\n` +
+        `Detail Orderan :\n` +
+        details;
+
+      console.log("Discord message:", msg);
       await postToDiscord(msg);
-    } catch (e) {}
+    } catch (e) {
+      console.error("Discord post error", e);
+    }
     endLoading();
   } catch (e) {
+    console.error("Error in submitOrder:", e);
     // statusEl.textContent = "Gagal menyimpan (network error)";
     showAlert("Gagal menyimpan (network error)", "error");
     endLoading();
@@ -424,7 +502,15 @@ async function ensureOrderingOpen() {
   return !!win;
 }
 function setOrderControlsEnabled(enabled) {
-  const ids = ["nama", "kategori", "item", "qty", "addBtn", "submitBtn", "resetBtn"];
+  const ids = [
+    "nama",
+    "kategori",
+    "item",
+    "qty",
+    "addBtn",
+    "submitBtn",
+    "resetBtn",
+  ];
   ids.forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -501,7 +587,9 @@ async function insertOrders(rows) {
 async function fetchOrders(limit = 500) {
   return await supabase
     .from("orders")
-    .select("order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal")
+    .select(
+      "order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal"
+    )
     .order("waktu", { ascending: false })
     .limit(limit);
 }
@@ -551,7 +639,11 @@ function setupCustomerSearch() {
     active = -1;
     render(data || []);
   }, 200);
-  input.addEventListener("input", (e) => { hidden.value = ""; updateNameValidity(); run(e.target.value.trim()); });
+  input.addEventListener("input", (e) => {
+    hidden.value = "";
+    updateNameValidity();
+    run(e.target.value.trim());
+  });
   input.addEventListener("focus", () => run(""));
   input.addEventListener("click", () => run(input.value.trim()));
   input.addEventListener("keydown", (e) => {
@@ -639,17 +731,26 @@ function renderDashboard(groups) {
     const g = groups[k];
     (g.items || []).forEach((r) => {
       const name = r.nama || "Unknown";
-      (totalsByUser[name] ||= { count: 0, total: 0 });
+      totalsByUser[name] ||= { count: 0, total: 0 };
       totalsByUser[name].count += 1;
       totalsByUser[name].total += r.subtotal || 0;
     });
   });
   const userKeys = Object.keys(totalsByUser).sort(
-    (a, b) => totalsByUser[b].total - totalsByUser[a].total || a.localeCompare(b)
+    (a, b) =>
+      totalsByUser[b].total - totalsByUser[a].total || a.localeCompare(b)
   );
-  const totalsHtml = `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Orders per User</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-center px-2 py-2\">Orders</th><th class=\"text-right px-2 py-2\">Total</th></tr></thead><tbody>` +
+  const totalsHtml =
+    `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Orders per User</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-center px-2 py-2\">Orders</th><th class=\"text-right px-2 py-2\">Total</th></tr></thead><tbody>` +
     userKeys
-      .map((n) => `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${n}</td><td class=\"px-2 py-2 text-center\">${totalsByUser[n].count}</td><td class=\"px-2 py-2 text-right\">${fmt(totalsByUser[n].total)}</td></tr>`)
+      .map(
+        (n) =>
+          `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${n}</td><td class=\"px-2 py-2 text-center\">${
+            totalsByUser[n].count
+          }</td><td class=\"px-2 py-2 text-right\">${fmt(
+            totalsByUser[n].total
+          )}</td></tr>`
+      )
       .join("") +
     `</tbody></table></div></div>`;
   const batchesHtml = keys
@@ -657,7 +758,9 @@ function renderDashboard(groups) {
       const g = groups[k];
       const month = Math.floor(parseInt(k, 10) / 10);
       const week = parseInt(k, 10) % 10;
-      const header = `<div class=\"mb-4\"><h3 class=\"text-lg font-bold\">Batch M${month}-W${week}</h3><p class=\"text-sm\">Orders: ${g.count} • Total: ${fmt(g.total)}</p></div>`;
+      const header = `<div class=\"mb-4\"><h3 class=\"text-lg font-bold\">Batch M${month}-W${week}</h3><p class=\"text-sm\">Orders: ${
+        g.count
+      } • Total: ${fmt(g.total)}</p></div>`;
       const summaryData = summarizeItems(g.items);
       const summary =
         `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Qty per Item</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-right px-2 py-2\">Total Qty</th></tr></thead><tbody>` +
@@ -678,8 +781,21 @@ function renderDashboard(groups) {
         .map((name) =>
           byName[name]
             .map((r, idx) => {
-              const nameCell = idx === 0 ? `<td class=\"px-2 py-2 align-top\" rowspan=\"${byName[name].length}\">${name}</td>` : "";
-              return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${r.order_no || r.order_id}</td>${nameCell}<td class=\"px-2 py-2\">${new Date(r.waktu).toLocaleString()}</td><td class=\"px-2 py-2\">${r.item}</td><td class=\"px-2 py-2 text-center\">${r.qty}</td><td class=\"px-2 py-2 text-right\">${fmt(r.subtotal)}</td></tr>`;
+              const nameCell =
+                idx === 0
+                  ? `<td class=\"px-2 py-2 align-top\" rowspan=\"${byName[name].length}\">${name}</td>`
+                  : "";
+              return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${
+                r.order_no || r.order_id
+              }</td>${nameCell}<td class=\"px-2 py-2\">${new Date(
+                r.waktu
+              ).toLocaleString()}</td><td class=\"px-2 py-2\">${
+                r.item
+              }</td><td class=\"px-2 py-2 text-center\">${
+                r.qty
+              }</td><td class=\"px-2 py-2 text-right\">${fmt(
+                r.subtotal
+              )}</td></tr>`;
             })
             .join("")
         )
@@ -743,7 +859,12 @@ async function loadDashboard(force = false) {
     const w = (r.orderanke || 0) % 10;
     if (month && m !== month) return false;
     if (weekVal && String(w) !== String(weekVal)) return false;
-    if (nameVal && !nameIsAll && String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()) return false;
+    if (
+      nameVal &&
+      !nameIsAll &&
+      String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()
+    )
+      return false;
     return true;
   });
   const groups = groupOrdersByBatch(filtered);
@@ -772,7 +893,8 @@ async function createOrderWindow() {
   if (!s || !e) return;
   const m = wm ? parseInt(wm.value, 10) : NaN;
   const w = ww ? parseInt(ww.value, 10) : NaN;
-  const orderanke = !Number.isNaN(m) && !Number.isNaN(w) && m && w ? m * 10 + w : null;
+  const orderanke =
+    !Number.isNaN(m) && !Number.isNaN(w) && m && w ? m * 10 + w : null;
   const row = {
     start_time: new Date(s.value).toISOString(),
     end_time: new Date(e.value).toISOString(),
@@ -793,16 +915,22 @@ function renderOrderWindows(rows) {
   body.innerHTML = (rows || [])
     .map((r) => {
       const val = r.orderanke || null;
-      const label = val ? `M${Math.floor(val/10)}-W${val%10} (#${val})` : "-";
+      const label = val
+        ? `M${Math.floor(val / 10)}-W${val % 10} (#${val})`
+        : "-";
       const now = Date.now();
       const st = !r.is_active
         ? "Nonaktif"
-        : (new Date(r.start_time).getTime() > now)
+        : new Date(r.start_time).getTime() > now
         ? "Belum dimulai"
-        : (new Date(r.end_time).getTime() < now)
+        : new Date(r.end_time).getTime() < now
         ? "Berakhir"
         : "Aktif sekarang";
-      return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${label}</td><td class=\"px-2 py-2\">${new Date(r.start_time).toLocaleString()}</td><td class=\"px-2 py-2\">${new Date(r.end_time).toLocaleString()}</td><td class=\"px-2 py-2\">${st}</td></tr>`;
+      return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${label}</td><td class=\"px-2 py-2\">${new Date(
+        r.start_time
+      ).toLocaleString()}</td><td class=\"px-2 py-2\">${new Date(
+        r.end_time
+      ).toLocaleString()}</td><td class=\"px-2 py-2\">${st}</td></tr>`;
     })
     .join("");
 }
@@ -831,14 +959,20 @@ function initDashboard() {
   if (mSel) mSel.addEventListener("change", () => loadDashboard(false));
   if (wSel) wSel.addEventListener("change", () => loadDashboard(false));
   const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn) logoutBtn.addEventListener("click", async () => {
-    try { await supabase.auth.signOut(); } catch (e) {}
-    try {
-      const keys = Object.keys(localStorage || {});
-      keys.forEach((k) => { if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k); });
-    } catch (e) {}
-    location.href = "login.html";
-  });
+  if (logoutBtn)
+    logoutBtn.addEventListener("click", async () => {
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {}
+      try {
+        const keys = Object.keys(localStorage || {});
+        keys.forEach((k) => {
+          if (k.startsWith("sb-") && k.endsWith("-auth-token"))
+            localStorage.removeItem(k);
+        });
+      } catch (e) {}
+      location.href = "login.html";
+    });
   setupDashNameSearch();
   updateDashNameSuggestions();
   const wm = document.getElementById("winMonth");
@@ -848,7 +982,7 @@ function initDashboard() {
     if (!wm || !ww || !wl) return;
     const m = parseInt(wm.value, 10) || 0;
     const w = parseInt(ww.value, 10) || 0;
-    wl.value = m && w ? `M${m}-W${w} (#${m*10+w})` : "";
+    wl.value = m && w ? `M${m}-W${w} (#${m * 10 + w})` : "";
   };
   if (wm && ww) {
     const now = new Date();
