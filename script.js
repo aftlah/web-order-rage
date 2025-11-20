@@ -410,20 +410,28 @@ async function submitOrder() {
         grouped[key].qty += r.qty;
       });
 
-      const maxLen = Math.max(...Object.values(grouped).map(r => r.item.length));
+      const maxLen = Math.max(
+        ...Object.values(grouped).map((r) => r.item.length)
+      );
       const details = Object.values(grouped)
         .sort((a, b) => a.item.localeCompare(b.item))
-        .map((r) => `• ${String(r.qty).padStart(2)}x ${r.item.padEnd(maxLen)} : ${fmt(r.harga)}`)
+        .map(
+          (r) =>
+            `• ${String(r.qty).padStart(2)}x ${r.item.padEnd(maxLen)} : ${fmt(
+              r.harga
+            )}`
+        )
         .join("\n");
 
       const msg =
-        `============================================================================================\n`+
+        "```\n" +
         `Periode: M${m}-W${w} (#${effectiveOrderanke})\n` +
-        `Nama : ${nama}\n` +
+        `Nama  : ${nama}\n` +
         `Order : ${count}\n` +
         `Total : ${fmt(total)}\n\n` +
         `Detail Orderan :\n` +
-        details;
+        details +
+        "```";
 
       // console.log("Discord message:", msg);
       await postToDiscord(msg);
