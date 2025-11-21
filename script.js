@@ -909,12 +909,28 @@ async function createOrderWindow() {
     orderanke,
     is_active: true,
   };
-  const { error } = await supabase.from("order_windows").insert([row]);
-  if (error) {
-    showAlert("Gagal membuat jadwal", "error");
-    return;
+  if (window.__editingWindowId) {
+    const { error } = await supabase
+      .from("order_windows")
+      .update(row)
+      .eq("id", window.__editingWindowId)
+      .select("id");
+    if (error) {
+      showAlert("Gagal mengupdate jadwal", "error");
+      return;
+    }
+    showAlert("Jadwal diupdate", "success");
+    window.__editingWindowId = null;
+    const btn = document.getElementById("winCreateBtn");
+    if (btn) btn.textContent = "Create";
+  } else {
+    const { error } = await supabase.from("order_windows").insert([row]);
+    if (error) {
+      showAlert("Gagal membuat jadwal", "error");
+      return;
+    }
+    showAlert("Jadwal dibuat", "success");
   }
-  showAlert("Jadwal dibuat", "success");
   loadWindows();
 }
 function renderOrderWindows(rows) {
@@ -934,13 +950,89 @@ function renderOrderWindows(rows) {
         : new Date(r.end_time).getTime() < now
         ? "Berakhir"
         : "Aktif sekarang";
-      return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${label}</td><td class=\"px-2 py-2\">${new Date(
-        r.start_time
-      ).toLocaleString()}</td><td class=\"px-2 py-2\">${new Date(
-        r.end_time
-      ).toLocaleString()}</td><td class=\"px-2 py-2\">${st}</td></tr>`;
+      return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${label}</td><td class=\"px-2 py-2\">${fmtDateTime(r.start_time)}</td><td class=\"px-2 py-2\">${fmtDateTime(r.end_time)}</td><td class=\"px-2 py-2\">${st}</td><td class=\"px-2 py-2\"><div class=\"flex gap-2\"><button class=\"px-3 py-1 rounded border border-yellow-600 text-yellow-200\" data-edit-id=\"${r.id}\">Edit</button><button class=\"px-3 py-1 rounded bg-red-600 text-white\" data-del-id=\"${r.id}\">Delete</button></div></td></tr>`;
     })
     .join("");
+  body.querySelectorAll("[data-edit-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-edit-id");
+      const row = (rows || []).find((x) => String(x.id) === String(id));
+      if (!row) return;
+      startEditWindow(row);
+    });
+  });
+  body.querySelectorAll("[data-del-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-del-id");
+      await deleteOrderWindow(id);
+    });
+  });
+}
+function toLocalInput(dtIso) {
+  const d = new Date(dtIso);
+  const pad = (n) => String(n).padStart(2, "0");
+  const y = d.getFullYear();
+  const m = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hh = pad(d.getHours());
+  const mm = pad(d.getMinutes());
+  return `${y}-${m}-${day}T${hh}:${mm}`;
+}
+function startEditWindow(row) {
+  const s = document.getElementById("winStart");
+  const e = document.getElementById("winEnd");
+  const wm = document.getElementById("winMonth");
+  const ww = document.getElementById("winWeek");
+  const btn = document.getElementById("winCreateBtn");
+  if (s) s.value = toLocalInput(row.start_time);
+  if (e) e.value = toLocalInput(row.end_time);
+  const val = row.orderanke || 0;
+  const m = Math.floor(val / 10);
+  const w = val % 10;
+  if (wm) wm.value = m ? String(m) : "";
+  if (ww) ww.value = w ? String(w) : "";
+  window.__editingWindowId = row.id;
+  if (btn) btn.textContent = "Update";
+}
+async function deleteOrderWindow(id) {
+  try {
+    const { data: sess } = await supabase.auth.getSession();
+    const session = (sess || {}).session || null;
+    if (!session) {
+      showAlert("Harus login untuk menghapus", "error");
+      return;
+    }
+  } catch (e) {
+    showAlert("Gagal memeriksa sesi", "error");
+    return;
+  }
+  const proceed = window.confirm("Hapus jadwal ini? Tindakan tidak dapat dibatalkan.");
+  if (!proceed) return;
+  const pin = (window && window.ADMIN_DELETE_PIN) || "";
+  let ok = true;
+  if (pin) {
+    const typed = window.prompt("Masukkan PIN delete untuk konfirmasi:", "");
+    ok = !!typed && typed === pin;
+  } else {
+    const typed = window.prompt("Ketik DELETE untuk konfirmasi:", "");
+    ok = (typed || "").toUpperCase() === "DELETE";
+  }
+  if (!ok) {
+    showAlert("Konfirmasi hapus tidak valid", "error");
+    return;
+  }
+  const { error } = await supabase.from("order_windows").delete().eq("id", id);
+  if (error) {
+    showAlert("Gagal menghapus jadwal", "error");
+    return;
+  }
+  showAlert("Jadwal dihapus", "success");
+  if (window.__editingWindowId === id) {
+    window.__editingWindowId = null;
+    const btn = document.getElementById("winCreateBtn");
+    if (btn) btn.textContent = "Create";
+  }
+  loadWindows();
 }
 function initDashboard() {
   const mSel = document.getElementById("dashMonth");
@@ -1002,8 +1094,25 @@ function initDashboard() {
   }
   const wCreate = document.getElementById("winCreateBtn");
   const wRefresh = document.getElementById("refreshWindows");
+  const wCancel = document.getElementById("winCancelBtn");
   if (wCreate) wCreate.addEventListener("click", createOrderWindow);
   if (wRefresh) wRefresh.addEventListener("click", loadWindows);
+  if (wCancel)
+    wCancel.addEventListener("click", () => {
+      window.__editingWindowId = null;
+      const btn = document.getElementById("winCreateBtn");
+      if (btn) btn.textContent = "Create";
+      const s = document.getElementById("winStart");
+      const e = document.getElementById("winEnd");
+      const wm = document.getElementById("winMonth");
+      const ww = document.getElementById("winWeek");
+      if (s) s.value = "";
+      if (e) e.value = "";
+      if (wm) wm.value = "";
+      if (ww) ww.value = "";
+      const wl = document.getElementById("winOrderNoLabel");
+      if (wl) wl.value = "";
+    });
   loadDashboard(true);
   loadWindows();
 }
@@ -1028,4 +1137,18 @@ function showAlert(message, type = "info") {
     box.style.opacity = "0";
     box.classList.add("hidden");
   }, 3000);
+}
+function fmtDateTime(iso) {
+  try {
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, "0");
+    const dd = pad(d.getDate());
+    const mm = pad(d.getMonth() + 1);
+    const yyyy = d.getFullYear();
+    const HH = pad(d.getHours());
+    const MM = pad(d.getMinutes());
+    return `${dd}/${mm}/${yyyy}, ${HH}:${MM}`;
+  } catch (e) {
+    return iso;
+  }
 }
