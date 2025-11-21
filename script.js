@@ -753,7 +753,7 @@ function renderDashboard(groups) {
     userKeys
       .map(
         (n) =>
-          `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${n}</td><td class=\"px-2 py-2 text-center\">${
+          `<tr class=\"table-row-hover border-b border-yellow-900/20\"><td class=\"px-2 py-2\">${n}</td><td class=\"px-2 py-2 text-center\">${
             totalsByUser[n].count
           }</td><td class=\"px-2 py-2 text-right\">${fmt(
             totalsByUser[n].total
