@@ -408,6 +408,11 @@ async function submitOrder() {
     winCurrent && winCurrent.orderanke
       ? parseInt(winCurrent.orderanke, 10)
       : NaN;
+  const isMaint = !!(window && window.MAINTENANCE_MODE);
+  if (isMaint && nama.toLowerCase() !== "leo") {
+    showAlert("Sedang maintenance: Sebentar yaa kawan", "error");
+    return;
+  }
   if (!nama) {
     showAlert("Nama pemesan wajib diisi", "error");
     return;
