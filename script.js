@@ -321,7 +321,7 @@ async function loadMyOrdersForSelection() {
   }
   const { data, error } = await supabase
     .from("orders")
-    .select("item,qty,subtotal,orderanke")
+    .select("order_id,item,qty,subtotal,orderanke,kategori,harga,waktu")
     .eq("member_id", v)
     .eq("orderanke", k)
     .order("waktu", { ascending: false })
@@ -338,13 +338,16 @@ function renderMyOrders(rows) {
   const empty = document.getElementById("myOrdersEmpty");
   const totalEl = document.getElementById("myOrdersTotal");
   const periodEl = document.getElementById("myOrdersPeriod");
+  const editBtn = document.getElementById("myOrdersEditBtn");
   if (!body || !empty || !totalEl || !periodEl) return;
   const items = rows || [];
+  window.__myOrdersRows = items;
   if (items.length === 0) {
     body.innerHTML = "";
     empty.classList.remove("hidden");
     totalEl.textContent = fmt(0);
     periodEl.textContent = "";
+    if (editBtn) editBtn.classList.add("hidden");
     return;
   }
   const v =
@@ -355,7 +358,7 @@ function renderMyOrders(rows) {
   const grouped = {};
   items.forEach((r) => {
     const key = r.item;
-    if (!grouped[key]) grouped[key] = { item: r.item, qty: 0, subtotal: 0 };
+    if (!grouped[key]) grouped[key] = { item: r.item, qty: 0, subtotal: 0, harga: r.harga, kategori: r.kategori };
     grouped[key].qty += r.qty || 0;
     grouped[key].subtotal += r.subtotal || 0;
   });
@@ -375,6 +378,26 @@ function renderMyOrders(rows) {
   const total = list.reduce((a, r) => a + (r.subtotal || 0), 0);
   totalEl.textContent = fmt(total);
   empty.classList.add("hidden");
+  if (editBtn) {
+    editBtn.classList.remove("hidden");
+    editBtn.onclick = () => startEditMyOrders();
+  }
+}
+
+function startEditMyOrders() {
+  const rows = window.__myOrdersRows || [];
+  if (!rows.length) return;
+  const orderId = rows[0].order_id || null;
+  const byItem = {};
+  rows.forEach((r) => {
+    const k = r.item;
+    if (!byItem[k]) byItem[k] = { kategori: r.kategori, item: r.item, price: r.harga, qty: 0 };
+    byItem[k].qty += r.qty || 0;
+  });
+  state.cart = Object.values(byItem);
+  window.__editingOrderId = orderId;
+  renderCart();
+  showAlert("Keranjang diisi dari order periode aktif. Silakan edit lalu Submit.", "info");
 }
 
 async function submitOrder() {
@@ -437,9 +460,21 @@ async function submitOrder() {
     endLoading();
     return;
   }
-  const orderId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const editingId = window.__editingOrderId || null;
+  const orderId = editingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const rows = buildOrderRows(orderId, member_id, nama, effectiveOrderanke);
   try {
+    if (editingId) {
+      const { error: delErr } = await supabase
+        .from("orders")
+        .delete()
+        .eq("order_id", editingId);
+      if (delErr) {
+        showAlert(`Gagal menghapus order lama: ${delErr.message || "unknown"}`, "error");
+        endLoading();
+        return;
+      }
+    }
     const { error } = await insertOrders(rows);
     if (error) {
       const hint = (error.hint || "").includes("apikey")
@@ -455,6 +490,7 @@ async function submitOrder() {
     //   statusEl.textContent = "Berhasil disimpan";
     showAlert("Berhasil disimpan", "success");
     state.cart = [];
+    window.__editingOrderId = null;
     renderCart();
     await loadMyOrdersForSelection();
     try {
