@@ -39,10 +39,10 @@ const CATALOG = {
     { name: "Medium Scope", price: 3000 },
   ],
   Others: [
-    // { name: "VEST", price: 2600 },
+    { name: "VEST", price: 2600 },
     { name: "VEST MEDIUM", price: 1300 },
     { name: "LOCKPICK", price: 1300 },
-    { name: "TABLET HEIST", price: 4000 },
+    // { name: "TABLET HEIST", price: 4000 },
   ],
 };
 
@@ -849,6 +849,77 @@ function summarizeItems(items) {
     .sort()
     .map((item) => ({ item, qty: map[item] }));
 }
+const GROUP_ORDER = [
+  "ORDER KE HIGH TABEL",
+  "ORDER KE ALLSTAR",
+  "ORDER KE RDMC",
+  "LAINNYA",
+];
+const GROUP_ITEMS = {
+  "ORDER KE HIGH TABEL": [
+    "SMG",
+    "SHOTGUN",
+    "NAVY REVOLVER",
+    "PISTOL X17",
+    "BLACK REVOLVER",
+    "KVR",
+    "TECH 9",
+    "TECH9",
+    "MINI SMG",
+    "AMMO 44 MAGNUM",
+    "AMMO 0.45",
+    "AMMO 12 GAUGE",
+    "VEST",
+  ],
+  "ORDER KE ALLSTAR": [
+    "PISTOL .50",
+    "CERAMIC PISTOL",
+    "MICRO SMG",
+    "AMMO 9MM",
+    "AMMO .50",
+    "VEST MEDIUM",
+    "LOCKPICK",
+    "Lockpick",
+  ],
+  "ORDER KE RDMC": [
+    "Tactical Flashlight",
+    "Suppressor",
+    "Tactical Suppressor",
+    "Grip",
+    "Extended Pistol Clip",
+    "Extended SMG Clip",
+    "Extended Rifle Clip",
+    "SMG Drum",
+    "Rifle Drum",
+    "Macro Scope",
+    "Medium Scope",
+  ],
+};
+function normItemName(s) {
+  return String(s || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ");
+}
+function assignGroupForItem(item) {
+  const n = normItemName(item);
+  for (const grp of GROUP_ORDER) {
+    const arr = (GROUP_ITEMS[grp] || []).map(normItemName);
+    if (arr.includes(n)) return grp;
+  }
+  return "LAINNYA";
+}
+function sortRowsByGroupOrder(rows, grp) {
+  const order = (GROUP_ITEMS[grp] || []).map(normItemName);
+  return rows.slice().sort((a, b) => {
+    const ia = order.indexOf(normItemName(a.item));
+    const ib = order.indexOf(normItemName(b.item));
+    const sa = ia < 0 ? 9999 : ia;
+    const sb = ib < 0 ? 9999 : ib;
+    if (sa !== sb) return sa - sb;
+    return a.item.localeCompare(b.item);
+  });
+}
 function renderDashboard(groups) {
   const container = document.getElementById("dashboardBody");
   if (!container) return;
@@ -891,15 +962,29 @@ function renderDashboard(groups) {
         g.count
       } • Total: ${fmt(g.total)}</p></div>`;
       const summaryData = summarizeItems(g.items);
+      const groupedMap = {};
+      summaryData.forEach((s) => {
+        const grp = assignGroupForItem(s.item);
+        (groupedMap[grp] ||= []).push(s);
+      });
       const summary =
-        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Qty per Item</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-right px-2 py-2\">Total Qty</th></tr></thead><tbody>` +
-        summaryData
-          .map(
-            (s) =>
-              `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${s.item}</td><td class=\"px-2 py-2 text-right\">${s.qty}</td></tr>`
-          )
-          .join("") +
-        `</tbody></table></div></div>`;
+        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Qty per Item</h4>` +
+        GROUP_ORDER.map((grp) => {
+          const rows = sortRowsByGroupOrder(groupedMap[grp] || [], grp);
+          if (!rows.length) return "";
+          return (
+            `<div class=\"mt-2 mb-4\"><h5 class=\"text-xs md:text-sm font-semibold mb-1\">${grp}</h5>` +
+            `<div class=\"overflow-x-auto\"><table class=\"w-full text-sm border border-[#f3e8d8] dark:border-[#3d342d] rounded-lg\"><thead class=\"border-b border-[#f3e8d8] dark:border-[#3d342d]\"><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-right px-2 py-2\">Total Qty</th></tr></thead><tbody>` +
+            rows
+              .map(
+                (s) =>
+                  `<tr class=\"table-row-hover border-b border-[#f3e8d8] dark:border-[#3d342d]\"><td class=\"px-2 py-2\">${s.item}</td><td class=\"px-2 py-2 text-right\">${s.qty}</td></tr>`
+              )
+              .join("") +
+            `</tbody></table></div></div>`
+          );
+        }).join("") +
+        `</div>`;
       const byName = {};
       g.items.forEach((r) => {
         const key = r.nama || "Unknown";
