@@ -309,18 +309,87 @@ function renderCart() {
   );
 }
 
+async function loadMyOrdersForSelection() {
+  const hidden = document.getElementById("memberId");
+  const v = hidden ? parseInt(hidden.value || "", 10) : NaN;
+  const h = document.getElementById("orderankeHidden");
+  const ok = !Number.isNaN(v) && !!v;
+  const k = h ? parseInt(h.value || "", 10) : NaN;
+  if (!ok || Number.isNaN(k) || !k) {
+    renderMyOrders([]);
+    return;
+  }
+  const { data, error } = await supabase
+    .from("orders")
+    .select("item,qty,subtotal,orderanke")
+    .eq("member_id", v)
+    .eq("orderanke", k)
+    .order("waktu", { ascending: false })
+    .limit(200);
+  if (error) {
+    renderMyOrders([]);
+    return;
+  }
+  renderMyOrders(data || []);
+}
+
+function renderMyOrders(rows) {
+  const body = document.getElementById("myOrdersBody");
+  const empty = document.getElementById("myOrdersEmpty");
+  const totalEl = document.getElementById("myOrdersTotal");
+  const periodEl = document.getElementById("myOrdersPeriod");
+  if (!body || !empty || !totalEl || !periodEl) return;
+  const items = rows || [];
+  if (items.length === 0) {
+    body.innerHTML = "";
+    empty.classList.remove("hidden");
+    totalEl.textContent = fmt(0);
+    periodEl.textContent = "";
+    return;
+  }
+  const v =
+    items[0] && items[0].orderanke ? parseInt(items[0].orderanke, 10) : NaN;
+  const m = !Number.isNaN(v) ? Math.floor(v / 10) : 0;
+  const w = !Number.isNaN(v) ? v % 10 : 0;
+  periodEl.textContent = v ? `M${m}-W${w} (#${v})` : "";
+  const grouped = {};
+  items.forEach((r) => {
+    const key = r.item;
+    if (!grouped[key]) grouped[key] = { item: r.item, qty: 0, subtotal: 0 };
+    grouped[key].qty += r.qty || 0;
+    grouped[key].subtotal += r.subtotal || 0;
+  });
+  const list = Object.values(grouped).sort((a, b) =>
+    a.item.localeCompare(b.item)
+  );
+  body.innerHTML = list
+    .map(
+      (r) =>
+        `<tr class="table-row-hover"><td class="px-2 py-2">${
+          r.item
+        }</td><td class="px-2 py-2 text-center">${
+          r.qty
+        }</td><td class="px-2 py-2 text-right">${fmt(r.subtotal)}</td></tr>`
+    )
+    .join("");
+  const total = list.reduce((a, r) => a + (r.subtotal || 0), 0);
+  totalEl.textContent = fmt(total);
+  empty.classList.add("hidden");
+}
+
 async function submitOrder() {
   const statusEl = document.getElementById("status");
   const nama = document.getElementById("nama").value.trim();
-  const hiddenEl = document.getElementById("orderankeHidden");
-  const hiddenVal = parseInt((hiddenEl && hiddenEl.value) || "", 10);
-  const { value: fallbackOrderNo } = computeOrderNo();
+  const winCurrent = supabase ? await fetchActiveOrderWindow(null) : null;
   const effectiveOrderanke =
-    !Number.isNaN(hiddenVal) && hiddenVal ? hiddenVal : fallbackOrderNo;
+    winCurrent && winCurrent.orderanke
+      ? parseInt(winCurrent.orderanke, 10)
+      : NaN;
   if (!nama) {
     showAlert("Nama pemesan wajib diisi", "error");
     return;
   }
+  // console.log(effectiveOrderanke);
   if (state.cart.length === 0) {
     //  statusEl.textContent = "Keranjang kosong";
     showAlert("Keranjang kosong", "error");
@@ -363,6 +432,11 @@ async function submitOrder() {
     endLoading();
     return;
   }
+  if (Number.isNaN(effectiveOrderanke) || !effectiveOrderanke) {
+    showAlert("Periode order aktif tidak ditemukan", "error");
+    endLoading();
+    return;
+  }
   const orderId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const rows = buildOrderRows(orderId, member_id, nama, effectiveOrderanke);
   try {
@@ -382,6 +456,7 @@ async function submitOrder() {
     showAlert("Berhasil disimpan", "success");
     state.cart = [];
     renderCart();
+    await loadMyOrdersForSelection();
     try {
       const { data: fetched, error: qError } = await supabase
         .from("orders")
@@ -389,7 +464,7 @@ async function submitOrder() {
           "order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal"
         )
         .eq("member_id", member_id)
-        .eq("orderanke", effectiveOrderanke + 1)
+        .eq("orderanke", effectiveOrderanke)
         .order("waktu", { ascending: false })
         .limit(100);
       if (qError) throw qError;
@@ -497,6 +572,7 @@ async function fetchActiveOrderWindow(orderanke) {
     .eq("is_active", true)
     .lte("start_time", now)
     .gte("end_time", now)
+    .order("orderanke", { ascending: false })
     .limit(1);
   if (orderanke) q = q.eq("orderanke", orderanke);
   const { data, error } = await q;
@@ -553,6 +629,9 @@ async function updateOrderWindowUI() {
   }
   setOrderControlsEnabled(ok);
   setOrderNoUI();
+  const mem = document.getElementById("memberId");
+  const mv = mem ? parseInt(mem.value || "", 10) : NaN;
+  if (!Number.isNaN(mv) && !!mv) loadMyOrdersForSelection();
 }
 function showSection(name) {
   const order = document.getElementById("orderSection");
@@ -689,6 +768,7 @@ function updateNameValidity() {
     status.classList.toggle("text-green-500", ok);
     status.classList.toggle("text-red-500", !ok);
   }
+  if (ok) loadMyOrdersForSelection();
 }
 async function seedCustomers() {
   if (!supabase || !window.SEED_CUSTOMERS) return;
@@ -875,7 +955,30 @@ async function loadDashboard(force = false) {
       return false;
     return true;
   });
-  const groups = groupOrdersByBatch(filtered);
+  let groups = groupOrdersByBatch(filtered);
+  try {
+    const { data: wins } = await fetchOrderWindows();
+    const windows = (wins || []).filter((w) => !!w.orderanke);
+    const ensureGroup = (v) => {
+      const key = String(v);
+      if (!groups[key]) groups[key] = { items: [], total: 0, count: 0 };
+    };
+    const wInt = weekVal ? parseInt(weekVal, 10) : NaN;
+    if (month && !Number.isNaN(month)) {
+      if (wSel && weekVal) {
+        const target = month * 10 + (Number.isNaN(wInt) ? 0 : wInt);
+        const exists = windows.some(
+          (w) => parseInt(w.orderanke, 10) === target
+        );
+        if (exists) ensureGroup(target);
+      } else {
+        windows
+          .map((w) => parseInt(w.orderanke, 10))
+          .filter((v) => Math.floor(v / 10) === month)
+          .forEach((v) => ensureGroup(v));
+      }
+    }
+  } catch (e) {}
   renderDashboard(groups);
 }
 function loadWindows() {
@@ -950,7 +1053,15 @@ function renderOrderWindows(rows) {
         : new Date(r.end_time).getTime() < now
         ? "Berakhir"
         : "Aktif sekarang";
-      return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${label}</td><td class=\"px-2 py-2\">${fmtDateTime(r.start_time)}</td><td class=\"px-2 py-2\">${fmtDateTime(r.end_time)}</td><td class=\"px-2 py-2\">${st}</td><td class=\"px-2 py-2\"><div class=\"flex gap-2\"><button class=\"px-3 py-1 rounded border border-yellow-600 text-yellow-200\" data-edit-id=\"${r.id}\">Edit</button><button class=\"px-3 py-1 rounded bg-red-600 text-white\" data-del-id=\"${r.id}\">Delete</button></div></td></tr>`;
+      return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${label}</td><td class=\"px-2 py-2\">${fmtDateTime(
+        r.start_time
+      )}</td><td class=\"px-2 py-2\">${fmtDateTime(
+        r.end_time
+      )}</td><td class=\"px-2 py-2\">${st}</td><td class=\"px-2 py-2\"><div class=\"flex gap-2\"><button class=\"px-3 py-1 rounded border border-yellow-600 text-yellow-200\" data-edit-id=\"${
+        r.id
+      }\">Edit</button><button class=\"px-3 py-1 rounded bg-red-600 text-white\" data-del-id=\"${
+        r.id
+      }\">Delete</button></div></td></tr>`;
     })
     .join("");
   body.querySelectorAll("[data-edit-id]").forEach((btn) => {
@@ -1006,7 +1117,9 @@ async function deleteOrderWindow(id) {
     showAlert("Gagal memeriksa sesi", "error");
     return;
   }
-  const proceed = window.confirm("Hapus jadwal ini? Tindakan tidak dapat dibatalkan.");
+  const proceed = window.confirm(
+    "Hapus jadwal ini? Tindakan tidak dapat dibatalkan."
+  );
   if (!proceed) return;
   const pin = (window && window.ADMIN_DELETE_PIN) || "";
   let ok = true;
@@ -1113,7 +1226,22 @@ function initDashboard() {
       const wl = document.getElementById("winOrderNoLabel");
       if (wl) wl.value = "";
     });
-  loadDashboard(true);
+  const mSel2 = document.getElementById("dashMonth");
+  const wSel2 = document.getElementById("dashWeek");
+  if (mSel2 && wSel2) {
+    fetchActiveOrderWindow(null).then((win) => {
+      const v = win && win.orderanke ? parseInt(win.orderanke, 10) : NaN;
+      if (!Number.isNaN(v) && v) {
+        const m = Math.floor(v / 10);
+        const w = v % 10;
+        mSel2.value = String(m);
+        wSel2.value = String(w);
+      }
+      loadDashboard(true);
+    });
+  } else {
+    loadDashboard(true);
+  }
   loadWindows();
 }
 function showAlert(message, type = "info") {
