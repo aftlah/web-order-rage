@@ -570,15 +570,34 @@ async function submitOrder() {
     await refreshItemTotals(effectiveOrderanke);
     await loadMyOrdersForSelection();
     try {
-      const { data: fetched, error: qError } = await supabase
-        .from("orders")
-        .select(
-          "order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal"
-        )
-        .eq("member_id", member_id)
-        .eq("orderanke", effectiveOrderanke)
-        .order("waktu", { ascending: false })
-        .limit(100);
+      let fetched = null;
+      let qError = null;
+      {
+        const res = await supabase
+          .from("orders")
+          .select(
+            "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered"
+          )
+          .eq("member_id", member_id)
+          .eq("orderanke", effectiveOrderanke)
+          .order("waktu", { ascending: false })
+          .limit(100);
+        fetched = res.data || null;
+        qError = res.error || null;
+      }
+      if (qError && String(qError.message || "").includes("delivered")) {
+        const res2 = await supabase
+          .from("orders")
+          .select(
+            "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal"
+          )
+          .eq("member_id", member_id)
+          .eq("orderanke", effectiveOrderanke)
+          .order("waktu", { ascending: false })
+          .limit(100);
+        fetched = res2.data || null;
+        qError = res2.error || null;
+      }
       if (qError) throw qError;
       const items = fetched || [];
       const orderIds = Array.from(new Set(items.map((r) => r.order_id))).filter(
@@ -797,6 +816,7 @@ function buildOrderRows(orderId, member_id, nama, orderanke) {
     harga: c.price,
     qty: c.qty,
     subtotal: c.price * c.qty,
+    delivered: false,
   }));
 }
 async function insertOrders(rows) {
@@ -806,10 +826,30 @@ async function fetchOrders(limit = 500) {
   return await supabase
     .from("orders")
     .select(
-      "order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal"
+      "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered"
     )
     .order("waktu", { ascending: false })
     .limit(limit);
+}
+async function fetchOrdersSafe(limit = 500) {
+  let { data, error } = await supabase
+    .from("orders")
+    .select(
+      "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered"
+    )
+    .order("waktu", { ascending: false })
+    .limit(limit);
+  if (error && String(error.message || "").includes("delivered")) {
+    const res = await supabase
+      .from("orders")
+      .select(
+        "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal"
+      )
+      .order("waktu", { ascending: false })
+      .limit(limit);
+    return { data: res.data || [], error: res.error || null };
+  }
+  return { data: data || [], error: error || null };
 }
 
 function setupCustomerSearch() {
@@ -938,6 +978,36 @@ function summarizeItems(items) {
   return Object.keys(map)
     .sort()
     .map((item) => ({ item, qty: map[item] }));
+}
+const DELIVERED_KEY = "ordersDeliveredV1";
+function getDeliveredSet() {
+  try {
+    const raw = localStorage.getItem(DELIVERED_KEY) || "[]";
+    const arr = JSON.parse(raw);
+    return new Set((arr || []).map(String));
+  } catch (e) {
+    return new Set();
+  }
+}
+function saveDeliveredSet(set) {
+  try {
+    localStorage.setItem(DELIVERED_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {}
+}
+const DELIVERED_ROW_KEY = "ordersDeliveredRowV1";
+function getDeliveredRowSet() {
+  try {
+    const raw = localStorage.getItem(DELIVERED_ROW_KEY) || "[]";
+    const arr = JSON.parse(raw);
+    return new Set((arr || []).map(String));
+  } catch (e) {
+    return new Set();
+  }
+}
+function saveDeliveredRowSet(set) {
+  try {
+    localStorage.setItem(DELIVERED_ROW_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {}
 }
 function getCatalogPrice(name) {
   for (const k of Object.keys(CATALOG)) {
@@ -1120,19 +1190,52 @@ function renderDashboard(groups) {
                 r.qty
               }</td><td class=\"px-2 py-2 text-right\">${fmt(
                 r.subtotal
-              )}</td></tr>`;
+              )}</td><td class=\"px-2 py-2 text-center\"><button data-row-id=\"${
+                r.id
+              }" class="px-2 py-1 rounded ${r.delivered ? "bg-green-700" : "bg-yellow-700"} text-white">${
+                r.delivered ? "Sudah Diberikan" : "Belum"
+              }</button></td></tr>`;
             })
             .join("")
         )
         .join("");
       const orderDetails =
-        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order No.</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th></tr></thead><tbody>` +
+        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order No.</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th><th class=\"text-center px-2 py-2\">Status</th></tr></thead><tbody>` +
         rowsHtml +
         `</tbody></table></div></div>`;
       return `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-4\">${header}</div>${summary}${orderDetails}`;
     })
     .join("");
   container.innerHTML = totalsHtml + batchesHtml;
+  const deliveredRows = getDeliveredRowSet();
+  container.querySelectorAll("[data-row-id]").forEach((btn) => {
+    const id = parseInt(btn.getAttribute("data-row-id") || "", 10);
+    if (deliveredRows.has(String(id))) {
+      btn.textContent = "Sudah Diberikan";
+      btn.className = "px-2 py-1 rounded bg-green-700 text-white";
+    }
+    btn.addEventListener("click", async () => {
+      const nowDelivered = btn.textContent === "Belum";
+      try {
+        await supabase.from("orders").update({ delivered: nowDelivered }).eq("id", id);
+        btn.textContent = nowDelivered ? "Sudah Diberikan" : "Belum";
+        btn.className = nowDelivered
+          ? "px-2 py-1 rounded bg-green-700 text-white"
+          : "px-2 py-1 rounded bg-yellow-700 text-white";
+        showAlert("Status diperbarui", "success");
+      } catch (e) {
+        const set = getDeliveredRowSet();
+        if (nowDelivered) set.add(String(id));
+        else set.delete(String(id));
+        saveDeliveredRowSet(set);
+        btn.textContent = nowDelivered ? "Sudah Diberikan" : "Belum";
+        btn.className = nowDelivered
+          ? "px-2 py-1 rounded bg-green-700 text-white"
+          : "px-2 py-1 rounded bg-yellow-700 text-white";
+        showAlert("Status diperbarui (lokal)", "success");
+      }
+    });
+  });
 }
 async function loadDashboard(force = false) {
   if (!supabase) return;
@@ -1152,7 +1255,7 @@ async function loadDashboard(force = false) {
       }
     }
     if (!data) {
-      const { data: fetched, error } = await fetchOrders();
+      const { data: fetched, error } = await fetchOrdersSafe();
       if (error) {
         showAlert("Gagal memuat dashboard", "error");
         renderDashboard({});
@@ -1164,7 +1267,7 @@ async function loadDashboard(force = false) {
       saveStoredDashboard(data);
     }
   } else {
-    const { data: fetched, error } = await fetchOrders();
+    const { data: fetched, error } = await fetchOrdersSafe();
     if (error) {
       showAlert("Gagal memuat dashboard", "error");
       return;
