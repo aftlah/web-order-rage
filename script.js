@@ -1194,7 +1194,7 @@ function renderDashboard(groups) {
               )}</td><td class=\"px-2 py-2 text-center\"><button data-row-id=\"${
                 r.id
               }" class="px-2 py-1 rounded ${r.delivered ? "bg-green-700" : "bg-yellow-700"} text-white">${
-                r.delivered ? "Sudah Diberikan" : "Belum"
+                r.delivered ? "Sudah" : "Belum"
               }</button></td></tr>`;
             })
             .join("")
