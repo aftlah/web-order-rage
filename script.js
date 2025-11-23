@@ -645,6 +645,7 @@ function setOrderControlsEnabled(enabled) {
   });
 }
 async function updateOrderWindowUI() {
+  await expireOrderWindows();
   const el = document.getElementById("orderWindowStatus");
   const detailEl = document.getElementById("orderWindowDetail");
   const ok = await ensureOrderingOpen();
@@ -849,6 +850,23 @@ function summarizeItems(items) {
     .sort()
     .map((item) => ({ item, qty: map[item] }));
 }
+function getCatalogPrice(name) {
+  for (const k of Object.keys(CATALOG)) {
+    const it = (CATALOG[k] || []).find((x) => x.name === name);
+    if (it) return it.price;
+  }
+  return null;
+}
+function buildPriceMap(items) {
+  const map = {};
+  (items || []).forEach((r) => {
+    const key = r.item;
+    if (!key) return;
+    const p = typeof r.harga === "number" ? r.harga : null;
+    if (p) map[key] = p;
+  });
+  return map;
+}
 const GROUP_ORDER = [
   "ORDER KE HIGH TABEL",
   "ORDER KE ALLSTAR",
@@ -962,26 +980,31 @@ function renderDashboard(groups) {
         g.count
       } • Total: ${fmt(g.total)}</p></div>`;
       const summaryData = summarizeItems(g.items);
+      const priceMap = buildPriceMap(g.items);
       const groupedMap = {};
       summaryData.forEach((s) => {
         const grp = assignGroupForItem(s.item);
         (groupedMap[grp] ||= []).push(s);
       });
       const summary =
-        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Qty per Item</h4>` +
+        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Orderan</h4>` +
         GROUP_ORDER.map((grp) => {
           const rows = sortRowsByGroupOrder(groupedMap[grp] || [], grp);
           if (!rows.length) return "";
+          let totalGrp = 0;
+          const body = rows
+            .map((s) => {
+              const unit = priceMap[s.item] ?? getCatalogPrice(s.item) ?? 0;
+              const sub = unit * s.qty;
+              totalGrp += sub;
+              return `<tr class=\"table-row-hover border-b border-[#f3e8d8] dark:border-[#3d342d]\"><td class=\"px-2 py-2\">${s.item}</td><td class=\"px-2 py-2 text-center\">${s.qty}</td><td class=\"px-2 py-2 text-right\">${fmt(unit)}</td><td class=\"px-2 py-2 text-right\">${fmt(sub)}</td></tr>`;
+            })
+            .join("");
           return (
             `<div class=\"mt-2 mb-4\"><h5 class=\"text-xs md:text-sm font-semibold mb-1\">${grp}</h5>` +
-            `<div class=\"overflow-x-auto\"><table class=\"w-full text-sm border border-[#f3e8d8] dark:border-[#3d342d] rounded-lg\"><thead class=\"border-b border-[#f3e8d8] dark:border-[#3d342d]\"><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-right px-2 py-2\">Total Qty</th></tr></thead><tbody>` +
-            rows
-              .map(
-                (s) =>
-                  `<tr class=\"table-row-hover border-b border-[#f3e8d8] dark:border-[#3d342d]\"><td class=\"px-2 py-2\">${s.item}</td><td class=\"px-2 py-2 text-right\">${s.qty}</td></tr>`
-              )
-              .join("") +
-            `</tbody></table></div></div>`
+            `<div class=\"overflow-x-auto\"><table class=\"w-full text-sm border border-[#f3e8d8] dark:border-[#3d342d] rounded-lg\"><thead class=\"border-b border-[#f3e8d8] dark:border-[#3d342d]\"><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Harga</th><th class=\"text-right px-2 py-2\">Subtotal</th></tr></thead><tbody>` +
+            body +
+            `</tbody></table></div><div class=\"flex justify-end mt-2 text-sm font-semibold\">Total ${grp}: ${fmt(totalGrp)}</div></div>`
           );
         }).join("") +
         `</div>`;
@@ -1108,19 +1131,37 @@ async function loadDashboard(force = false) {
   renderDashboard(groups);
 }
 function loadWindows() {
-  fetchOrderWindows().then(({ data, error }) => {
-    if (error) {
-      showAlert("Gagal memuat jadwal", "error");
-      return;
-    }
-    renderOrderWindows(data || []);
-  });
+  expireOrderWindows()
+    .then(() => fetchOrderWindows())
+    .then(({ data, error }) => {
+      if (error) {
+        showAlert("Gagal memuat jadwal", "error");
+        return;
+      }
+      renderOrderWindows(data || []);
+    });
 }
 async function fetchOrderWindows() {
   return await supabase
     .from("order_windows")
     .select("id,orderanke,start_time,end_time,is_active")
     .order("start_time", { ascending: false });
+}
+async function expireOrderWindows() {
+  if (!supabase) return;
+  const now = getNowIso();
+  const { data, error } = await supabase
+    .from("order_windows")
+    .select("id,end_time,is_active")
+    .eq("is_active", true)
+    .lt("end_time", now);
+  if (error) return;
+  const ids = (data || []).map((r) => r.id).filter(Boolean);
+  if (!ids.length) return;
+  await supabase
+    .from("order_windows")
+    .update({ is_active: false })
+    .in("id", ids);
 }
 async function createOrderWindow() {
   const s = document.getElementById("winStart");
@@ -1161,6 +1202,7 @@ async function createOrderWindow() {
     showAlert("Jadwal dibuat", "success");
   }
   loadWindows();
+  setInterval(loadWindows, 60000);
 }
 function renderOrderWindows(rows) {
   const body = document.getElementById("windowsTableBody");
@@ -1295,6 +1337,8 @@ function initDashboard() {
   }
   const btn = document.getElementById("refreshDashboard");
   if (btn) btn.addEventListener("click", () => loadDashboard(true));
+  const shareBtn = document.getElementById("dashShareDiscord");
+  if (shareBtn) shareBtn.addEventListener("click", shareDashboardToDiscord);
   if (mSel) mSel.addEventListener("change", () => loadDashboard(false));
   if (wSel) wSel.addEventListener("change", () => loadDashboard(false));
   const logoutBtn = document.getElementById("logoutBtn");
@@ -1369,6 +1413,124 @@ function initDashboard() {
     loadDashboard(true);
   }
   loadWindows();
+}
+async function shareDashboardToDiscord() {
+  if (!supabase) return;
+  const mSel = document.getElementById("dashMonth");
+  const wSel = document.getElementById("dashWeek");
+  const nameInput = document.getElementById("dashNameInput");
+  const month = mSel ? parseInt(mSel.value, 10) : NaN;
+  const weekVal = wSel ? wSel.value : "";
+  const nameVal = nameInput ? nameInput.value.trim() : "";
+  const nameIsAll = nameVal.toLowerCase() === "semua";
+  let data = dashboardCache.orders;
+  if (!data) {
+    const { data: fetched, error } = await fetchOrders();
+    if (error) {
+      showAlert("Gagal memuat data", "error");
+      return;
+    }
+    data = fetched || [];
+    dashboardCache.orders = data;
+  }
+  const filtered = (data || []).filter((r) => {
+    const m = Math.floor((r.orderanke || 0) / 10);
+    const w = (r.orderanke || 0) % 10;
+    if (month && m !== month) return false;
+    if (weekVal && String(w) !== String(weekVal)) return false;
+    if (nameVal && !nameIsAll && String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()) return false;
+    return true;
+  });
+  if (!filtered.length) {
+    showAlert("Tidak ada data untuk dikirim", "error");
+    return;
+  }
+  const groups = groupOrdersByBatch(filtered);
+  const keys = Object.keys(groups).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  const lines = [];
+  lines.push("Total Qty per Item");
+  if (month) {
+    if (weekVal) {
+      lines.push(`Periode: M${month}-W${weekVal}`);
+    } else {
+      lines.push(`Periode: M${month}`);
+    }
+  }
+  if (nameVal && !nameIsAll) lines.push(`Nama: ${nameVal}`);
+  const groupTotals = { "ORDER KE HIGH TABEL": 0, "ORDER KE ALLSTAR": 0, "ORDER KE RDMC": 0, "LAINNYA": 0 };
+  keys.forEach((k) => {
+    const g = groups[k];
+    const m = Math.floor(parseInt(k, 10) / 10);
+    const w = parseInt(k, 10) % 10;
+    lines.push("");
+    lines.push(`Batch M${m}-W${w}`);
+    const summary = summarizeItems(g.items);
+    const priceMap = buildPriceMap(g.items);
+    const groupedMap = {};
+    summary.forEach((s) => {
+      const grp = assignGroupForItem(s.item);
+      (groupedMap[grp] ||= []).push(s);
+    });
+    GROUP_ORDER.forEach((grp) => {
+      const rows = sortRowsByGroupOrder(groupedMap[grp] || [], grp);
+      if (!rows.length) return;
+      lines.push("");
+      lines.push(grp);
+      const itemsWithPrice = rows.map((r) => {
+        const unit = priceMap[r.item] ?? getCatalogPrice(r.item) ?? 0;
+        const sub = unit * r.qty;
+        return { item: r.item, qty: r.qty, unit, unitFmt: fmt(unit), sub, subFmt: fmt(sub) };
+      });
+      const itemW = Math.max("Item".length, ...itemsWithPrice.map((x) => x.item.length));
+      const qtyW = Math.max("Qty".length, ...itemsWithPrice.map((x) => String(x.qty).length));
+      const hargaW = Math.max("Harga".length, ...itemsWithPrice.map((x) => x.unitFmt.length));
+      const subW = Math.max("Subtotal".length, ...itemsWithPrice.map((x) => x.subFmt.length));
+      const header =
+        "Item".padEnd(itemW) +
+        " | " +
+        "Qty".padStart(qtyW) +
+        " | " +
+        "Harga".padStart(hargaW) +
+        " | " +
+        "Subtotal".padStart(subW);
+      const sep =
+        "-".repeat(itemW) +
+        "-+-" +
+        "-".repeat(qtyW) +
+        "-+-" +
+        "-".repeat(hargaW) +
+        "-+-" +
+        "-".repeat(subW);
+      lines.push(header);
+      lines.push(sep);
+      let totalGrp = 0;
+      itemsWithPrice.forEach((x) => {
+        totalGrp += x.sub;
+        lines.push(
+          x.item.padEnd(itemW) +
+            " | " +
+            String(x.qty).padStart(qtyW) +
+            " | " +
+            x.unitFmt.padStart(hargaW) +
+            " | " +
+            x.subFmt.padStart(subW)
+        );
+      });
+      // const label = ("Total " + grp + ":").padEnd(itemW + 3 + qtyW + 3 + hargaW);
+      const label = ("Total : " ).padEnd(itemW + 3 + qtyW + 3 + hargaW);
+      lines.push(label + " | " + fmt(totalGrp).padStart(subW));
+      if (groupTotals[grp] !== undefined) groupTotals[grp] += totalGrp;
+    });
+  });
+  const summaryGroups = ["ORDER KE HIGH TABEL", "ORDER KE ALLSTAR", "ORDER KE RDMC"];
+  lines.push("");
+  lines.push("Ringkasan Total Orderan");
+  summaryGroups.forEach((gname) => {
+    lines.push(`${gname}: ${fmt(groupTotals[gname] || 0)}`);
+  });
+  const msg = "```\n" + lines.join("\n") + "\n```";
+  await postToDiscord(msg);
+  showAlert("Ringkasan dikirim ke Discord", "success");
 }
 function showAlert(message, type = "info") {
   const box = document.getElementById("appAlertBox");
