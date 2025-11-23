@@ -467,6 +467,29 @@ async function submitOrder() {
   }
   const editingId = window.__editingOrderId || null;
   const orderId = editingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const isVestItem = (name) => String(name || "").toUpperCase().includes("VEST");
+  const cartVestCount = state.cart
+    .filter((c) => isVestItem(c.item))
+    .reduce((a, c) => a + (c.qty || 0), 0);
+  let existingVest = 0;
+  try {
+    let q = supabase
+      .from("orders")
+      .select("qty,item,order_id")
+      .eq("nama", nama)
+      .eq("orderanke", effectiveOrderanke)
+      .ilike("item", "%VEST%");
+    if (editingId) q = q.neq("order_id", editingId);
+    const { data } = await q;
+    existingVest = (data || []).reduce((a, r) => a + (r.qty || 0), 0);
+  } catch (e) {}
+  const totalVest = existingVest + cartVestCount;
+  if (totalVest > 5) {
+    const remaining = Math.max(0, 5 - existingVest);
+    showAlert(`Maksimal VEST per orang 5. Tersisa ${remaining}.`, "error");
+    endLoading();
+    return;
+  }
   const rows = buildOrderRows(orderId, member_id, nama, effectiveOrderanke);
   try {
     if (editingId) {
@@ -645,6 +668,7 @@ function setOrderControlsEnabled(enabled) {
   });
 }
 async function updateOrderWindowUI() {
+  await announceOpenedWindows();
   await expireOrderWindows();
   const el = document.getElementById("orderWindowStatus");
   const detailEl = document.getElementById("orderWindowDetail");
@@ -1131,7 +1155,8 @@ async function loadDashboard(force = false) {
   renderDashboard(groups);
 }
 function loadWindows() {
-  expireOrderWindows()
+  announceOpenedWindows()
+    .then(() => expireOrderWindows())
     .then(() => fetchOrderWindows())
     .then(({ data, error }) => {
       if (error) {
@@ -1147,21 +1172,68 @@ async function fetchOrderWindows() {
     .select("id,orderanke,start_time,end_time,is_active")
     .order("start_time", { ascending: false });
 }
+async function announceOpenedWindows() {
+  if (!supabase) return;
+  const now = getNowIso();
+  const { data, error } = await supabase
+    .from("order_windows")
+    .select("id,orderanke,start_time,end_time,is_active")
+    .eq("is_active", true)
+    .lte("start_time", now);
+  if (error) return;
+  let announced = [];
+  try {
+    announced = JSON.parse(localStorage.getItem("open_announced") || "[]");
+  } catch (e) {}
+  const set = new Set(announced);
+  for (const r of (data || [])) {
+    if (!r || !r.id || set.has(String(r.id))) continue;
+    const v = r.orderanke || null;
+    const label = v ? `M${Math.floor(v / 10)}-W${v % 10}` : "Periode";
+    const start = fmtDateTime(r.start_time);
+    const end = fmtDateTime(r.end_time);
+    const msg = `@here\n# Orderan periode ${label} dibuka dari ${start} sampai ${end}`;
+    await postToDiscord(msg);
+    set.add(String(r.id));
+  }
+  try {
+    localStorage.setItem("open_announced", JSON.stringify(Array.from(set)));
+  } catch (e) {}
+}
 async function expireOrderWindows() {
   if (!supabase) return;
   const now = getNowIso();
   const { data, error } = await supabase
     .from("order_windows")
-    .select("id,end_time,is_active")
+    .select("id,orderanke,start_time,end_time,is_active")
     .eq("is_active", true)
     .lt("end_time", now);
   if (error) return;
-  const ids = (data || []).map((r) => r.id).filter(Boolean);
+  const rows = data || [];
+  const ids = rows.map((r) => r.id).filter(Boolean);
   if (!ids.length) return;
   await supabase
     .from("order_windows")
     .update({ is_active: false })
     .in("id", ids);
+  let announced = [];
+  try {
+    announced = JSON.parse(localStorage.getItem("closed_announced") || "[]");
+  } catch (e) {}
+  const set = new Set(announced);
+  for (const r of rows) {
+    if (!r || !r.id || set.has(String(r.id))) continue;
+    const v = r.orderanke || null;
+    const label = v ? `M${Math.floor(v / 10)}-W${v % 10}` : "Periode";
+    const start = fmtDateTime(r.start_time);
+    const end = fmtDateTime(r.end_time);
+    const msg = `@here\n# Orderan periode ${label} telah ditutup.\nDibuka dari ${start} sampai ${end}\nDi tunggu open order selanjutnya yaa`;
+    await postToDiscord(msg);
+    set.add(String(r.id));
+  }
+  try {
+    localStorage.setItem("closed_announced", JSON.stringify(Array.from(set)));
+  } catch (e) {}
 }
 async function createOrderWindow() {
   const s = document.getElementById("winStart");
@@ -1378,6 +1450,7 @@ function initDashboard() {
   const wCreate = document.getElementById("winCreateBtn");
   const wRefresh = document.getElementById("refreshWindows");
   const wCancel = document.getElementById("winCancelBtn");
+  const wAnnounce = document.getElementById("winAnnounceBtn");
   if (wCreate) wCreate.addEventListener("click", createOrderWindow);
   if (wRefresh) wRefresh.addEventListener("click", loadWindows);
   if (wCancel)
@@ -1396,6 +1469,7 @@ function initDashboard() {
       const wl = document.getElementById("winOrderNoLabel");
       if (wl) wl.value = "";
     });
+  if (wAnnounce) wAnnounce.addEventListener("click", announceOrderWindow);
   const mSel2 = document.getElementById("dashMonth");
   const wSel2 = document.getElementById("dashWeek");
   if (mSel2 && wSel2) {
@@ -1413,6 +1487,44 @@ function initDashboard() {
     loadDashboard(true);
   }
   loadWindows();
+}
+async function announceOrderWindow() {
+  try {
+    let target = null;
+    if (supabase) target = await fetchActiveOrderWindow(null);
+    let label = "";
+    let start = "";
+    let end = "";
+    if (target) {
+      const v = parseInt(target.orderanke, 10);
+      const m = Math.floor(v / 10);
+      const w = v % 10;
+      label = `M${m}-W${w}`;
+      start = fmtDateTime(target.start_time);
+      end = fmtDateTime(target.end_time);
+    } else {
+      const s = document.getElementById("winStart");
+      const e = document.getElementById("winEnd");
+      const wm = document.getElementById("winMonth");
+      const ww = document.getElementById("winWeek");
+      const m = wm ? parseInt(wm.value, 10) : NaN;
+      const w = ww ? parseInt(ww.value, 10) : NaN;
+      if (!Number.isNaN(m) && !Number.isNaN(w) && s && e && s.value && e.value) {
+        label = `M${m}-W${w}`;
+        start = fmtDateTime(new Date(s.value).toISOString());
+        end = fmtDateTime(new Date(e.value).toISOString());
+      }
+    }
+    if (!label || !start || !end) {
+      showAlert("Data jadwal tidak lengkap", "error");
+      return;
+    }
+    const msg = `@here\n# Orderan periode ${label} dibuka dari ${start} sampai ${end}`;
+    await postToDiscord(msg);
+    showAlert("Announcement dikirim ke Discord", "success");
+  } catch (e) {
+    showAlert("Gagal mengirim announcement", "error");
+  }
 }
 async function shareDashboardToDiscord() {
   if (!supabase) return;
