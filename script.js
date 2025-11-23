@@ -1173,14 +1173,15 @@ function renderDashboard(groups) {
       });
       const nameKeys = Object.keys(byName).sort((a, b) => a.localeCompare(b));
       const rowsHtml = nameKeys
-        .map((name) =>
+        .map((name, gIdx) =>
           byName[name]
             .map((r, idx) => {
               const nameCell =
                 idx === 0
                   ? `<td class=\"px-2 py-2 align-top\" rowspan=\"${byName[name].length}\">${name}</td>`
                   : "";
-              return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${
+              const rowCls = idx === 0 && gIdx > 0 ? "table-row-hover border-t border-[#f3e8d8] dark:border-[#3d342d]" : "table-row-hover";
+              return `<tr class=\"${rowCls}\"><td class=\"px-2 py-2\">${
                 r.order_no || r.order_id
               }</td>${nameCell}<td class=\"px-2 py-2\">${new Date(
                 r.waktu
