@@ -1214,14 +1214,14 @@ function renderDashboard(groups) {
   container.querySelectorAll("[data-row-id]").forEach((btn) => {
     const id = parseInt(btn.getAttribute("data-row-id") || "", 10);
     if (deliveredRows.has(String(id))) {
-      btn.textContent = "Sudah Diberikan";
+      btn.textContent = "Sudah";
       btn.className = "px-2 py-1 rounded bg-green-700 text-white";
     }
     btn.addEventListener("click", async () => {
       const nowDelivered = btn.textContent === "Belum";
       try {
         await supabase.from("orders").update({ delivered: nowDelivered }).eq("id", id);
-        btn.textContent = nowDelivered ? "Sudah Diberikan" : "Belum";
+        btn.textContent = nowDelivered ? "Sudah" : "Belum";
         btn.className = nowDelivered
           ? "px-2 py-1 rounded bg-green-700 text-white"
           : "px-2 py-1 rounded bg-yellow-700 text-white";
@@ -1231,7 +1231,7 @@ function renderDashboard(groups) {
         if (nowDelivered) set.add(String(id));
         else set.delete(String(id));
         saveDeliveredRowSet(set);
-        btn.textContent = nowDelivered ? "Sudah Diberikan" : "Belum";
+        btn.textContent = nowDelivered ? "Sudah" : "Belum";
         btn.className = nowDelivered
           ? "px-2 py-1 rounded bg-green-700 text-white"
           : "px-2 py-1 rounded bg-yellow-700 text-white";
