@@ -66,6 +66,8 @@ function getItemMax(name) {
 
 const state = { cart: [] };
 const dashboardCache = { orders: null, lastFetch: 0 };
+const __openAnnounceLock = new Set();
+const __closeAnnounceLock = new Set();
 const DASH_CACHE_KEY = "dashboardOrdersCacheV1";
 function loadStoredDashboard() {
   try {
@@ -1343,11 +1345,26 @@ async function fetchOrderWindows() {
 async function announceOpenedWindows() {
   if (!supabase) return;
   const now = getNowIso();
-  const { data, error } = await supabase
-    .from("order_windows")
-    .select("id,orderanke,start_time,end_time,is_active")
-    .eq("is_active", true)
-    .lte("start_time", now);
+  let data = null;
+  let error = null;
+  {
+    const res = await supabase
+      .from("order_windows")
+      .select("id,orderanke,start_time,end_time,is_active,announced_open")
+      .eq("is_active", true)
+      .lte("start_time", now);
+    data = res.data || null;
+    error = res.error || null;
+  }
+  if (error && String(error.message || "").includes("announced_open")) {
+    const res2 = await supabase
+      .from("order_windows")
+      .select("id,orderanke,start_time,end_time,is_active")
+      .eq("is_active", true)
+      .lte("start_time", now);
+    data = res2.data || null;
+    error = res2.error || null;
+  }
   if (error) return;
   let announced = [];
   try {
@@ -1355,7 +1372,11 @@ async function announceOpenedWindows() {
   } catch (e) {}
   const set = new Set(announced);
   for (const r of (data || [])) {
-    if (!r || !r.id || set.has(String(r.id))) continue;
+    if (!r || !r.id) continue;
+    if (r.announced_open === true) continue;
+    if (set.has(String(r.id))) continue;
+    if (__openAnnounceLock.has(String(r.id))) continue;
+    __openAnnounceLock.add(String(r.id));
     const v = r.orderanke || null;
     const label = v ? `M${Math.floor(v / 10)}-W${v % 10}` : "Periode";
     const start = fmtDateTime(r.start_time);
@@ -1363,6 +1384,13 @@ async function announceOpenedWindows() {
     const msg = `@here\n# Orderan periode ${label} dibuka dari ${start} sampai ${end}`;
     await postToDiscord(msg);
     set.add(String(r.id));
+    try {
+      await supabase
+        .from("order_windows")
+        .update({ announced_open: true })
+        .eq("id", r.id);
+    } catch (e) {}
+    __openAnnounceLock.delete(String(r.id));
   }
   try {
     localStorage.setItem("open_announced", JSON.stringify(Array.from(set)));
@@ -1371,11 +1399,26 @@ async function announceOpenedWindows() {
 async function expireOrderWindows() {
   if (!supabase) return;
   const now = getNowIso();
-  const { data, error } = await supabase
-    .from("order_windows")
-    .select("id,orderanke,start_time,end_time,is_active")
-    .eq("is_active", true)
-    .lt("end_time", now);
+  let data = null;
+  let error = null;
+  {
+    const res = await supabase
+      .from("order_windows")
+      .select("id,orderanke,start_time,end_time,is_active,announced_close")
+      .eq("is_active", true)
+      .lt("end_time", now);
+    data = res.data || null;
+    error = res.error || null;
+  }
+  if (error && String(error.message || "").includes("announced_close")) {
+    const res2 = await supabase
+      .from("order_windows")
+      .select("id,orderanke,start_time,end_time,is_active")
+      .eq("is_active", true)
+      .lt("end_time", now);
+    data = res2.data || null;
+    error = res2.error || null;
+  }
   if (error) return;
   const rows = data || [];
   const ids = rows.map((r) => r.id).filter(Boolean);
@@ -1390,7 +1433,11 @@ async function expireOrderWindows() {
   } catch (e) {}
   const set = new Set(announced);
   for (const r of rows) {
-    if (!r || !r.id || set.has(String(r.id))) continue;
+    if (!r || !r.id) continue;
+    if (r.announced_close === true) continue;
+    if (set.has(String(r.id))) continue;
+    if (__closeAnnounceLock.has(String(r.id))) continue;
+    __closeAnnounceLock.add(String(r.id));
     const v = r.orderanke || null;
     const label = v ? `M${Math.floor(v / 10)}-W${v % 10}` : "Periode";
     const start = fmtDateTime(r.start_time);
@@ -1398,6 +1445,13 @@ async function expireOrderWindows() {
     const msg = `@here\n# Orderan periode ${label} telah ditutup.\nDibuka dari ${start} sampai ${end}\nDi tunggu open order selanjutnya yaa`;
     await postToDiscord(msg);
     set.add(String(r.id));
+    try {
+      await supabase
+        .from("order_windows")
+        .update({ announced_close: true })
+        .eq("id", r.id);
+    } catch (e) {}
+    __closeAnnounceLock.delete(String(r.id));
   }
   try {
     localStorage.setItem("closed_announced", JSON.stringify(Array.from(set)));
@@ -1442,7 +1496,9 @@ async function createOrderWindow() {
     showAlert("Jadwal dibuat", "success");
   }
   loadWindows();
-  setInterval(loadWindows, 60000);
+  if (!window.__windowsTimer) {
+    window.__windowsTimer = setInterval(loadWindows, 60000);
+  }
 }
 function renderOrderWindows(rows) {
   const body = document.getElementById("windowsTableBody");
@@ -1689,6 +1745,18 @@ async function announceOrderWindow() {
     }
     const msg = `@here\n# Orderan periode ${label} dibuka dari ${start} sampai ${end}`;
     await postToDiscord(msg);
+    try {
+      if (target && target.id) {
+        await supabase
+          .from("order_windows")
+          .update({ announced_open: true })
+          .eq("id", target.id);
+        const arr = JSON.parse(localStorage.getItem("open_announced") || "[]");
+        const s = new Set(arr);
+        s.add(String(target.id));
+        localStorage.setItem("open_announced", JSON.stringify(Array.from(s)));
+      }
+    } catch (e) {}
     showAlert("Announcement dikirim ke Discord", "success");
   } catch (e) {
     showAlert("Gagal mengirim announcement", "error");
