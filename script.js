@@ -626,7 +626,7 @@ async function submitOrder() {
         .map(
           (r) =>
             `• ${String(r.qty).padStart(2)}x ${r.item.padEnd(maxLen)} : ${fmt(
-              r.harga
+              (r.harga || 0) * (r.qty || 0)
             )}`
         )
         .join("\n");
