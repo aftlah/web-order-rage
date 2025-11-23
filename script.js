@@ -46,6 +46,24 @@ const CATALOG = {
   ],
 };
 
+const ITEM_MAX_LIMITS = {
+  "PISTOL .50": 60,
+  "CERAMIC PISTOL": 30,
+  "MICRO SMG": 20,
+  "AMMO 9MM": 250,
+  "AMMO .50": 100,
+  "VEST": 125,
+  "VEST MEDIUM": 150,
+  "LOCKPICK": 60,
+};
+function getItemMax(name) {
+  const n = name || "";
+  if (Object.prototype.hasOwnProperty.call(ITEM_MAX_LIMITS, n)) return ITEM_MAX_LIMITS[n];
+  const upper = n.toUpperCase();
+  const found = Object.keys(ITEM_MAX_LIMITS).find((k) => k.toUpperCase() === upper);
+  return typeof found === "string" ? ITEM_MAX_LIMITS[found] : null;
+}
+
 const state = { cart: [] };
 const dashboardCache = { orders: null, lastFetch: 0 };
 const DASH_CACHE_KEY = "dashboardOrdersCacheV1";
@@ -266,6 +284,20 @@ async function addToCart() {
   const itemName = document.getElementById("item").value;
   const qty = parseInt(document.getElementById("qty").value, 10) || 1;
   if (!itemName || !kategori || qty < 1) return;
+  const max = getItemMax(itemName);
+  if (typeof max === "number") {
+    const norm = normItemName(itemName);
+    const usedDb = (window.__itemTotals || {})[norm] || 0;
+    const usedCart = state.cart
+      .filter((c) => normItemName(c.item) === norm)
+      .reduce((a, c) => a + (c.qty || 0), 0);
+    const willBe = usedDb + usedCart + qty;
+    if (willBe > max) {
+      const remain = Math.max(0, max - usedDb - usedCart);
+      showAlert(`Maks ${itemName} ${max}. Tersisa ${remain}.`, "error");
+      return;
+    }
+  }
   const item = CATALOG[kategori].find((i) => i.name === itemName);
   const existing = state.cart.find(
     (c) => c.item === itemName && c.kategori === kategori
@@ -490,6 +522,21 @@ async function submitOrder() {
     endLoading();
     return;
   }
+  for (const c of state.cart) {
+    const max = getItemMax(c.item);
+    if (typeof max !== "number") continue;
+    const norm = normItemName(c.item);
+    const usedDb = (window.__itemTotals || {})[norm] || 0;
+    const usedCart = state.cart
+      .filter((x) => normItemName(x.item) === norm)
+      .reduce((a, x) => a + (x.qty || 0), 0);
+    if (usedDb + usedCart > max) {
+      const remain = Math.max(0, max - usedDb);
+      showAlert(`Maks ${c.item} ${max}. Tersisa ${remain}.`, "error");
+      endLoading();
+      return;
+    }
+  }
   const rows = buildOrderRows(orderId, member_id, nama, effectiveOrderanke);
   try {
     if (editingId) {
@@ -520,6 +567,7 @@ async function submitOrder() {
     state.cart = [];
     window.__editingOrderId = null;
     renderCart();
+    await refreshItemTotals(effectiveOrderanke);
     await loadMyOrdersForSelection();
     try {
       const { data: fetched, error: qError } = await supabase
@@ -667,6 +715,21 @@ function setOrderControlsEnabled(enabled) {
     el.classList.toggle("cursor-not-allowed", !enabled);
   });
 }
+async function refreshItemTotals(orderanke) {
+  if (!supabase || !orderanke) return;
+  const { data, error } = await supabase
+    .from("orders")
+    .select("item,qty,orderanke")
+    .eq("orderanke", orderanke);
+  if (error) return;
+  const map = {};
+  (data || []).forEach((r) => {
+    const k = normItemName(r.item);
+    map[k] = (map[k] || 0) + (r.qty || 0);
+  });
+  window.__itemTotals = map;
+  populateItems();
+}
 async function updateOrderWindowUI() {
   await announceOpenedWindows();
   await expireOrderWindows();
@@ -679,6 +742,8 @@ async function updateOrderWindowUI() {
     el.classList.toggle("bg-green-600", ok);
   }
   const win = await fetchActiveOrderWindow(null);
+  const vNow = win && win.orderanke ? parseInt(win.orderanke, 10) : null;
+  if (vNow) await refreshItemTotals(vNow);
   if (detailEl) {
     if (win) {
       const v = parseInt(win.orderanke, 10);
@@ -921,7 +986,6 @@ const GROUP_ITEMS = {
     "AMMO .50",
     "VEST MEDIUM",
     "LOCKPICK",
-    "Lockpick",
   ],
   "ORDER KE RDMC": [
     "Tactical Flashlight",
