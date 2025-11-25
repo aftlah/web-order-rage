@@ -268,15 +268,21 @@
       <div
         class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8"
       >
-        <h2
-          class="section-title text-xl font-bold mb-6 flex items-center gap-3"
-        >
-          <span class="section-divider w-1 h-6 rounded-full"></span>
-          Dashboard
-        </h2>
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="section-title text-xl font-bold flex items-center gap-3">
+            <span class="section-divider w-1 h-6 rounded-full"></span>
+            Dashboard
+          </h2>
+          <div class="flex items-center gap-3">
+            <button
+              id="dashAddMember"
+              class="px-4 py-2.5 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200"
+            >Tambah Member</button>
+          </div>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-end mb-6">
-          <div class="flex flex-col gap-2">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-6 items-end mb-6">
+          <div class="flex flex-col gap-2 md:col-span-1">
             <label
               class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
               >Bulan</label
@@ -286,7 +292,7 @@
               class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"
             ></select>
           </div>
-          <div class="flex flex-col gap-2">
+          <div class="flex flex-col gap-2 md:col-span-1">
             <label
               class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
               >Minggu</label
@@ -296,23 +302,25 @@
               class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"
             ></select>
           </div>
-          <div class="flex flex-col gap-2">
+          <div class="flex flex-col gap-2 md:col-span-2">
             <label
               class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
               >Nama</label
             >
-            <div class="relative">
-              <input
-                id="dashNameInput"
-                type="text"
-                autocomplete="off"
-                placeholder="Semua"
-                class="w-full px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-              <div
-                id="dashNameDropdown"
-                class="absolute left-0 right-0 mt-1 bg-[#1f1410] border border-[#3d342d] rounded-lg shadow max-h-60 overflow-auto hidden z-50"
-              ></div>
+            <div class="flex items-center gap-2">
+              <div class="relative flex-1">
+                <input
+                  id="dashNameInput"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="Semua"
+                  class="w-full min-w-[220px] px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+                <div
+                  id="dashNameDropdown"
+                  class="absolute left-0 right-0 mt-1 bg-[#1f1410] border border-[#3d342d] rounded-lg shadow max-h-60 overflow-auto hidden z-50"
+                ></div>
+              </div>
             </div>
           </div>
           <button
@@ -330,6 +338,19 @@
         </div>
 
         <div id="dashboardBody"></div>
+      </div>
+
+      <div id="memberModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg p-6 w-[90%] max-w-md">
+          <h3 class="text-lg font-bold mb-4">Tambah Member</h3>
+          <div class="flex flex-col gap-3">
+            <input id="memberNameInput" type="text" placeholder="Nama member baru" class="w-full px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            <div class="flex gap-3 justify-end">
+              <button id="memberCancelBtn" class="px-4 py-3 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200">Batal</button>
+              <button id="memberSaveBtn" class="px-4 py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow">Simpan</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div

@@ -235,7 +235,6 @@ async function init() {
     if (addBtn) addBtn.addEventListener("click", addToCart);
     if (submitBtn) submitBtn.addEventListener("click", submitOrder);
     setupCustomerSearch();
-    seedCustomers();
     setOrderNoUI();
     updateOrderWindowUI();
     updateNameValidity();
@@ -948,22 +947,6 @@ function updateNameValidity() {
   }
   if (ok) loadMyOrdersForSelection();
 }
-async function seedCustomers() {
-  if (!supabase || !window.SEED_CUSTOMERS) return;
-  const done = localStorage.getItem("customersSeeded") === "1";
-  if (done) return;
-  const names = Array.from(
-    new Set(
-      (window.SEED_CUSTOMERS || []).map((n) => (n || "").trim()).filter(Boolean)
-    )
-  );
-  if (names.length === 0) return;
-  const rows = names.map((n) => ({ nama: n }));
-  const { error } = await supabase
-    .from("members")
-    .upsert(rows, { onConflict: "nama" });
-  if (!error) localStorage.setItem("customersSeeded", "1");
-}
 function groupOrdersByBatch(rows) {
   const groups = {};
   (rows || []).forEach((r) => {
@@ -1619,6 +1602,7 @@ async function deleteOrderWindow(id) {
 function initDashboard() {
   const mSel = document.getElementById("dashMonth");
   const wSel = document.getElementById("dashWeek");
+  const nameInput = document.getElementById("dashNameInput");
   if (mSel) {
     mSel.innerHTML = Array.from(
       { length: 12 },
@@ -1636,6 +1620,27 @@ function initDashboard() {
       ).join("");
     wSel.value = "";
   }
+  const addBtn = document.getElementById("dashAddMember");
+  if (addBtn) addBtn.addEventListener("click", showAddMemberForm);
+  const modal = document.getElementById("memberModal");
+  const cancelBtn = document.getElementById("memberCancelBtn");
+  const saveBtn = document.getElementById("memberSaveBtn");
+  const modalInput = document.getElementById("memberNameInput");
+  if (modal)
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) hideMemberModal();
+    });
+  if (cancelBtn) cancelBtn.addEventListener("click", hideMemberModal);
+  if (saveBtn)
+    saveBtn.addEventListener("click", async () => {
+      const name = modalInput ? modalInput.value.trim() : "";
+      if (!name) {
+        showAlert("Nama member kosong", "error");
+        return;
+      }
+      await insertNewMember(name);
+      hideMemberModal();
+    });
   const btn = document.getElementById("refreshDashboard");
   if (btn) btn.addEventListener("click", () => loadDashboard(true));
   const shareBtn = document.getElementById("dashShareDiscord");
@@ -1716,6 +1721,76 @@ function initDashboard() {
     loadDashboard(true);
   }
   loadWindows();
+}
+async function addMemberFromDashboard() {
+  if (!supabase) return;
+  const input = document.getElementById("dashNameInput");
+  const v = input ? input.value.trim() : "";
+  if (!v) {
+    showAlert("Nama member kosong", "error");
+    return;
+  }
+  const { data: exists } = await supabase
+    .from("members")
+    .select("id,nama")
+    .eq("nama", v)
+    .limit(1);
+  if (exists && exists.length) {
+    showAlert("Member sudah ada", "error");
+    return;
+  }
+  const { error } = await supabase
+    .from("members")
+    .insert([{ nama: v }])
+    .select("id");
+  if (error) {
+    showAlert("Gagal menambah member", "error");
+    return;
+  }
+  showAlert("Member berhasil ditambah", "success");
+  updateDashNameSuggestions();
+  loadDashboard(true);
+}
+
+function showAddMemberForm() {
+  const modal = document.getElementById("memberModal");
+  const input = document.getElementById("memberNameInput");
+  if (!modal || !input) return;
+  input.value = "";
+  modal.classList.remove("hidden");
+  setTimeout(() => input.focus(), 0);
+}
+
+function hideMemberModal() {
+  const modal = document.getElementById("memberModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+async function insertNewMember(name) {
+  if (!supabase) return;
+  const { data: exists } = await supabase
+    .from("members")
+    .select("id,nama")
+    .eq("nama", name)
+    .limit(1);
+  if (exists && exists.length) {
+    showAlert("Member sudah ada", "error");
+    return;
+  }
+  const { error } = await supabase
+    .from("members")
+    .insert([{ nama: name }])
+    .select("id");
+  if (error) {
+    showAlert("Gagal menambah member", "error");
+    return;
+  }
+  hideMemberModal();
+  const input = document.getElementById("dashNameInput");
+  if (input) input.value = name;
+  showAlert("Member berhasil ditambah", "success");
+  updateDashNameSuggestions();
+  loadDashboard(true);
 }
 async function announceOrderWindow() {
   try {
