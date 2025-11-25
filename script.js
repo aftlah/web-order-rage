@@ -84,7 +84,12 @@ function loadStoredDashboard() {
 async function postToDiscord(message) {
   try {
     const url = (window && window.DISCORD_WEBHOOK_URL) || "";
-    if (!url) return;
+    const enabled = window.DISCORD_ENABLED !== false;
+    if (!url || !enabled || !message || typeof message !== "string") return;
+    const now = Date.now();
+    const last = window.__discordLastSent || 0;
+    if (now - last < 4000) return;
+    window.__discordLastSent = now;
     await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
