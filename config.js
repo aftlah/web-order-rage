@@ -5,4 +5,4 @@ window.SUPABASE_ANON_KEY =
 window.ADMIN_DELETE_PIN = "";
 window.DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1440985512524644372/jE6smJ_0o3_PJIe3j8__uAFU5OzztIM8XunEFGJuJaRLrj2CtLTTk8EvyqXeHYLLowAr";
 window.DISCORD_ENABLED = true;
-window.MAINTENANCE_MODE = false;
+window.MAINTENANCE_MODE = true;
