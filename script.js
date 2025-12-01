@@ -285,11 +285,17 @@ async function addToCart() {
     showAlert("Pilih nama dari database", "error");
     return;
   }
+  const isHang = await getMemberHangaroundStatus(hiddenId);
   const nama = document.getElementById("nama").value.trim();
   const kategori = document.getElementById("kategori").value;
   const itemName = document.getElementById("item").value;
   const qty = parseInt(document.getElementById("qty").value, 10) || 1;
   if (!itemName || !kategori || qty < 1) return;
+  const nItem = normItemName(itemName);
+  if (isHang && nItem === "VEST") {
+    showAlert("Hangaround tidak boleh beli VEST, hanya VEST MEDIUM", "error");
+    return;
+  }
   const max = getItemMax(itemName);
   if (typeof max === "number") {
     const norm = normItemName(itemName);
@@ -447,7 +453,7 @@ async function submitOrder() {
       ? parseInt(winCurrent.orderanke, 10)
       : NaN;
   const isMaint = !!(window && window.MAINTENANCE_MODE);
-  if (isMaint && nama.toLowerCase() !== "leo") {
+  if (isMaint && !["leo", "melky"].includes(nama.toLowerCase())) {
     showAlert("Sedang maintenance: Sebentar yaa kawan", "error");
     return;
   }
@@ -505,6 +511,15 @@ async function submitOrder() {
   }
   const editingId = window.__editingOrderId || null;
   const orderId = editingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const isHang = await getMemberHangaroundStatus(member_id);
+  if (isHang) {
+    const invalid = state.cart.some((c) => normItemName(c.item) === "VEST");
+    if (invalid) {
+      showAlert("Hangaround tidak boleh beli VEST, hanya VEST MEDIUM", "error");
+      endLoading();
+      return;
+    }
+  }
   const isVestItem = (name) => String(name || "").toUpperCase().includes("VEST");
   const cartVestCount = state.cart
     .filter((c) => isVestItem(c.item))
@@ -656,6 +671,23 @@ async function submitOrder() {
     // statusEl.textContent = "Gagal menyimpan (network error)";
     showAlert("Gagal menyimpan (network error)", "error");
     endLoading();
+  }
+}
+async function getMemberHangaroundStatus(id) {
+  if (!supabase || !id) return false;
+  const cache = (window.__memberHangCache ||= {});
+  if (typeof cache[id] !== "undefined") return !!cache[id];
+  try {
+    const { data } = await supabase
+      .from("members")
+      .select("id,is_hangaround")
+      .eq("id", id)
+      .limit(1);
+    const val = !!((data && data[0] && data[0].is_hangaround) || false);
+    cache[id] = val;
+    return val;
+  } catch (e) {
+    return false;
   }
 }
 
