@@ -541,12 +541,12 @@ async function submitOrder() {
     existingVest = (data || []).reduce((a, r) => a + (r.qty || 0), 0);
   } catch (e) {}
   const totalVest = existingVest + cartVestCount;
-  // if (totalVest > 5) {
-  //   const remaining = Math.max(0, 5 - existingVest);
-  //   showAlert(`Maksimal VEST per orang 5. Tersisa ${remaining}.`, "error");
-  //   endLoading();
-  //   return;
-  // }
+  if (totalVest > 5) {
+    const remaining = Math.max(0, 5 - existingVest);
+    showAlert(`Maksimal VEST per orang 5. Tersisa ${remaining}.`, "error");
+    endLoading();
+    return;
+  }
   for (const c of state.cart) {
     const max = getItemMax(c.item);
     if (typeof max !== "number") continue;
