@@ -48,8 +48,9 @@ const CATALOG = {
 
 const ITEM_MAX_LIMITS = {
   "PISTOL .50": 60,
-  "CERAMIC PISTOL": 30,
   "MICRO SMG": 20,
+  "CERAMIC PISTOL": 30,
+  "SMG": 20,
   "AMMO 9MM": 350,
   "AMMO .50": 100,
   "VEST": 125,
