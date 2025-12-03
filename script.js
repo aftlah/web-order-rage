@@ -17,6 +17,8 @@ const CATALOG = {
     { name: "PISTOL X17", price: 32500 },
     { name: "BLACK REVOLVER", price: 91000 },
     { name: "KVR", price: 78000 },
+    // { name: "Carbin Rifle / AKM", price: 150.000 }, max 20
+
   ],
   Ammo: [
     { name: "AMMO 9MM", price: 2730 },
@@ -24,6 +26,7 @@ const CATALOG = {
     { name: "AMMO 0.45", price: 5200 },
     { name: "AMMO 12 GAUGE", price: 6500 },
     { name: "AMMO .50", price: 750 },
+    // untuk ammo rifle type 556, type  763 5000/box max 400box
   ],
   Attachment: [
     { name: "Tactical Flashlight", price: 3000 },
@@ -53,7 +56,7 @@ const ITEM_MAX_LIMITS = {
   "SMG": 20,
   "AMMO 9MM": 350,
   "AMMO .50": 100,
-  "VEST": 125,
+  "VEST": 125, // Next 200
   "VEST MEDIUM": 150,
   "LOCKPICK": 60,
 };
@@ -538,12 +541,12 @@ async function submitOrder() {
     existingVest = (data || []).reduce((a, r) => a + (r.qty || 0), 0);
   } catch (e) {}
   const totalVest = existingVest + cartVestCount;
-  if (totalVest > 5) {
-    const remaining = Math.max(0, 5 - existingVest);
-    showAlert(`Maksimal VEST per orang 5. Tersisa ${remaining}.`, "error");
-    endLoading();
-    return;
-  }
+  // if (totalVest > 5) {
+  //   const remaining = Math.max(0, 5 - existingVest);
+  //   showAlert(`Maksimal VEST per orang 5. Tersisa ${remaining}.`, "error");
+  //   endLoading();
+  //   return;
+  // }
   for (const c of state.cart) {
     const max = getItemMax(c.item);
     if (typeof max !== "number") continue;
