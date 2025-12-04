@@ -17,7 +17,7 @@ const CATALOG = {
     { name: "PISTOL X17", price: 32500 },
     { name: "BLACK REVOLVER", price: 91000 },
     { name: "KVR", price: 78000 },
-    // { name: "Carbin Rifle / AKM", price: 150.000 }, max 20
+    { name: "Assault Rifle", price: 150.000 }, //max 20
 
   ],
   Ammo: [
@@ -26,6 +26,8 @@ const CATALOG = {
     { name: "AMMO 0.45", price: 5200 },
     { name: "AMMO 12 GAUGE", price: 6500 },
     { name: "AMMO .50", price: 750 },
+    { name: "Ammo 556", price: 5000 },
+    { name: "Ammo 762", price: 5000 },
     // untuk ammo rifle type 556, type  763 5000/box max 400box
   ],
   Attachment: [
@@ -56,10 +58,15 @@ const ITEM_MAX_LIMITS = {
   "SMG": 20,
   "AMMO 9MM": 350,
   "AMMO .50": 100,
-  "VEST": 125, // Next 200
+  "VEST": 200,
   "VEST MEDIUM": 150,
   "LOCKPICK": 60,
+  "AMMO 44 MAGNUM" : 50,
+  "Assault Rifle" : 20,
+  "Ammo 556" : 400,
+  "Ammo 762" : 400,
 };
+
 function getItemMax(name) {
   const n = name || "";
   if (Object.prototype.hasOwnProperty.call(ITEM_MAX_LIMITS, n)) return ITEM_MAX_LIMITS[n];
