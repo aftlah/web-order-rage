@@ -1,4 +1,6 @@
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+// import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+// import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.2";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
 const supabase =
   window.SUPABASE_URL && window.SUPABASE_ANON_KEY
     ? createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
