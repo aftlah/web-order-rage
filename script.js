@@ -1416,7 +1416,7 @@ async function announceOpenedWindows() {
     const label = v ? `M${Math.floor(v / 10)}-W${v % 10}` : "Periode";
     const start = fmtDateTime(r.start_time);
     const end = fmtDateTime(r.end_time);
-    const msg = `@here\n# Orderan periode ${label} dibuka dari ${start} sampai ${end}`;
+    const msg = `# Orderan periode ${label} dibuka dari ${start} sampai ${end}\n@here`;
     await postToDiscord(msg);
     set.add(String(r.id));
     try {
@@ -1477,7 +1477,7 @@ async function expireOrderWindows() {
     const label = v ? `M${Math.floor(v / 10)}-W${v % 10}` : "Periode";
     const start = fmtDateTime(r.start_time);
     const end = fmtDateTime(r.end_time);
-    const msg = `@here\n# Orderan periode ${label} telah ditutup.\nDibuka dari ${start} sampai ${end}\nDi tunggu open order selanjutnya yaa`;
+    const msg = `# Orderan periode ${label} telah ditutup.\nDibuka dari ${start} sampai ${end}\nDi tunggu open order selanjutnya yaa \n@here`;
     await postToDiscord(msg);
     set.add(String(r.id));
     try {
@@ -1870,7 +1870,7 @@ async function announceOrderWindow() {
       showAlert("Data jadwal tidak lengkap", "error");
       return;
     }
-    const msg = `@here\n# Orderan periode ${label} dibuka dari ${start} sampai ${end}`;
+    const msg = `# Orderan periode ${label} dibuka dari ${start} sampai ${end} \n@here`;
     await postToDiscord(msg);
     try {
       if (target && target.id) {
