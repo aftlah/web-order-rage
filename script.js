@@ -22,7 +22,7 @@ const CATALOG = {
   ],
   Ammo: [
     { name: "AMMO 9MM", price: 2730 },
-    { name: "AMMO 44 MAGNUM", price: 5200 },
+    // { name: "AMMO 44 MAGNUM", price: 5200 },
     { name: "AMMO 0.45", price: 5200 },
     { name: "AMMO 12 GAUGE", price: 6500 },
     { name: "AMMO .50", price: 750 },
@@ -97,6 +97,10 @@ async function postToDiscord(message) {
     const url = (window && window.DISCORD_WEBHOOK_URL) || "";
     const enabled = window.DISCORD_ENABLED !== false;
     if (!url || !enabled || !message || typeof message !== "string") return;
+    let content = message;
+    if (window && window.MAINTENANCE_MODE === true) {
+      content = `WEBSITE UNDER MAINTENANCE\n${content}\n\n ## SEBENTAR LAGI TESTING @here`;
+    }
     const now = Date.now();
     const last = window.__discordLastSent || 0;
     if (now - last < 4000) return;
@@ -104,7 +108,7 @@ async function postToDiscord(message) {
     await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: message }),
+      body: JSON.stringify({ content }),
     });
   } catch (e) {}
 }
