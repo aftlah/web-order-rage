@@ -17,7 +17,7 @@ const CATALOG = {
     { name: "PISTOL X17", price: 32500 },
     { name: "BLACK REVOLVER", price: 91000 },
     { name: "KVR", price: 78000 },
-    { name: "Assault Rifle", price: 150.000 }, //max 20
+    { name: "Assault Rifle", price: 150000 }, //max 20
 
   ],
   Ammo: [
@@ -1232,13 +1232,13 @@ function renderDashboard(groups) {
                 r.id
               }" class="px-2 py-1 rounded ${r.delivered ? "bg-green-700" : "bg-yellow-700"} text-white">${
                 r.delivered ? "Sudah" : "Belum"
-              }</button></td></tr>`;
+              }</button></td><td class=\"px-2 py-2 text-right\"><button data-del-id=\"${r.id}\" class=\"px-2 py-1 rounded bg-red-700 text-white\">Hapus</button></td></tr>`;
             })
             .join("")
         )
         .join("");
       const orderDetails =
-        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order No.</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th><th class=\"text-center px-2 py-2\">Status</th></tr></thead><tbody>` +
+        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order No.</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th><th class=\"text-center px-2 py-2\">Status</th><th class=\"text-right px-2 py-2\">Actions</th></tr></thead><tbody>` +
         rowsHtml +
         `</tbody></table></div></div>`;
       return `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-4\">${header}</div>${summary}${orderDetails}`;
@@ -1271,6 +1271,25 @@ function renderDashboard(groups) {
           ? "px-2 py-1 rounded bg-green-700 text-white"
           : "px-2 py-1 rounded bg-yellow-700 text-white";
         showAlert("Status diperbarui (lokal)", "success");
+      }
+    });
+  });
+  container.querySelectorAll("[data-del-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = parseInt(btn.getAttribute("data-del-id") || "", 10);
+      if (!id) return;
+      const ok = window.confirm("Hapus item order ini?");
+      if (!ok) return;
+      try {
+        const { error } = await supabase.from("orders").delete().eq("id", id);
+        if (error) {
+          showAlert("Gagal menghapus item", "error");
+          return;
+        }
+        showAlert("Item dihapus", "success");
+        loadDashboard(true);
+      } catch (e) {
+        showAlert("Gagal menghapus (network)", "error");
       }
     });
   });
