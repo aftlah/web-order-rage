@@ -311,6 +311,10 @@ async function addToCart() {
     showAlert("Hangaround tidak boleh beli VEST, hanya VEST MEDIUM", "error");
     return;
   }
+  if (isHang && nItem === "ASSAULT RIFLE") {
+    showAlert("Hangaround tidak boleh beli ASSAULT RIFLE", "error");
+    return;
+  }
   const max = getItemMax(itemName);
   if (typeof max === "number") {
     const norm = normItemName(itemName);
@@ -528,9 +532,12 @@ async function submitOrder() {
   const orderId = editingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const isHang = await getMemberHangaroundStatus(member_id);
   if (isHang) {
-    const invalid = state.cart.some((c) => normItemName(c.item) === "VEST");
+    const invalid = state.cart.some((c) => {
+      const n = normItemName(c.item);
+      return n === "VEST" || n === "ASSAULT RIFLE";
+    });
     if (invalid) {
-      showAlert("Hangaround tidak boleh beli VEST, hanya VEST MEDIUM", "error");
+      showAlert("Hangaround tidak boleh beli VEST atau ASSAULT RIFLE", "error");
       endLoading();
       return;
     }
