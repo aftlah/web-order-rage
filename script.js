@@ -26,7 +26,7 @@ const CATALOG = {
     { name: "AMMO 0.45", price: 5200 },
     { name: "AMMO 12 GAUGE", price: 6500 },
     { name: "AMMO .50", price: 750 },
-    { name: "Ammo 556", price: 5000 },
+    // { name: "Ammo 556", price: 5000 }, // Untuk Carbin
     { name: "Ammo 762", price: 5000 },
     // untuk ammo rifle type 556, type  763 5000/box max 400box
   ],
@@ -1704,7 +1704,9 @@ function initDashboard() {
         showAlert("Nama member kosong", "error");
         return;
       }
-      await insertNewMember(name);
+      const hangEl = document.getElementById("memberHangInput");
+      const isHang = !!(hangEl && hangEl.checked);
+      await insertNewMember(name, isHang);
       hideMemberModal();
     });
   const btn = document.getElementById("refreshDashboard");
@@ -1832,7 +1834,7 @@ function hideMemberModal() {
   if (modal) modal.classList.add("hidden");
 }
 
-async function insertNewMember(name) {
+async function insertNewMember(name, isHang) {
   if (!supabase) return;
   const { data: exists } = await supabase
     .from("members")
@@ -1845,7 +1847,7 @@ async function insertNewMember(name) {
   }
   const { error } = await supabase
     .from("members")
-    .insert([{ nama: name }])
+    .insert([{ nama: name, is_hangaround: !!isHang }])
     .select("id");
   if (error) {
     showAlert("Gagal menambah member", "error");
