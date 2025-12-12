@@ -18,7 +18,6 @@ const CATALOG = {
     { name: "BLACK REVOLVER", price: 91000 },
     { name: "KVR", price: 78000 },
     { name: "Assault Rifle", price: 150000 }, //max 20
-
   ],
   Ammo: [
     { name: "AMMO 9MM", price: 2730 },
@@ -58,27 +57,27 @@ const ITEM_MAX_LIMITS = {
   "MINI SMG": 20,
   "MICRO SMG": 20,
   "CERAMIC PISTOL": 30,
-  "SMG": 20,
-  "SHOTGUN": 20,
+  SMG: 20,
+  SHOTGUN: 20,
   "NAVY REVOLVER": 20,
-  "KVR": 20,
+  KVR: 20,
   "BLACK REVOLVER": 20,
   "AMMO 9MM": 200,
   "AMMO .50": 100,
   "AMMO 0.45": 200,
   "AMMO 12 GAUGE": 50,
-  "VEST": 200,
+  VEST: 200,
   "VEST MEDIUM": 150,
-  "LOCKPICK": 60,
+  LOCKPICK: 60,
   "AMMO 44 MAGNUM": 50,
   "Assault Rifle": 20,
   // "Carbine Rifle": 20,
   // "Ammo 556": 400,
   "Ammo 762": 400,
   "Tactical Flashlight": 20,
-  "Suppressor": 20,
+  Suppressor: 20,
   "Tactical Suppressor": 20,
-  "Grip": 20,
+  Grip: 20,
   "Extended Pistol Clip": 20,
   "Extended Rifle Clip": 20,
   "SMG Drum": 20,
@@ -89,9 +88,12 @@ const ITEM_MAX_LIMITS = {
 
 function getItemMax(name) {
   const n = name || "";
-  if (Object.prototype.hasOwnProperty.call(ITEM_MAX_LIMITS, n)) return ITEM_MAX_LIMITS[n];
+  if (Object.prototype.hasOwnProperty.call(ITEM_MAX_LIMITS, n))
+    return ITEM_MAX_LIMITS[n];
   const upper = n.toUpperCase();
-  const found = Object.keys(ITEM_MAX_LIMITS).find((k) => k.toUpperCase() === upper);
+  const found = Object.keys(ITEM_MAX_LIMITS).find(
+    (k) => k.toUpperCase() === upper
+  );
   return typeof found === "string" ? ITEM_MAX_LIMITS[found] : null;
 }
 
@@ -119,17 +121,49 @@ async function postToDiscord(message) {
     if (!url || !enabled || !message || typeof message !== "string") return;
     let content = message;
     if (window && window.MAINTENANCE_MODE === true) {
-      content = `WEBSITE UNDER MAINTENANCE\n${content}\n\n ## SEBENTAR LAGI TESTING @here`;
+      content = `SEDANG TESTING\n${content}`;
     }
-    const now = Date.now();
-    const last = window.__discordLastSent || 0;
-    if (now - last < 4000) return;
-    window.__discordLastSent = now;
-    await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
-    });
+    const MAX = 1900;
+    const isCode = content.startsWith("```") && content.endsWith("```");
+    let bodyText = content;
+    if (isCode) bodyText = content.slice(3, -3).trim();
+    const parts = [];
+    if (bodyText.length <= MAX) {
+      parts.push(bodyText);
+    } else {
+      const lines = bodyText.split("\n");
+      let buf = "";
+      for (const ln of lines) {
+        const tryLine = buf ? buf + "\n" + ln : ln;
+        if (tryLine.length > MAX) {
+          if (buf) parts.push(buf);
+          if (ln.length > MAX) {
+            for (let i = 0; i < ln.length; i += MAX) {
+              parts.push(ln.slice(i, i + MAX));
+            }
+            buf = "";
+          } else {
+            buf = ln;
+          }
+        } else {
+          buf = tryLine;
+        }
+      }
+      if (buf) parts.push(buf);
+    }
+    for (let i = 0; i < parts.length; i++) {
+      const now = Date.now();
+      const last = window.__discordLastSent || 0;
+      const wait = Math.max(0, 4200 - (now - last));
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      window.__discordLastSent = Date.now();
+      const payload = isCode ? `\`\`\`\n${parts[i]}\n\`\`\`` : parts[i];
+      await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: payload }),
+      });
+    }
   } catch (e) {}
 }
 function saveStoredDashboard(data) {
@@ -395,35 +429,53 @@ function renderCart() {
 async function loadMyOrdersForSelection() {
   const hidden = document.getElementById("memberId");
   const v = hidden ? parseInt(hidden.value || "", 10) : NaN;
-  const h = document.getElementById("orderankeHidden");
   const ok = !Number.isNaN(v) && !!v;
-  const k = h ? parseInt(h.value || "", 10) : NaN;
-  if (!ok || Number.isNaN(k) || !k) {
+  if (!ok) {
     renderMyOrders([]);
     return;
   }
   const { data, error } = await supabase
     .from("orders")
-    .select("order_id,item,qty,subtotal,orderanke,kategori,harga,waktu")
+    .select("id,order_id,item,qty,subtotal,orderanke,kategori,harga,waktu")
     .eq("member_id", v)
-    .eq("orderanke", k)
     .order("waktu", { ascending: false })
-    .limit(200);
+    .limit(500);
   if (error) {
     renderMyOrders([]);
     return;
   }
-  renderMyOrders(data || []);
+  const all = data || [];
+  const periods = Array.from(
+    new Set(all.map((r) => parseInt(r.orderanke || 0, 10)).filter((x) => !!x))
+  ).sort((a, b) => b - a);
+  const sel = document.getElementById("myOrdersPeriodSelect");
+  if (sel) {
+    if (!sel.options.length) {
+      sel.innerHTML = periods
+        .map((v) => {
+          const m = Math.floor(v / 10);
+          const w = v % 10;
+          return `<option value="${v}">M${m}-W${w} (#${v})</option>`;
+        })
+        .join("");
+    }
+    sel.onchange = () => renderMyOrders(all, parseInt(sel.value || "", 10));
+  }
+  const defaultPeriod =
+    sel && sel.value ? parseInt(sel.value, 10) : periods[0] || null;
+  renderMyOrders(all, defaultPeriod);
 }
 
-function renderMyOrders(rows) {
+function renderMyOrders(rows, useOrderanke) {
   const body = document.getElementById("myOrdersBody");
   const empty = document.getElementById("myOrdersEmpty");
   const totalEl = document.getElementById("myOrdersTotal");
   const periodEl = document.getElementById("myOrdersPeriod");
   const editBtn = document.getElementById("myOrdersEditBtn");
   if (!body || !empty || !totalEl || !periodEl) return;
-  const items = rows || [];
+  const items = (rows || []).filter((r) =>
+    useOrderanke ? parseInt(r.orderanke || 0, 10) === useOrderanke : true
+  );
   window.__myOrdersRows = items;
   if (items.length === 0) {
     body.innerHTML = "";
@@ -434,20 +486,14 @@ function renderMyOrders(rows) {
     return;
   }
   const v =
-    items[0] && items[0].orderanke ? parseInt(items[0].orderanke, 10) : NaN;
+    useOrderanke ||
+    (items[0] && items[0].orderanke ? parseInt(items[0].orderanke, 10) : NaN);
   const m = !Number.isNaN(v) ? Math.floor(v / 10) : 0;
   const w = !Number.isNaN(v) ? v % 10 : 0;
   periodEl.textContent = v ? `M${m}-W${w} (#${v})` : "";
-  const grouped = {};
-  items.forEach((r) => {
-    const key = r.item;
-    if (!grouped[key]) grouped[key] = { item: r.item, qty: 0, subtotal: 0, harga: r.harga, kategori: r.kategori };
-    grouped[key].qty += r.qty || 0;
-    grouped[key].subtotal += r.subtotal || 0;
-  });
-  const list = Object.values(grouped).sort((a, b) =>
-    a.item.localeCompare(b.item)
-  );
+  const list = items
+    .slice()
+    .sort((a, b) => new Date(b.waktu).getTime() - new Date(a.waktu).getTime());
   body.innerHTML = list
     .map(
       (r) =>
@@ -455,7 +501,11 @@ function renderMyOrders(rows) {
           r.item
         }</td><td class="px-2 py-2 text-center">${
           r.qty
-        }</td><td class="px-2 py-2 text-right">${fmt(r.subtotal)}</td></tr>`
+        }</td><td class="px-2 py-2 text-right">${fmt(
+          r.subtotal
+        )}</td><td class="px-2 py-2 text-right"><button class="px-2 py-1 rounded bg-red-700 text-white" data-del-id="${
+          r.id
+        }">Hapus</button></td></tr>`
     )
     .join("");
   const total = list.reduce((a, r) => a + (r.subtotal || 0), 0);
@@ -465,6 +515,25 @@ function renderMyOrders(rows) {
     editBtn.classList.remove("hidden");
     editBtn.onclick = () => startEditMyOrders();
   }
+  body.querySelectorAll("[data-del-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = parseInt(btn.getAttribute("data-del-id") || "", 10);
+      if (!id) return;
+      const ok = window.confirm("Hapus baris order ini?");
+      if (!ok) return;
+      try {
+        const { error } = await supabase.from("orders").delete().eq("id", id);
+        if (error) {
+          showAlert("Gagal menghapus item", "error");
+          return;
+        }
+        showAlert("Item dihapus", "success");
+        await loadMyOrdersForSelection();
+      } catch (e) {
+        showAlert("Gagal menghapus (network)", "error");
+      }
+    });
+  });
 }
 
 function startEditMyOrders() {
@@ -474,13 +543,22 @@ function startEditMyOrders() {
   const byItem = {};
   rows.forEach((r) => {
     const k = r.item;
-    if (!byItem[k]) byItem[k] = { kategori: r.kategori, item: r.item, price: r.harga, qty: 0 };
+    if (!byItem[k])
+      byItem[k] = {
+        kategori: r.kategori,
+        item: r.item,
+        price: r.harga,
+        qty: 0,
+      };
     byItem[k].qty += r.qty || 0;
   });
   state.cart = Object.values(byItem);
   window.__editingOrderId = orderId;
   renderCart();
-  showAlert("Keranjang diisi dari order periode aktif. Silakan edit lalu Submit.", "info");
+  showAlert(
+    "Keranjang diisi dari order periode aktif. Silakan edit lalu Submit.",
+    "info"
+  );
 }
 
 async function submitOrder() {
@@ -549,7 +627,8 @@ async function submitOrder() {
     return;
   }
   const editingId = window.__editingOrderId || null;
-  const orderId = editingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const orderId =
+    editingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const isHang = await getMemberHangaroundStatus(member_id);
   if (isHang) {
     const invalid = state.cart.some((c) => {
@@ -562,7 +641,10 @@ async function submitOrder() {
       return;
     }
   }
-  const isVestItem = (name) => String(name || "").toUpperCase().includes("VEST");
+  const isVestItem = (name) =>
+    String(name || "")
+      .toUpperCase()
+      .includes("VEST");
   const cartVestCount = state.cart
     .filter((c) => isVestItem(c.item))
     .reduce((a, c) => a + (c.qty || 0), 0);
@@ -608,7 +690,10 @@ async function submitOrder() {
         .delete()
         .eq("order_id", editingId);
       if (delErr) {
-        showAlert(`Gagal menghapus order lama: ${delErr.message || "unknown"}`, "error");
+        showAlert(
+          `Gagal menghapus order lama: ${delErr.message || "unknown"}`,
+          "error"
+        );
         endLoading();
         return;
       }
@@ -1111,6 +1196,8 @@ const GROUP_ITEMS = {
     "AMMO 0.45",
     "AMMO 12 GAUGE",
     "VEST",
+    "Assault Rifle",
+    "Ammo 762",
   ],
   "ORDER KE ALLSTAR": [
     "PISTOL .50",
@@ -1219,14 +1306,22 @@ function renderDashboard(groups) {
               const unit = priceMap[s.item] ?? getCatalogPrice(s.item) ?? 0;
               const sub = unit * s.qty;
               totalGrp += sub;
-              return `<tr class=\"table-row-hover border-b border-[#f3e8d8] dark:border-[#3d342d]\"><td class=\"px-2 py-2\">${s.item}</td><td class=\"px-2 py-2 text-center\">${s.qty}</td><td class=\"px-2 py-2 text-right\">${fmt(unit)}</td><td class=\"px-2 py-2 text-right\">${fmt(sub)}</td></tr>`;
+              return `<tr class=\"table-row-hover border-b border-[#f3e8d8] dark:border-[#3d342d]\"><td class=\"px-2 py-2\">${
+                s.item
+              }</td><td class=\"px-2 py-2 text-center\">${
+                s.qty
+              }</td><td class=\"px-2 py-2 text-right\">${fmt(
+                unit
+              )}</td><td class=\"px-2 py-2 text-right\">${fmt(sub)}</td></tr>`;
             })
             .join("");
           return (
             `<div class=\"mt-2 mb-4\"><h5 class=\"text-xs md:text-sm font-semibold mb-1\">${grp}</h5>` +
             `<div class=\"overflow-x-auto\"><table class=\"w-full text-sm border border-[#f3e8d8] dark:border-[#3d342d] rounded-lg\"><thead class=\"border-b border-[#f3e8d8] dark:border-[#3d342d]\"><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Harga</th><th class=\"text-right px-2 py-2\">Subtotal</th></tr></thead><tbody>` +
             body +
-            `</tbody></table></div><div class=\"flex justify-end mt-2 text-sm font-semibold\">Total ${grp}: ${fmt(totalGrp)}</div></div>`
+            `</tbody></table></div><div class=\"flex justify-end mt-2 text-sm font-semibold\">Total ${grp}: ${fmt(
+              totalGrp
+            )}</div></div>`
           );
         }).join("") +
         `</div>`;
@@ -1244,7 +1339,10 @@ function renderDashboard(groups) {
                 idx === 0
                   ? `<td class=\"px-2 py-2 align-top\" rowspan=\"${byName[name].length}\">${name}</td>`
                   : "";
-              const rowCls = idx === 0 && gIdx > 0 ? "table-row-hover border-t border-[#f3e8d8] dark:border-[#3d342d]" : "table-row-hover";
+              const rowCls =
+                idx === 0 && gIdx > 0
+                  ? "table-row-hover border-t border-[#f3e8d8] dark:border-[#3d342d]"
+                  : "table-row-hover";
               return `<tr class=\"${rowCls}\"><td class=\"px-2 py-2\">${
                 r.order_no || r.order_id
               }</td>${nameCell}<td class=\"px-2 py-2\">${new Date(
@@ -1257,9 +1355,13 @@ function renderDashboard(groups) {
                 r.subtotal
               )}</td><td class=\"px-2 py-2 text-center\"><button data-row-id=\"${
                 r.id
-              }" class="px-2 py-1 rounded ${r.delivered ? "bg-green-700" : "bg-yellow-700"} text-white">${
+              }" class="px-2 py-1 rounded ${
+                r.delivered ? "bg-green-700" : "bg-yellow-700"
+              } text-white">${
                 r.delivered ? "Sudah" : "Belum"
-              }</button></td><td class=\"px-2 py-2 text-right\"><button data-del-id=\"${r.id}\" class=\"px-2 py-1 rounded bg-red-700 text-white\">Hapus</button></td></tr>`;
+              }</button></td><td class=\"px-2 py-2 text-right\"><button data-del-id=\"${
+                r.id
+              }\" class=\"px-2 py-1 rounded bg-red-700 text-white\">Hapus</button></td></tr>`;
             })
             .join("")
         )
@@ -1282,7 +1384,10 @@ function renderDashboard(groups) {
     btn.addEventListener("click", async () => {
       const nowDelivered = btn.textContent === "Belum";
       try {
-        await supabase.from("orders").update({ delivered: nowDelivered }).eq("id", id);
+        await supabase
+          .from("orders")
+          .update({ delivered: nowDelivered })
+          .eq("id", id);
         btn.textContent = nowDelivered ? "Sudah" : "Belum";
         btn.className = nowDelivered
           ? "px-2 py-1 rounded bg-green-700 text-white"
@@ -1452,7 +1557,7 @@ async function announceOpenedWindows() {
     announced = JSON.parse(localStorage.getItem("open_announced") || "[]");
   } catch (e) {}
   const set = new Set(announced);
-  for (const r of (data || [])) {
+  for (const r of data || []) {
     if (!r || !r.id) continue;
     if (r.announced_open === true) continue;
     if (set.has(String(r.id))) continue;
@@ -1908,7 +2013,14 @@ async function announceOrderWindow() {
       const ww = document.getElementById("winWeek");
       const m = wm ? parseInt(wm.value, 10) : NaN;
       const w = ww ? parseInt(ww.value, 10) : NaN;
-      if (!Number.isNaN(m) && !Number.isNaN(w) && s && e && s.value && e.value) {
+      if (
+        !Number.isNaN(m) &&
+        !Number.isNaN(w) &&
+        s &&
+        e &&
+        s.value &&
+        e.value
+      ) {
         label = `M${m}-W${w}`;
         start = fmtDateTime(new Date(s.value).toISOString());
         end = fmtDateTime(new Date(e.value).toISOString());
@@ -1961,7 +2073,12 @@ async function shareDashboardToDiscord() {
     const w = (r.orderanke || 0) % 10;
     if (month && m !== month) return false;
     if (weekVal && String(w) !== String(weekVal)) return false;
-    if (nameVal && !nameIsAll && String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()) return false;
+    if (
+      nameVal &&
+      !nameIsAll &&
+      String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()
+    )
+      return false;
     return true;
   });
   if (!filtered.length) {
@@ -1969,7 +2086,9 @@ async function shareDashboardToDiscord() {
     return;
   }
   const groups = groupOrdersByBatch(filtered);
-  const keys = Object.keys(groups).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+  const keys = Object.keys(groups).sort(
+    (a, b) => parseInt(a, 10) - parseInt(b, 10)
+  );
   const lines = [];
   lines.push("Total Qty per Item");
   if (month) {
@@ -1980,7 +2099,12 @@ async function shareDashboardToDiscord() {
     }
   }
   if (nameVal && !nameIsAll) lines.push(`Nama: ${nameVal}`);
-  const groupTotals = { "ORDER KE HIGH TABEL": 0, "ORDER KE ALLSTAR": 0, "ORDER KE RDMC": 0, "LAINNYA": 0 };
+  const groupTotals = {
+    "ORDER KE HIGH TABEL": 0,
+    "ORDER KE ALLSTAR": 0,
+    "ORDER KE RDMC": 0,
+    LAINNYA: 0,
+  };
   keys.forEach((k) => {
     const g = groups[k];
     const m = Math.floor(parseInt(k, 10) / 10);
@@ -2002,12 +2126,31 @@ async function shareDashboardToDiscord() {
       const itemsWithPrice = rows.map((r) => {
         const unit = priceMap[r.item] ?? getCatalogPrice(r.item) ?? 0;
         const sub = unit * r.qty;
-        return { item: r.item, qty: r.qty, unit, unitFmt: fmt(unit), sub, subFmt: fmt(sub) };
+        return {
+          item: r.item,
+          qty: r.qty,
+          unit,
+          unitFmt: fmt(unit),
+          sub,
+          subFmt: fmt(sub),
+        };
       });
-      const itemW = Math.max("Item".length, ...itemsWithPrice.map((x) => x.item.length));
-      const qtyW = Math.max("Qty".length, ...itemsWithPrice.map((x) => String(x.qty).length));
-      const hargaW = Math.max("Harga".length, ...itemsWithPrice.map((x) => x.unitFmt.length));
-      const subW = Math.max("Subtotal".length, ...itemsWithPrice.map((x) => x.subFmt.length));
+      const itemW = Math.max(
+        "Item".length,
+        ...itemsWithPrice.map((x) => x.item.length)
+      );
+      const qtyW = Math.max(
+        "Qty".length,
+        ...itemsWithPrice.map((x) => String(x.qty).length)
+      );
+      const hargaW = Math.max(
+        "Harga".length,
+        ...itemsWithPrice.map((x) => x.unitFmt.length)
+      );
+      const subW = Math.max(
+        "Subtotal".length,
+        ...itemsWithPrice.map((x) => x.subFmt.length)
+      );
       const header =
         "Item".padEnd(itemW) +
         " | " +
@@ -2040,12 +2183,16 @@ async function shareDashboardToDiscord() {
         );
       });
       // const label = ("Total " + grp + ":").padEnd(itemW + 3 + qtyW + 3 + hargaW);
-      const label = ("Total : " ).padEnd(itemW + 3 + qtyW + 3 + hargaW);
+      const label = "Total : ".padEnd(itemW + 3 + qtyW + 3 + hargaW);
       lines.push(label + " | " + fmt(totalGrp).padStart(subW));
       if (groupTotals[grp] !== undefined) groupTotals[grp] += totalGrp;
     });
   });
-  const summaryGroups = ["ORDER KE HIGH TABEL", "ORDER KE ALLSTAR", "ORDER KE RDMC"];
+  const summaryGroups = [
+    "ORDER KE HIGH TABEL",
+    "ORDER KE ALLSTAR",
+    "ORDER KE RDMC",
+  ];
   lines.push("");
   lines.push("Ringkasan Total Orderan");
   summaryGroups.forEach((gname) => {
