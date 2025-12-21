@@ -524,7 +524,8 @@ function renderMyOrders(rows, useOrderanke) {
       try {
         const { error } = await supabase.from("orders").delete().eq("id", id);
         if (error) {
-          showAlert("Gagal menghapus item", "error");
+          console.error("Delete error:", error);
+          showAlert(`Gagal menghapus item: ${error.message || "Unknown error"}`, "error");
           return;
         }
         showAlert("Item dihapus", "success");
@@ -1416,7 +1417,8 @@ function renderDashboard(groups) {
       try {
         const { error } = await supabase.from("orders").delete().eq("id", id);
         if (error) {
-          showAlert("Gagal menghapus item", "error");
+          console.error("Dashboard delete error:", error);
+          showAlert(`Gagal menghapus item: ${error.message || "Unknown error"}`, "error");
           return;
         }
         showAlert("Item dihapus", "success");
