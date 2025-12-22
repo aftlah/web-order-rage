@@ -20,30 +20,30 @@ const CATALOG = {
     { name: "Assault Rifle", price: 150000 }, //max 20
   ],
   Ammo: [
-    { name: "AMMO 9MM", price: 2730 },
-    // { name: "AMMO 44 MAGNUM", price: 5200 },
-    { name: "AMMO 0.45", price: 5200 },
-    { name: "AMMO 12 GAUGE", price: 6500 },
-    { name: "AMMO .50", price: 750 },
+    { name: "AMMO 9MM", price: 2730, scrap: 3 },
+    // { name: "AMMO 44 MAGNUM", price: 5200, scrap: 3 },
+    { name: "AMMO 0.45", price: 5200, scrap: 3.4 },
+    { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 },
+    { name: "AMMO .50", price: 750, scrap: 2 },
     // { name: "Ammo 556", price: 5000 }, // Untuk Carbin
-    { name: "Ammo 762", price: 5000 },
+    { name: "Ammo 762", price: 5000, scrap: 5 },
     // untuk ammo rifle type 556, type  763 5000/box max 400box
   ],
   Attachment: [
-    { name: "Tactical Flashlight", price: 3000 },
-    { name: "Suppressor", price: 10000 },
-    { name: "Tactical Suppressor", price: 10000 },
-    { name: "Grip", price: 3000 },
-    { name: "Extended Pistol Clip", price: 3000 },
-    { name: "Extended SMG Clip", price: 5000 },
-    { name: "Extended Rifle Clip", price: 15000 },
-    { name: "SMG Drum", price: 10000 },
-    { name: "Rifle Drum", price: 20000 },
-    { name: "Macro Scope", price: 3000 },
-    { name: "Medium Scope", price: 3000 },
+    { name: "Tactical Flashlight", price: 3000, scrap: 5 },
+    { name: "Suppressor", price: 10000, scrap: 5 },
+    { name: "Tactical Suppressor", price: 10000, scrap: 5 },
+    { name: "Grip", price: 3000, scrap: 5 },
+    { name: "Extended Pistol Clip", price: 3000, scrap: 5 },
+    { name: "Extended SMG Clip", price: 5000, scrap: 5 },
+    { name: "Extended Rifle Clip", price: 15000, scrap: 5 },
+    { name: "SMG Drum", price: 10000, scrap: 5 },
+    { name: "Rifle Drum", price: 20000, scrap: 5 },
+    { name: "Macro Scope", price: 3000, scrap: 5 },
+    { name: "Medium Scope", price: 3000, scrap: 5 },
   ],
   Others: [
-    { name: "VEST", price: 2600 },
+    { name: "VEST", price: 2600, scrap: 2 },
     { name: "VEST MEDIUM", price: 1300 },
     { name: "LOCKPICK", price: 1300 },
     // { name: "TABLET HEIST", price: 4000 },
@@ -57,28 +57,29 @@ const ITEM_MAX_LIMITS = {
   "MINI SMG": 20,
   "MICRO SMG": 20,
   "CERAMIC PISTOL": 30,
-  SMG: 20,
-  SHOTGUN: 20,
+  "SMG": 20,
+  "SHOTGUN": 20,
   "NAVY REVOLVER": 20,
-  KVR: 20,
+  "KVR": 20,
   "BLACK REVOLVER": 20,
   "AMMO 9MM": 350,
   "AMMO .50": 100,
-  "AMMO 0.45": 200,
+  "AMMO .45": 200,
   "AMMO 12 GAUGE": 50,
-  VEST: 200,
+  "VEST": 200,
   "VEST MEDIUM": 150,
-  LOCKPICK: 60,
+  "LOCKPICK": 60,
   "AMMO 44 MAGNUM": 100,
   "Assault Rifle": 20,
   // "Carbine Rifle": 20,
   // "Ammo 556": 400,
   "Ammo 762": 400,
   "Tactical Flashlight": 20,
-  Suppressor: 20,
+  "Suppressor": 20,
   "Tactical Suppressor": 20,
-  Grip: 20,
+  "Grip": 20,
   "Extended Pistol Clip": 20,
+  "Extended SMG Clip": 20,
   "Extended Rifle Clip": 20,
   "SMG Drum": 20,
   "Rifle Drum": 20,
@@ -388,7 +389,14 @@ async function addToCart() {
     (c) => c.item === itemName && c.kategori === kategori
   );
   if (existing) existing.qty += qty;
-  else state.cart.push({ item: itemName, kategori, price: item.price, qty });
+  else
+    state.cart.push({
+      item: itemName,
+      kategori,
+      price: item.price,
+      qty,
+      scrap: item.scrap || 0,
+    });
   renderCart();
 }
 
@@ -397,12 +405,21 @@ function renderCart() {
   const emptyEl = document.getElementById("emptyState");
   tbody.innerHTML = "";
   let total = 0;
+  let totalScrap = 0;
   state.cart.forEach((c, idx) => {
     const tr = document.createElement("tr");
     const subtotal = c.price * c.qty;
     total += subtotal;
+    totalScrap += (c.scrap || 0) * c.qty;
     tr.innerHTML = `
-      <td class="px-4 py-3">${c.item}</td>
+      <td class="px-4 py-3">
+        ${c.item}
+        ${
+          c.scrap
+            ? `<div class="text-xs text-slate-500 dark:text-gray-400">Scrap: ${c.scrap}</div>`
+            : ""
+        }
+      </td>
       <td class="px-4 py-3">${c.kategori}</td>
       <td class="px-4 py-3 text-right">${fmt(c.price)}</td>
       <td class="px-4 py-3 text-center">${c.qty}</td>
@@ -412,6 +429,9 @@ function renderCart() {
     tbody.appendChild(tr);
   });
   document.getElementById("totalAmount").textContent = fmt(total);
+  const scrapEl = document.getElementById("totalScrap");
+  if (scrapEl) scrapEl.textContent = totalScrap > 0 ? totalScrap : "0";
+
   document.getElementById("total-items").textContent = state.cart.reduce(
     (a, c) => a + c.qty,
     0
@@ -754,6 +774,18 @@ async function submitOrder() {
       );
       const count = orderIds.length;
       const total = items.reduce((a, r) => a + (r.subtotal || 0), 0);
+      let totalScrap = 0;
+      items.forEach((r) => {
+        let scrap = 0;
+        for (const cat in CATALOG) {
+          const found = CATALOG[cat].find((i) => i.name === r.item);
+          if (found) {
+            scrap = found.scrap || 0;
+            break;
+          }
+        }
+        totalScrap += scrap * (r.qty || 0);
+      });
       const m = Math.floor(effectiveOrderanke / 10);
       const w = effectiveOrderanke % 10;
       const itemList = items.map((r) => `• ${r.qty}x ${r.item}`).join("\n");
@@ -783,7 +815,9 @@ async function submitOrder() {
         `Periode: M${m}-W${w} (#${effectiveOrderanke})\n` +
         `Nama  : ${nama}\n` +
         `Order : ${count}\n` +
-        `Total : ${fmt(total)}\n\n` +
+        `Total : ${fmt(total)}\n` +
+        (totalScrap > 0 ? `Total Scrap : ${totalScrap}\n` : "") +
+        `\n` +
         `Detail Orderan :\n` +
         details +
         "```";
@@ -1194,7 +1228,7 @@ const GROUP_ITEMS = {
     "TECH9",
     "MINI SMG",
     // "AMMO 44 MAGNUM",
-    "AMMO 0.45",
+    "AMMO .45",
     "AMMO 12 GAUGE",
     "VEST",
     "Assault Rifle",
@@ -1260,9 +1294,18 @@ function renderDashboard(groups) {
     const g = groups[k];
     (g.items || []).forEach((r) => {
       const name = r.nama || "Unknown";
-      totalsByUser[name] ||= { count: 0, total: 0 };
+      totalsByUser[name] ||= { count: 0, total: 0, scrap: 0 };
       totalsByUser[name].count += 1;
       totalsByUser[name].total += r.subtotal || 0;
+      let itemScrap = 0;
+      for (const cat in CATALOG) {
+        const found = CATALOG[cat].find((i) => i.name === r.item);
+        if (found) {
+          itemScrap = found.scrap || 0;
+          break;
+        }
+      }
+      totalsByUser[name].scrap += itemScrap * (r.qty || 0);
     });
   });
   const userKeys = Object.keys(totalsByUser).sort(
@@ -1270,7 +1313,7 @@ function renderDashboard(groups) {
       totalsByUser[b].total - totalsByUser[a].total || a.localeCompare(b)
   );
   const totalsHtml =
-    `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Orders per User</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-center px-2 py-2\">Orders</th><th class=\"text-right px-2 py-2\">Total</th></tr></thead><tbody>` +
+    `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Orders per User</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-center px-2 py-2\">Orders</th><th class=\"text-right px-2 py-2\">Total</th><th class=\"text-center px-2 py-2\">Scrap</th></tr></thead><tbody>` +
     userKeys
       .map(
         (n) =>
@@ -1278,18 +1321,39 @@ function renderDashboard(groups) {
             totalsByUser[n].count
           }</td><td class=\"px-2 py-2 text-right\">${fmt(
             totalsByUser[n].total
-          )}</td></tr>`
+          )}</td><td class=\"px-2 py-2 text-center\">${
+            totalsByUser[n].scrap > 0
+              ? parseFloat(totalsByUser[n].scrap.toFixed(2))
+              : "-"
+          }</td></tr>`
       )
       .join("") +
     `</tbody></table></div></div>`;
   const batchesHtml = keys
     .map((k) => {
       const g = groups[k];
+      let batchTotalScrap = 0;
+      (g.items || []).forEach((r) => {
+        let s = 0;
+        for (const cat in CATALOG) {
+          const f = CATALOG[cat].find((i) => i.name === r.item);
+          if (f) {
+            s = f.scrap || 0;
+            break;
+          }
+        }
+        batchTotalScrap += s * (r.qty || 0);
+      });
+
       const month = Math.floor(parseInt(k, 10) / 10);
       const week = parseInt(k, 10) % 10;
       const header = `<div class=\"mb-4\"><h3 class=\"text-lg font-bold\">Batch M${month}-W${week}</h3><p class=\"text-sm\">Orders: ${
         g.count
-      } • Total: ${fmt(g.total)}</p></div>`;
+      } • Total: ${fmt(g.total)} ${
+        batchTotalScrap > 0
+          ? `• Total Scrap: ${parseFloat(batchTotalScrap.toFixed(2))}`
+          : ""
+      }</p></div>`;
       const summaryData = summarizeItems(g.items);
       const priceMap = buildPriceMap(g.items);
       const groupedMap = {};
