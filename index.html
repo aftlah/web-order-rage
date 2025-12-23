@@ -728,7 +728,7 @@
             </div>
           </div>
           <button
-            onclick="toggleChat()"
+            id="chat-close-btn"
             class="text-yellow-200 hover:text-white transition"
           >
             <svg
@@ -798,7 +798,7 @@
 
       <!-- Toggle Button -->
       <button
-        onclick="toggleChat()"
+        id="chat-toggle-btn"
         class="group flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xl hover:scale-110 transition-all duration-300 relative"
       >
         <span
@@ -822,6 +822,32 @@
     </div>
 
     <script src="config.js"></script>
+    <script>
+      // Standalone Chat UI Logic - Works even if main script fails
+      (function() {
+        const win = document.getElementById("chat-window");
+        const toggleBtn = document.getElementById("chat-toggle-btn");
+        const closeBtn = document.getElementById("chat-close-btn");
+
+        function toggleChatUI() {
+          if (!win) return;
+          if (win.classList.contains("hidden")) {
+            win.classList.remove("hidden");
+            win.classList.add("flex");
+            setTimeout(() => {
+              const input = document.getElementById("chat-input");
+              if (input) input.focus();
+            }, 100);
+          } else {
+            win.classList.add("hidden");
+            win.classList.remove("flex");
+          }
+        }
+
+        if (toggleBtn) toggleBtn.addEventListener("click", toggleChatUI);
+        if (closeBtn) closeBtn.addEventListener("click", toggleChatUI);
+      })();
+    </script>
     <script type="module" src="script.js"></script>
     <script>
       const today = new Date();

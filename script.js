@@ -273,8 +273,20 @@ async function guardDashboard() {
 }
 
 async function init() {
+  console.log("R.A.G.E script initializing...");
   document.documentElement.classList.add("dark");
-  if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) return;
+  
+  try {
+    setupChatListeners(); 
+    console.log("Chat listeners setup complete");
+  } catch (e) {
+    console.error("Chat setup failed:", e);
+  }
+
+  if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) {
+    console.warn("Supabase configuration missing (config.js). Chat only mode.");
+    return;
+  }
   const isOrder =
     !!document.getElementById("orderSection") ||
     !!document.getElementById("nama") ||
@@ -1497,18 +1509,11 @@ function renderDashboard(groups) {
   });
 }
 
-/* --- Chatbot Logic --- */
-window.toggleChat = function () {
-  const win = document.getElementById("chat-window");
-  if (win.classList.contains("hidden")) {
-    win.classList.remove("hidden");
-    win.classList.add("flex");
-    setTimeout(() => document.getElementById("chat-input").focus(), 100);
-  } else {
-    win.classList.add("hidden");
-    win.classList.remove("flex");
-  }
-};
+function setupChatListeners() {
+  // Logic moved to index.html for robustness
+  // This function is kept for backward compatibility if needed
+  // or to re-attach if DOM changes dynamically
+}
 
 window.handleChatKey = function (e) {
   if (e.key === "Enter") window.sendChatMessage();
