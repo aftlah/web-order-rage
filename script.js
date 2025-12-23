@@ -274,7 +274,7 @@ async function guardDashboard() {
 
 async function init() {
   console.log("R.A.G.E script initializing...");
-  document.documentElement.classList.add("dark");
+  // document.documentElement.classList.add("dark"); // Allow system/user preference
 
   try {
     setupChatListeners();
@@ -1569,7 +1569,8 @@ function addChatMessage(role, text, isTemp = false, id = null) {
   if (role === "user") {
     bubble.className = `${baseCls} bg-amber-600 text-white rounded-tr-none`;
   } else {
-    bubble.className = `${baseCls} bg-white dark:bg-[#2a201a] border border-yellow-900/10 text-slate-800 dark:text-gray-200 rounded-tl-none`;
+    // Always use dark theme for bot bubbles to ensure white text readability
+    bubble.className = `${baseCls} bg-[#2a201a] border border-yellow-900/10 text-white rounded-tl-none`;
   }
 
   bubble.textContent = text;
