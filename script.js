@@ -21,7 +21,7 @@ const CATALOG = {
   ],
   Ammo: [
     { name: "AMMO 9MM", price: 2730, scrap: 3 },
-    // { name: "AMMO 44 MAGNUM", price: 5200, scrap: 3 },
+    { name: "AMMO 44 MAGNUM", price: 5200, scrap: 3 },
     { name: "AMMO 0.45", price: 5200, scrap: 3.4 },
     { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 },
     { name: "AMMO .50", price: 750, scrap: 2 },
@@ -1482,7 +1482,10 @@ function renderDashboard(groups) {
         const { error } = await supabase.from("orders").delete().eq("id", id);
         if (error) {
           console.error("Dashboard delete error:", error);
-          showAlert(`Gagal menghapus item: ${error.message || "Unknown error"}`, "error");
+          showAlert(
+            `Gagal menghapus item: ${error.message || "Unknown error"}`,
+            "error"
+          );
           return;
         }
         showAlert("Item dihapus", "success");
@@ -1493,6 +1496,226 @@ function renderDashboard(groups) {
     });
   });
 }
+
+/* --- Chatbot Logic --- */
+window.toggleChat = function () {
+  const win = document.getElementById("chat-window");
+  if (win.classList.contains("hidden")) {
+    win.classList.remove("hidden");
+    win.classList.add("flex");
+    setTimeout(() => document.getElementById("chat-input").focus(), 100);
+  } else {
+    win.classList.add("hidden");
+    win.classList.remove("flex");
+  }
+};
+
+window.handleChatKey = function (e) {
+  if (e.key === "Enter") window.sendChatMessage();
+};
+
+window.sendChatMessage = async function () {
+  const input = document.getElementById("chat-input");
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  addChatMessage("user", msg);
+  input.value = "";
+
+  // Check if AI is configured
+  if (window.AI_API_KEY) {
+    const tempId = "msg-" + Date.now();
+    addChatMessage("bot", "...", false, tempId);
+
+    try {
+      const response = await fetchAIResponse(msg);
+      const bubble = document.querySelector(`#${tempId} > div`);
+      if (bubble) bubble.textContent = response;
+    } catch (e) {
+      console.error(e);
+      const bubble = document.querySelector(`#${tempId} > div`);
+      if (bubble) {
+        bubble.className += " text-red-500";
+        bubble.textContent = `Error: ${e.message}. Cek Console (F12) untuk detail.`;
+      }
+    }
+  } else {
+    // Simple Logic-based Response
+    setTimeout(() => {
+      const response = generateBotResponse(msg);
+      addChatMessage("bot", response);
+    }, 600);
+  }
+};
+
+function addChatMessage(role, text, isTemp = false, id = null) {
+  const container = document.getElementById("chat-messages");
+  const div = document.createElement("div");
+  if (id) div.id = id;
+  div.className = `flex ${role === "user" ? "justify-end" : "justify-start"}`;
+
+  const bubble = document.createElement("div");
+  const baseCls =
+    "p-3 rounded-2xl max-w-[85%] text-sm shadow-sm animate-fade-in";
+
+  if (role === "user") {
+    bubble.className = `${baseCls} bg-amber-600 text-white rounded-tr-none`;
+  } else {
+    bubble.className = `${baseCls} bg-white dark:bg-[#2a201a] border border-yellow-900/10 text-slate-800 dark:text-gray-200 rounded-tl-none`;
+  }
+
+  bubble.textContent = text;
+  div.appendChild(bubble);
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+async function fetchAIResponse(userMsg) {
+  const systemPrompt = getSystemPrompt();
+
+  const body = {
+    model: window.AI_MODEL || "llama3-8b-8192",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMsg },
+    ],
+    temperature: 0.7,
+    max_tokens: 200,
+  };
+
+  const res = await fetch(window.AI_API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${window.AI_API_KEY}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    let errDetail = res.statusText;
+    try {
+      const errJson = await res.json();
+      if (errJson.error && errJson.error.message) {
+        errDetail = errJson.error.message;
+      }
+    } catch (parseErr) {
+      // ignore json parse error
+    }
+    throw new Error(`API Error (${res.status}): ${errDetail}`);
+  }
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
+function getSystemPrompt() {
+  let catalogText = "";
+  for (const cat in CATALOG) {
+    catalogText += `\n[${cat}]\n`;
+    CATALOG[cat].forEach((item) => {
+      catalogText += `- ${item.name}: $${item.price} (Scrap: ${
+        item.scrap || 0
+      })\n`;
+    });
+  }
+
+  const ammoCompat = `
+AMMO COMPATIBILITY (Wajib hapal ini!):
+- AMMO .50: PISTOL .50
+- AMMO 9MM: CERAMIC PISTOL, TECH 9, MINI SMG, MICRO SMG, SMG, PISTOL X17
+- AMMO 12 GAUGE: SHOTGUN
+- AMMO 44 MAGNUM: NAVY REVOLVER, BLACK REVOLVER
+- AMMO 0.45: KVR
+`;
+
+  return `You are Quartermaster, a helpful and efficient arms dealer assistant for a game server.
+Your goal is to help players find items, prices, and ammo information clearly and quickly.
+You sell items from this catalog:
+${catalogText}
+${ammoCompat}
+
+RULES:
+1. Answer clearly and directly in Indonesian. Avoid confusing slang.
+2. If asked about price, state the price clearly.
+3. If asked about scrap, state the scrap requirement.
+4. If asked about stock, say "Ready" if it's in the list.
+5. If the item is not in the list, say you don't have it.
+6. If asked about ammo compatibility (e.g. "ammo buat smg apa?"), use the AMMO COMPATIBILITY list.
+7. Keep answers concise (under 2-3 sentences).
+8. Do not mention "JSON" or "Database". Talk like a helpful shopkeeper.`;
+}
+
+function generateBotResponse(msg) {
+  const lower = msg.toLowerCase();
+
+  // 1. Greeting
+  if (
+    lower.includes("halo") ||
+    lower.includes("hi") ||
+    lower.includes("pagi") ||
+    lower.includes("malam")
+  ) {
+    return "Selamat datang di website orderan rage, ada yang bisa saya bantu?";
+  }
+
+  // 2. Tanya Harga
+  if (lower.includes("harga") || lower.includes("berapa")) {
+    const item = findItemInCatalog(lower);
+    if (item) {
+      return `Harga ${item.name} itu $${fmt(item.price)}. ${
+        item.scrap ? `Butuh ${item.scrap} scrap juga.` : ""
+      } Mau pesen berapa?`;
+    }
+    return "Barang apa tuh? Coba sebutin nama itemnya yang jelas (contoh: 'harga vest' atau 'harga ammo 9mm').";
+  }
+
+  // 3. Tanya Scrap
+  if (lower.includes("scrap") || lower.includes("metal")) {
+    const item = findItemInCatalog(lower);
+    if (item) {
+      return item.scrap
+        ? `Buat ${item.name} butuh ${item.scrap} Metal Scrap per biji.`
+        : `${item.name} gak butuh scrap kok, aman.`;
+    }
+    return "Scrap buat barang apa? Kasih tau nama itemnya.";
+  }
+
+  // 4. Tanya Stock/Ready
+  if (lower.includes("ready") || lower.includes("stok") || lower.includes("ada")) {
+    return "Barang selalu ready selagi ada di list. Langsung order aja.";
+  }
+
+  // 5. Default
+  return "Waduh, gue kurang ngerti maksud lo. Coba tanya 'harga [nama barang]' atau 'scrap [nama barang]'.";
+}
+
+function findItemInCatalog(text) {
+  // Flatten catalog
+  let allItems = [];
+  for (const cat in CATALOG) {
+    allItems = allItems.concat(CATALOG[cat]);
+  }
+
+  // Cari yang match
+  // Prioritas: Exact match > Partial match
+  const words = text.split(" ");
+  
+  // Coba cari item yang namanya ada di dalam teks user
+  for (const item of allItems) {
+    const itemName = item.name.toLowerCase();
+    if (text.includes(itemName)) return item;
+  }
+  
+  // Coba cari per kata kunci spesifik
+  if (text.includes("vest")) return allItems.find(i => i.name === "VEST");
+  if (text.includes("9mm")) return allItems.find(i => i.name === "AMMO 9MM");
+  if (text.includes("ak47") || text.includes("ak-47")) return allItems.find(i => i.name === "AK-47");
+  if (text.includes(".50")) return allItems.find(i => i.name === "AMMO .50");
+
+  return null;
+}
+
 async function loadDashboard(force = false) {
   if (!supabase) return;
   const mSel = document.getElementById("dashMonth");

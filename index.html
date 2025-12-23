@@ -241,12 +241,24 @@
         letter-spacing: 0.5px;
         text-transform: uppercase;
       }
-      .bg-white { background-color: #1f1410 !important; }
-      .border { border-color: #3d342d !important; }
-      .border-\[\#f3e8d8\] { border-color: #3d342d !important; }
-      .border-amber-300 { border-color: #3d342d !important; }
-      .border-slate-200 { border-color: #3d342d !important; }
-      .divide-slate-100 > * + * { border-color: #3d342d !important; }
+      .bg-white {
+        background-color: #1f1410 !important;
+      }
+      .border {
+        border-color: #3d342d !important;
+      }
+      .border-\[\#f3e8d8\] {
+        border-color: #3d342d !important;
+      }
+      .border-amber-300 {
+        border-color: #3d342d !important;
+      }
+      .border-slate-200 {
+        border-color: #3d342d !important;
+      }
+      .divide-slate-100 > * + * {
+        border-color: #3d342d !important;
+      }
     </style>
   </head>
   <body class="transition-colors duration-300">
@@ -263,298 +275,421 @@
             </div>
           </div>
           <div class="flex items-center gap-6">
-            <nav id="mainNav" class="flex gap-2">
-              <a href="index.html" class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20">Order</a>
-              <a href="dashboard.html" class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20">Dashboard</a>
+            <!-- Desktop Nav -->
+            <nav id="mainNav" class="hidden md:flex gap-2">
+              <a
+                href="index.html"
+                class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20"
+                >Order</a
+              >
+              <a
+                href="dashboard.html"
+                class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20"
+                >Dashboard</a
+              >
             </nav>
+
+            <!-- Hamburger Button -->
+            <button
+              id="mobileMenuBtn"
+              class="md:hidden p-2 text-slate-700 dark:text-yellow-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition"
+              onclick="toggleMobileMenu()"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="w-8 h-8"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+                />
+              </svg>
+            </button>
+
             <div class="text-right hidden sm:block">
-              <p class="text-sm font-medium text-slate-700 dark:text-yellow-300">Today</p>
-              <p class="text-xs text-slate-500 dark:text-yellow-200/70" id="current-date"></p>
+              <p
+                class="text-sm font-medium text-slate-700 dark:text-yellow-300"
+              >
+                Today
+              </p>
+              <p
+                class="text-xs text-slate-500 dark:text-yellow-200/70"
+                id="current-date"
+              ></p>
             </div>
+          </div>
+        </div>
+
+        <!-- Mobile Menu (Absolute Dropdown) -->
+        <div
+          id="mobileMenu"
+          class="absolute top-full left-0 w-full bg-white dark:bg-[#1f1410] shadow-lg border-t border-[#f3e8d8] dark:border-[#3d342d] hidden flex flex-col z-50 animate-fade-in-down"
+        >
+          <div class="flex flex-col p-4 gap-2">
+            <a
+              href="index.html"
+              class="px-4 py-3 rounded-lg bg-amber-50 dark:bg-yellow-900/10 text-amber-900 dark:text-yellow-200 font-medium hover:bg-amber-100 dark:hover:bg-yellow-900/30 flex items-center gap-3"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="w-5 h-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                />
+              </svg>
+              Order
+            </a>
+            <a
+              href="dashboard.html"
+              class="px-4 py-3 rounded-lg bg-amber-50 dark:bg-yellow-900/10 text-amber-900 dark:text-yellow-200 font-medium hover:bg-amber-100 dark:hover:bg-yellow-900/30 flex items-center gap-3"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+                class="w-5 h-5"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
+                />
+              </svg>
+              Dashboard
+            </a>
           </div>
         </div>
       </div>
     </header>
 
+    <script>
+      function toggleMobileMenu() {
+        const menu = document.getElementById("mobileMenu");
+        menu.classList.toggle("hidden");
+      }
+    </script>
+
     <main class="max-w-6xl mx-auto px-6 py-8 relative z-10">
       <section id="orderSection">
-      <div
-        class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mb-8"
-      >
-        <h2
-          class="section-title text-xl font-bold mb-6 flex items-center gap-3"
+        <div
+          class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mb-8"
         >
-          <span class="section-divider w-1 h-6 rounded-full"></span>
-          Order Form
-        </h2>
-        <div id="orderWindowStatus" class="mb-2 px-4 py-2 rounded-lg text-white bg-green-600">Order sedang dibuka</div>
-        <p id="orderWindowDetail" class="mb-4 text-xs md:text-sm text-slate-600 dark:text-yellow-300/80">Menunggu informasi jendela order…</p>
-        <div class="space-y-6">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="flex flex-col gap-2">
-              <label
-                for="nama"
-                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >
-                Customer Name
-              </label>
-              <div class="relative">
-                <input
-                  id="nama"
-                  type="text"
-                  autocomplete="off"
-                  placeholder="Enter name"
-                  class="w-full px-4 py-3 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-                <input id="memberId" type="hidden" />
-                <div
-                  id="namaDropdown"
-                  class="absolute left-0 right-0 mt-1 bg-[#1f1410] border border-[#3d342d] rounded-lg shadow max-h-60 overflow-auto hidden z-50"
-                ></div>
-              </div>
-              <p id="namaStatus" class="mt-1 text-xs text-red-500"></p>
-            </div>
-            <div class="flex flex-col gap-2">
-              <label
-                for="orderNo"
-                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >
-                Order No.
-              </label>
-              <input
-                id="orderNo"
-                type="text"
-                readonly
-                class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none"
-              />
-              <input id="orderankeHidden" type="hidden" />
-            </div>
-
-            <div class="flex flex-col gap-2">
-              <label
-                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >
-                Total Items
-              </label>
-              <div
-                class="px-4 py-3 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-yellow-900/30 dark:to-amber-900/30 border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 font-semibold"
-              >
-                <span id="total-items">0</span> items
-              </div>
-            </div>
+          <h2
+            class="section-title text-xl font-bold mb-6 flex items-center gap-3"
+          >
+            <span class="section-divider w-1 h-6 rounded-full"></span>
+            Order Form
+          </h2>
+          <div
+            id="orderWindowStatus"
+            class="mb-2 px-4 py-2 rounded-lg text-white bg-green-600"
+          >
+            Order sedang dibuka
           </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
-            <div class="flex flex-col gap-2">
-              <label
-                for="kategori"
-                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >
-                Category
-              </label>
-              <select
-                id="kategori"
-                class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
-              ></select>
-            </div>
-            <div class="flex flex-col gap-2 md:col-span-2">
-              <label
-                for="item"
-                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >
-                Item
-              </label>
-              <select
-                id="item"
-                class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
-              ></select>
-            </div>
-            <div class="flex flex-col gap-2">
-              <label
-                for="qty"
-                class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >
-                Qty
-              </label>
-              <input
-                id="qty"
-                type="number"
-                min="1"
-                value="1"
-                class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </div>
-            <button
-              id="addBtn"
-              class="px-6 py-3 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-500 text-[#1f1410] font-semibold shadow hover:shadow-lg hover:-translate-y-0.5 transition"
-            >
-              + Add
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div
-        class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8"
-      >
-        <h2
-          class="section-title text-xl font-bold mb-6 flex items-center gap-3"
-        >
-          <span class="section-divider w-1 h-6 rounded-full"></span>
-          Order Summary
-        </h2>
-
-        <div class="overflow-x-auto mb-8">
-          <table id="cartTable" class="w-full text-sm">
-            <thead>
-              <tr class="border-b-2 border-slate-200 dark:border-yellow-700/30">
-                <th
-                  class="px-4 py-4 text-left font-semibold text-slate-700 dark:text-yellow-200"
+          <p
+            id="orderWindowDetail"
+            class="mb-4 text-xs md:text-sm text-slate-600 dark:text-yellow-300/80"
+          >
+            Menunggu informasi jendela order…
+          </p>
+          <div class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div class="flex flex-col gap-2">
+                <label
+                  for="nama"
+                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
                 >
-                  Item
-                </th>
-                <th
-                  class="px-4 py-4 text-left font-semibold text-slate-700 dark:text-yellow-200"
+                  Customer Name
+                </label>
+                <div class="relative">
+                  <input
+                    id="nama"
+                    type="text"
+                    autocomplete="off"
+                    placeholder="Enter name"
+                    class="w-full px-4 py-3 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <input id="memberId" type="hidden" />
+                  <div
+                    id="namaDropdown"
+                    class="absolute left-0 right-0 mt-1 bg-[#1f1410] border border-[#3d342d] rounded-lg shadow max-h-60 overflow-auto hidden z-50"
+                  ></div>
+                </div>
+                <p id="namaStatus" class="mt-1 text-xs text-red-500"></p>
+              </div>
+              <div class="flex flex-col gap-2">
+                <label
+                  for="orderNo"
+                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
+                >
+                  Order No.
+                </label>
+                <input
+                  id="orderNo"
+                  type="text"
+                  readonly
+                  class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none"
+                />
+                <input id="orderankeHidden" type="hidden" />
+              </div>
+
+              <div class="flex flex-col gap-2">
+                <label
+                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
+                >
+                  Total Items
+                </label>
+                <div
+                  class="px-4 py-3 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-yellow-900/30 dark:to-amber-900/30 border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 font-semibold"
+                >
+                  <span id="total-items">0</span> items
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
+              <div class="flex flex-col gap-2">
+                <label
+                  for="kategori"
+                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
                 >
                   Category
-                </th>
-                <th
-                  class="px-4 py-4 text-right font-semibold text-slate-700 dark:text-yellow-200"
+                </label>
+                <select
+                  id="kategori"
+                  class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+                ></select>
+              </div>
+              <div class="flex flex-col gap-2 md:col-span-2">
+                <label
+                  for="item"
+                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
                 >
-                  Price
-                </th>
-                <th
-                  class="px-4 py-4 text-center font-semibold text-slate-700 dark:text-yellow-200"
+                  Item
+                </label>
+                <select
+                  id="item"
+                  class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
+                ></select>
+              </div>
+              <div class="flex flex-col gap-2">
+                <label
+                  for="qty"
+                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
                 >
                   Qty
-                </th>
-                <th
-                  class="px-4 py-4 text-right font-semibold text-slate-700 dark:text-yellow-200"
-                >
-                  Subtotal
-                </th>
-                <th
-                  class="px-4 py-4 text-center font-semibold text-slate-700 dark:text-yellow-200"
-                >
-                  Action
-                </th>
-              </tr>
-            </thead>
-            <tbody
-              id="cartBody"
-              class="divide-y divide-slate-100 dark:divide-yellow-700/20"
-            ></tbody>
-          </table>
-
-          <div id="emptyState" class="text-center py-12">
-            <svg
-              class="w-16 h-16 mx-auto mb-4 opacity-40"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="1.5"
-                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-              ></path>
-            </svg>
-            <p class="text-slate-600 dark:text-yellow-200 font-medium">
-              Your order is empty
-            </p>
-            <p class="text-slate-400 dark:text-yellow-300/60 text-sm">
-              Add items to get started
-            </p>
+                </label>
+                <input
+                  id="qty"
+                  type="number"
+                  min="1"
+                  value="1"
+                  class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+              <button
+                id="addBtn"
+                class="px-6 py-3 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-500 text-[#1f1410] font-semibold shadow hover:shadow-lg hover:-translate-y-0.5 transition"
+              >
+                + Add
+              </button>
+            </div>
           </div>
         </div>
 
-        <div class="space-y-4">
-          <div
-            class="flex justify-between items-center p-4 sm:p-6 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-yellow-900/40 dark:to-amber-900/40 rounded-xl border-2 border-amber-300 dark:border-yellow-600"
+        <div
+          class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8"
+        >
+          <h2
+            class="section-title text-xl font-bold mb-6 flex items-center gap-3"
           >
-            <span
-              class="text-base sm:text-lg font-bold text-slate-800 dark:text-yellow-100"
-              >Total Price</span
-            >
-            <strong
-              id="totalAmount"
-              class="text-base sm:text-2xl bg-gradient-to-br from-amber-600 to-yellow-500 bg-clip-text text-transparent"
-            >
-              $0.00
-            </strong>
-          </div>
-
-          <div
-            class="flex justify-between items-center p-4 sm:p-6 bg-gradient-to-r from-gray-100 to-slate-200 dark:from-gray-800/40 dark:to-slate-700/40 rounded-xl border-2 border-gray-300 dark:border-gray-500"
-          >
-            <span
-              class="text-base sm:text-lg font-bold text-slate-800 dark:text-gray-100"
-              >Total Metal Scrap</span
-            >
-            <strong
-              id="totalScrap"
-              class="text-base sm:text-2xl text-slate-700 dark:text-gray-300"
-            >
-              0
-            </strong>
-          </div>
-
-          <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
-            <button
-              id="submitBtn"
-              class="px-4 py-2.5 sm:px-6 sm:py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow hover:shadow-lg hover:-translate-y-0.5 transition flex-1 sm:flex-none text-sm sm:text-base"
-            >
-              Submit Order
-            </button>
-            <button
-              id="resetBtn"
-              class="px-4 py-2.5 sm:px-6 sm:py-3 rounded-lg border-2 border-yellow-600 dark:border-yellow-500 text-yellow-700 dark:text-yellow-300 font-semibold hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition text-sm sm:text-base"
-            >
-              Reset
-            </button>
-            <div
-              id="status"
-              class="flex-1 text-xs sm:text-sm text-slate-600 dark:text-yellow-300/70 flex items-center"
-            ></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mt-8">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="section-title text-xl font-bold flex items-center gap-3">
             <span class="section-divider w-1 h-6 rounded-full"></span>
-            Your Orders (This Period)
+            Order Summary
           </h2>
-          <div class="flex items-center gap-3">
-            <span id="myOrdersPeriod" class="text-sm text-slate-500 dark:text-yellow-300/70"></span>
-            <select id="myOrdersPeriodSelect" class="px-2 py-1 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] text-sm"></select>
-            <button id="myOrdersEditBtn" class="hidden px-3 py-1 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200">Edit</button>
+
+          <div class="overflow-x-auto mb-8">
+            <table id="cartTable" class="w-full text-sm">
+              <thead>
+                <tr
+                  class="border-b-2 border-slate-200 dark:border-yellow-700/30"
+                >
+                  <th
+                    class="px-4 py-4 text-left font-semibold text-slate-700 dark:text-yellow-200"
+                  >
+                    Item
+                  </th>
+                  <th
+                    class="px-4 py-4 text-left font-semibold text-slate-700 dark:text-yellow-200"
+                  >
+                    Category
+                  </th>
+                  <th
+                    class="px-4 py-4 text-right font-semibold text-slate-700 dark:text-yellow-200"
+                  >
+                    Price
+                  </th>
+                  <th
+                    class="px-4 py-4 text-center font-semibold text-slate-700 dark:text-yellow-200"
+                  >
+                    Qty
+                  </th>
+                  <th
+                    class="px-4 py-4 text-right font-semibold text-slate-700 dark:text-yellow-200"
+                  >
+                    Subtotal
+                  </th>
+                  <th
+                    class="px-4 py-4 text-center font-semibold text-slate-700 dark:text-yellow-200"
+                  >
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="cartBody"
+                class="divide-y divide-slate-100 dark:divide-yellow-700/20"
+              ></tbody>
+            </table>
+
+            <div id="emptyState" class="text-center py-12">
+              <svg
+                class="w-16 h-16 mx-auto mb-4 opacity-40"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                ></path>
+              </svg>
+              <p class="text-slate-600 dark:text-yellow-200 font-medium">
+                Your order is empty
+              </p>
+              <p class="text-slate-400 dark:text-yellow-300/60 text-sm">
+                Add items to get started
+              </p>
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div
+              class="flex justify-between items-center p-4 sm:p-6 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-yellow-900/40 dark:to-amber-900/40 rounded-xl border-2 border-amber-300 dark:border-yellow-600"
+            >
+              <span
+                class="text-base sm:text-lg font-bold text-slate-800 dark:text-yellow-100"
+                >Total Price</span
+              >
+              <strong
+                id="totalAmount"
+                class="text-base sm:text-2xl bg-gradient-to-br from-amber-600 to-yellow-500 bg-clip-text text-transparent"
+              >
+                $0.00
+              </strong>
+            </div>
+
+            <div
+              class="flex justify-between items-center p-4 sm:p-6 bg-gradient-to-r from-gray-100 to-slate-200 dark:from-gray-800/40 dark:to-slate-700/40 rounded-xl border-2 border-gray-300 dark:border-gray-500"
+            >
+              <span
+                class="text-base sm:text-lg font-bold text-slate-800 dark:text-gray-100"
+                >Total Metal Scrap</span
+              >
+              <strong
+                id="totalScrap"
+                class="text-base sm:text-2xl text-slate-700 dark:text-gray-300"
+              >
+                0
+              </strong>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
+              <button
+                id="submitBtn"
+                class="px-4 py-2.5 sm:px-6 sm:py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow hover:shadow-lg hover:-translate-y-0.5 transition flex-1 sm:flex-none text-sm sm:text-base"
+              >
+                Submit Order
+              </button>
+              <button
+                id="resetBtn"
+                class="px-4 py-2.5 sm:px-6 sm:py-3 rounded-lg border-2 border-yellow-600 dark:border-yellow-500 text-yellow-700 dark:text-yellow-300 font-semibold hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition text-sm sm:text-base"
+              >
+                Reset
+              </button>
+              <div
+                id="status"
+                class="flex-1 text-xs sm:text-sm text-slate-600 dark:text-yellow-300/70 flex items-center"
+              ></div>
+            </div>
           </div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr>
-                <th class="text-left px-2 py-2">Item</th>
-                <th class="text-center px-2 py-2">Qty</th>
-                <th class="text-right px-2 py-2">Subtotal</th>
-                <th class="text-right px-2 py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="myOrdersBody"></tbody>
-          </table>
-          <p id="myOrdersEmpty" class="text-sm text-slate-500 dark:text-yellow-300/70 mt-3">Belum ada order di periode ini</p>
-        </div>
-        <div class="mt-4 flex justify-end">
-          <span class="text-sm font-semibold">Total:</span>
-          <span id="myOrdersTotal" class="ml-2 text-sm"></span>
-        </div>
-      </div>
 
+        <div
+          class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mt-8"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="section-title text-xl font-bold flex items-center gap-3">
+              <span class="section-divider w-1 h-6 rounded-full"></span>
+              Your Orders (This Period)
+            </h2>
+            <div class="flex items-center gap-3">
+              <span
+                id="myOrdersPeriod"
+                class="text-sm text-slate-500 dark:text-yellow-300/70"
+              ></span>
+              <select
+                id="myOrdersPeriodSelect"
+                class="px-2 py-1 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] text-sm"
+              ></select>
+              <button
+                id="myOrdersEditBtn"
+                class="hidden px-3 py-1 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200"
+              >
+                Edit
+              </button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr>
+                  <th class="text-left px-2 py-2">Item</th>
+                  <th class="text-center px-2 py-2">Qty</th>
+                  <th class="text-right px-2 py-2">Subtotal</th>
+                  <th class="text-right px-2 py-2">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="myOrdersBody"></tbody>
+            </table>
+            <p
+              id="myOrdersEmpty"
+              class="text-sm text-slate-500 dark:text-yellow-300/70 mt-3"
+            >
+              Belum ada order di periode ini
+            </p>
+          </div>
+          <div class="mt-4 flex justify-end">
+            <span class="text-sm font-semibold">Total:</span>
+            <span id="myOrdersTotal" class="ml-2 text-sm"></span>
+          </div>
+        </div>
       </section>
-
     </main>
 
     <div
@@ -565,6 +700,125 @@
         id="appAlertBox"
         class="hidden px-4 py-2 rounded-lg bg-red-600 text-white shadow-lg pointer-events-auto"
       ></div>
+    </div>
+
+    <!-- AI Chatbot Widget -->
+    <div
+      id="chatbot-container"
+      class="fixed bottom-6 right-6 z-50 flex flex-col items-end"
+    >
+      <!-- Chat Window -->
+      <div
+        id="chat-window"
+        class="hidden flex-col w-80 sm:w-96 h-[500px] bg-white dark:bg-[#1a1410] rounded-2xl shadow-2xl border border-yellow-600/30 overflow-hidden mb-4 transition-all duration-300 transform origin-bottom-right"
+      >
+        <!-- Header -->
+        <div
+          class="bg-gradient-to-r from-orange-900 to-amber-800 p-4 flex items-center justify-between"
+        >
+          <div class="flex items-center gap-3">
+            <div
+              class="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-orange-900 font-bold"
+            >
+              Q
+            </div>
+            <div>
+              <h3 class="text-white font-bold text-sm">Deri</h3>
+              <p class="text-yellow-200/70 text-xs">R.A.G.E Assistant</p>
+            </div>
+          </div>
+          <button
+            onclick="toggleChat()"
+            class="text-yellow-200 hover:text-white transition"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="w-6 h-6"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Messages Area -->
+        <div
+          id="chat-messages"
+          class="flex-1 p-4 overflow-y-auto bg-[#f8f5f2] dark:bg-[#0f0a08] space-y-4"
+        >
+          <!-- Welcome Message -->
+          <div class="flex justify-start">
+            <div
+              class="bg-white dark:bg-[#2a201a] border border-yellow-900/10 text-slate-800 dark:text-gray-200 p-3 rounded-2xl rounded-tl-none max-w-[85%] text-sm shadow-sm"
+            >
+              Halo, saya Deri, AI asisten RAGE. Ingin tanya harga vest atau butuh
+              info scrap? Silahkan tanyakan aja.
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="p-3 bg-white dark:bg-[#1a1410] border-t border-yellow-900/10 flex gap-2"
+        >
+          <input
+            type="text"
+            id="chat-input"
+            placeholder="Tanya harga vest..."
+            class="flex-1 px-4 py-2 rounded-full bg-slate-100 dark:bg-[#2a201a] border-none focus:ring-2 focus:ring-yellow-500 text-sm dark:text-white"
+            onkeypress="handleChatKey(event)"
+          />
+          <button
+            onclick="sendChatMessage()"
+            class="p-2 rounded-full bg-amber-600 text-white hover:bg-amber-700 transition shadow-md"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="w-5 h-5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Toggle Button -->
+      <button
+        onclick="toggleChat()"
+        class="group flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xl hover:scale-110 transition-all duration-300 relative"
+      >
+        <span
+          class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse border-2 border-white dark:border-[#1a1410]"
+        ></span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="w-7 h-7"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"
+          />
+        </svg>
+      </button>
     </div>
 
     <script src="config.js"></script>
