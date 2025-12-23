@@ -57,27 +57,27 @@ const ITEM_MAX_LIMITS = {
   "MINI SMG": 20,
   "MICRO SMG": 20,
   "CERAMIC PISTOL": 30,
-  "SMG": 20,
-  "SHOTGUN": 20,
+  SMG: 20,
+  SHOTGUN: 20,
   "NAVY REVOLVER": 20,
-  "KVR": 20,
+  KVR: 20,
   "BLACK REVOLVER": 20,
   "AMMO 9MM": 350,
   "AMMO .50": 100,
   "AMMO .45": 200,
   "AMMO 12 GAUGE": 50,
-  "VEST": 200,
+  VEST: 200,
   "VEST MEDIUM": 150,
-  "LOCKPICK": 60,
+  LOCKPICK: 60,
   "AMMO 44 MAGNUM": 100,
   "Assault Rifle": 20,
   // "Carbine Rifle": 20,
   // "Ammo 556": 400,
   "Ammo 762": 400,
   "Tactical Flashlight": 20,
-  "Suppressor": 20,
+  Suppressor: 20,
   "Tactical Suppressor": 20,
-  "Grip": 20,
+  Grip: 20,
   "Extended Pistol Clip": 20,
   "Extended SMG Clip": 20,
   "Extended Rifle Clip": 20,
@@ -275,9 +275,9 @@ async function guardDashboard() {
 async function init() {
   console.log("R.A.G.E script initializing...");
   document.documentElement.classList.add("dark");
-  
+
   try {
-    setupChatListeners(); 
+    setupChatListeners();
     console.log("Chat listeners setup complete");
   } catch (e) {
     console.error("Chat setup failed:", e);
@@ -557,7 +557,10 @@ function renderMyOrders(rows, useOrderanke) {
         const { error } = await supabase.from("orders").delete().eq("id", id);
         if (error) {
           console.error("Delete error:", error);
-          showAlert(`Gagal menghapus item: ${error.message || "Unknown error"}`, "error");
+          showAlert(
+            `Gagal menghapus item: ${error.message || "Unknown error"}`,
+            "error"
+          );
           return;
         }
         showAlert("Item dihapus", "success");
@@ -1634,21 +1637,21 @@ AMMO COMPATIBILITY (Wajib hapal ini!):
 - AMMO 0.45: KVR
 `;
 
-  return `You are Quartermaster, a helpful and efficient arms dealer assistant for a game server.
-Your goal is to help players find items, prices, and ammo information clearly and quickly.
+  return `You are Deri, a professional and helpful arms dealer assistant for R.A.G.E server.
+Your goal is to help players find items, prices, and ammo information clearly and politely.
 You sell items from this catalog:
 ${catalogText}
 ${ammoCompat}
 
 RULES:
-1. Answer clearly and directly in Indonesian. Avoid confusing slang.
-2. If asked about price, state the price clearly.
-3. If asked about scrap, state the scrap requirement.
-4. If asked about stock, say "Ready" if it's in the list.
-5. If the item is not in the list, say you don't have it.
-6. If asked about ammo compatibility (e.g. "ammo buat smg apa?"), use the AMMO COMPATIBILITY list.
-7. Keep answers concise (under 2-3 sentences).
-8. Do not mention "JSON" or "Database". Talk like a helpful shopkeeper.`;
+1. Answer in polite and clear Indonesian (Bahasa Indonesia yang baik dan benar).
+2. Use "Saya" to refer to yourself and "Anda" or "Kak" to refer to the customer. NEVER use slang like "gue", "lo", "lu", "gw".
+3. When answering prices, format it nicely (e.g., "$10,000").
+4. Explain requirements clearly. If an item needs scrap, mention it.
+5. Be concise but helpful. Limit answers to 2-3 sentences.
+6. If the item is not found, apologize politely and ask for the correct name.
+7. Use the AMMO COMPATIBILITY list for ammo questions.
+8. Act like a professional shopkeeper/assistant, not a robot.`;
 }
 
 function generateBotResponse(msg) {
@@ -1661,18 +1664,18 @@ function generateBotResponse(msg) {
     lower.includes("pagi") ||
     lower.includes("malam")
   ) {
-    return "Selamat datang di website orderan rage, ada yang bisa saya bantu?";
+    return "Selamat datang di website orderan rage! Saya Deri, ada yang bisa saya bantu?";
   }
 
   // 2. Tanya Harga
   if (lower.includes("harga") || lower.includes("berapa")) {
     const item = findItemInCatalog(lower);
     if (item) {
-      return `Harga ${item.name} itu $${fmt(item.price)}. ${
-        item.scrap ? `Butuh ${item.scrap} scrap juga.` : ""
-      } Mau pesen berapa?`;
+      return `Harga untuk **${item.name}** adalah **$${fmt(item.price)}**${
+        item.scrap ? ` dan memerlukan **${item.scrap} Metal Scrap**` : ""
+      }.`;
     }
-    return "Barang apa tuh? Coba sebutin nama itemnya yang jelas (contoh: 'harga vest' atau 'harga ammo 9mm').";
+    return "Maaf, boleh sebutkan nama barangnya lebih spesifik? Contoh: 'harga vest' atau 'harga ammo 9mm'.";
   }
 
   // 3. Tanya Scrap
@@ -1680,19 +1683,23 @@ function generateBotResponse(msg) {
     const item = findItemInCatalog(lower);
     if (item) {
       return item.scrap
-        ? `Buat ${item.name} butuh ${item.scrap} Metal Scrap per biji.`
-        : `${item.name} gak butuh scrap kok, aman.`;
+        ? `Untuk membuat **${item.name}**, Anda memerlukan **${item.scrap} Metal Scrap** per unit.`
+        : `Item **${item.name}** tidak memerlukan Metal Scrap.`;
     }
-    return "Scrap buat barang apa? Kasih tau nama itemnya.";
+    return "Maaf, Anda menanyakan scrap untuk barang apa? Mohon sebutkan nama itemnya.";
   }
 
   // 4. Tanya Stock/Ready
-  if (lower.includes("ready") || lower.includes("stok") || lower.includes("ada")) {
-    return "Barang selalu ready selagi ada di list. Langsung order aja.";
+  if (
+    lower.includes("ready") ||
+    lower.includes("stok") ||
+    lower.includes("ada")
+  ) {
+    return "Semua barang yang ada di list katalog statusnya **Ready Stock**. Silahkan langsung diorder ya Kak.";
   }
 
   // 5. Default
-  return "Waduh, gue kurang ngerti maksud lo. Coba tanya 'harga [nama barang]' atau 'scrap [nama barang]'.";
+  return "Maaf, saya kurang paham. Bisa tolong ulangi pertanyaan Anda? Anda bisa tanya seperti 'harga vest' atau 'ammo smg'.";
 }
 
 function findItemInCatalog(text) {
@@ -1705,18 +1712,19 @@ function findItemInCatalog(text) {
   // Cari yang match
   // Prioritas: Exact match > Partial match
   const words = text.split(" ");
-  
+
   // Coba cari item yang namanya ada di dalam teks user
   for (const item of allItems) {
     const itemName = item.name.toLowerCase();
     if (text.includes(itemName)) return item;
   }
-  
+
   // Coba cari per kata kunci spesifik
-  if (text.includes("vest")) return allItems.find(i => i.name === "VEST");
-  if (text.includes("9mm")) return allItems.find(i => i.name === "AMMO 9MM");
-  if (text.includes("ak47") || text.includes("ak-47")) return allItems.find(i => i.name === "AK-47");
-  if (text.includes(".50")) return allItems.find(i => i.name === "AMMO .50");
+  if (text.includes("vest")) return allItems.find((i) => i.name === "VEST");
+  if (text.includes("9mm")) return allItems.find((i) => i.name === "AMMO 9MM");
+  if (text.includes("ak47") || text.includes("ak-47"))
+    return allItems.find((i) => i.name === "AK-47");
+  if (text.includes(".50")) return allItems.find((i) => i.name === "AMMO .50");
 
   return null;
 }
