@@ -1651,7 +1651,13 @@ RULES:
 5. Be concise but helpful. Limit answers to 2-3 sentences.
 6. If the item is not found, apologize politely and ask for the correct name.
 7. Use the AMMO COMPATIBILITY list for ammo questions.
-8. Act like a professional shopkeeper/assistant, not a robot.`;
+8. Act like a professional shopkeeper/assistant, not a robot.
+9. IF THE USER ASKS FOR TOTAL PRICE: You MUST calculate the total cost.
+   - Extract the quantity and item name from the user's request.
+   - If no quantity is specified, assume 1.
+   - Show the calculation steps: (Price x Qty) + (Price x Qty) = Total.
+   - Example: "Total untuk 2 Pistol .50 ($9,100/unit) adalah $18,200."
+   - Also calculate total Scrap required if applicable.`;
 }
 
 function generateBotResponse(msg) {
