@@ -1228,23 +1228,19 @@ function buildPriceMap(items) {
 const GROUP_ORDER = [
   "ORDER KE HIGH TABEL",
   "ORDER KE ALLSTAR",
-  "ORDER KE RDMC",
+  "ORDER KE BOA",
+  "ORDER KE 4BLOODS",
   "LAINNYA",
 ];
 const GROUP_ITEMS = {
   "ORDER KE HIGH TABEL": [
     "SMG",
-    "SHOTGUN",
     "NAVY REVOLVER",
     "PISTOL X17",
     "BLACK REVOLVER",
-    "KVR",
     "TECH 9",
     "TECH9",
     "MINI SMG",
-    // "AMMO 44 MAGNUM",
-    "AMMO .45",
-    "AMMO 12 GAUGE",
     "VEST",
     "Assault Rifle",
     "Ammo 762",
@@ -1256,10 +1252,17 @@ const GROUP_ITEMS = {
     "AMMO 9MM",
     "AMMO 44 MAGNUM",
     "AMMO .50",
+    "AMMO 0.45",
     "VEST MEDIUM",
     "LOCKPICK",
+    "KVR",
+    "AMMO .45",
   ],
-  "ORDER KE RDMC": [
+  "ORDER KE BOA": [
+    "SHOTGUN",
+    "AMMO 12 GAUGE",
+  ],
+  "ORDER KE 4BLOODS": [
     "Tactical Flashlight",
     "Suppressor",
     "Tactical Suppressor",
@@ -2412,7 +2415,8 @@ async function shareDashboardToDiscord() {
   const groupTotals = {
     "ORDER KE HIGH TABEL": 0,
     "ORDER KE ALLSTAR": 0,
-    "ORDER KE RDMC": 0,
+    "ORDER KE BOA": 0,
+    "ORDER KE 4BLOODS": 0,
     LAINNYA: 0,
   };
   keys.forEach((k) => {
@@ -2501,7 +2505,8 @@ async function shareDashboardToDiscord() {
   const summaryGroups = [
     "ORDER KE HIGH TABEL",
     "ORDER KE ALLSTAR",
-    "ORDER KE RDMC",
+    "ORDER KE BOA",
+    "ORDER KE 4BLOODS",
   ];
   lines.push("");
   lines.push("Ringkasan Total Orderan");
