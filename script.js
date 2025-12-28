@@ -101,7 +101,7 @@ const state = { cart: [] };
 const dashboardCache = { orders: null, lastFetch: 0 };
 const __openAnnounceLock = new Set();
 const __closeAnnounceLock = new Set();
-const DASH_CACHE_KEY = "dashboardOrdersCacheV1";
+const DASH_CACHE_KEY = "dashboardOrdersCacheV2";
 function loadStoredDashboard() {
   try {
     const raw = localStorage.getItem(DASH_CACHE_KEY);
@@ -121,7 +121,7 @@ async function postToDiscord(message) {
     if (!url || !enabled || !message || typeof message !== "string") return;
     let content = message;
     if (window && window.MAINTENANCE_MODE === true) {
-      content = `SEDANG TESTING\n${content}`;
+      content = `@everyone\n SEDANG TESTING\n${content}`;
     }
     const MAX = 1900;
     const isCode = content.startsWith("```") && content.endsWith("```");
@@ -1750,9 +1750,13 @@ async function loadDashboard(force = false) {
     } else {
       const stored = loadStoredDashboard();
       if (stored) {
-        data = stored.data;
-        dashboardCache.orders = data;
-        dashboardCache.lastFetch = stored.ts;
+        // Auto refresh if cache is older than 30 minutes
+        const age = Date.now() - (stored.ts || 0);
+        if (age < 30 * 60 * 1000) {
+          data = stored.data;
+          dashboardCache.orders = data;
+          dashboardCache.lastFetch = stored.ts;
+        }
       }
     }
     if (!data) {
@@ -2501,12 +2505,14 @@ async function shareDashboardToDiscord() {
       if (groupTotals[grp] !== undefined) groupTotals[grp] += totalGrp;
     });
   });
+  
   const summaryGroups = [
     "ORDER KE HIGH TABEL",
     "ORDER KE ALLSTAR",
     "ORDER KE BOA",
     "ORDER KE 4BLOODS",
   ];
+
   lines.push("");
   lines.push("Ringkasan Total Orderan");
   summaryGroups.forEach((gname) => {
