@@ -46,7 +46,6 @@ const CATALOG = {
     { name: "VEST", price: 2600, scrap: 2 },
     { name: "VEST MEDIUM", price: 1300 },
     { name: "LOCKPICK", price: 1300 },
-    // { name: "TABLET HEIST", price: 4000 },
   ],
 };
 
