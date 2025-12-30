@@ -373,14 +373,42 @@ async function addToCart() {
   const qty = parseInt(document.getElementById("qty").value, 10) || 1;
   if (!itemName || !kategori || qty < 1) return;
   const nItem = normItemName(itemName);
-  if (isHang && nItem === "VEST") {
-    showAlert("Hangaround tidak boleh beli VEST, hanya VEST MEDIUM", "error");
-    return;
+  
+  if (isHang) {
+    // 1. Existing VEST check
+    if (nItem === "VEST") {
+      showAlert("Hangaround tidak boleh beli VEST, hanya VEST MEDIUM", "error");
+      return;
+    }
+    // 2. Existing ASSAULT RIFLE check (redundant if we whitelist, but keeping for clarity/message)
+    if (nItem === "ASSAULT RIFLE") {
+      showAlert("Hangaround tidak boleh beli ASSAULT RIFLE", "error");
+      return;
+    }
+    // 3. Whitelist check for Gun category
+    // We need to know if the item is a Gun.
+    // The 'kategori' variable comes from the select input.
+    if (kategori === "Gun") {
+      const HANGAROUND_ALLOWED_GUNS = [
+        "PISTOL .50",
+        "CERAMIC PISTOL",
+        "TECH 9",
+        "PISTOL X17",
+        "MINI SMG",
+        "MICRO SMG",
+        "NAVY REVOLVER"
+      ];
+      if (!HANGAROUND_ALLOWED_GUNS.includes(itemName)) { // itemName is from value, usually matches catalog name
+         // Double check with normalized names to be safe
+         const allowedNorm = HANGAROUND_ALLOWED_GUNS.map(normItemName);
+         if (!allowedNorm.includes(nItem)) {
+             showAlert(`Hangaround tidak boleh membeli ${itemName}.`, "error");
+             return;
+         }
+      }
+    }
   }
-  if (isHang && nItem === "ASSAULT RIFLE") {
-    showAlert("Hangaround tidak boleh beli ASSAULT RIFLE", "error");
-    return;
-  }
+
   const max = getItemMax(itemName);
   if (typeof max === "number") {
     const norm = normItemName(itemName);
@@ -433,7 +461,11 @@ function renderCart() {
       </td>
       <td class="px-4 py-3">${c.kategori}</td>
       <td class="px-4 py-3 text-right">${fmt(c.price)}</td>
-      <td class="px-4 py-3 text-center">${c.qty}</td>
+      <td class="px-4 py-3 text-center">
+        <input type="number" min="1" value="${
+          c.qty
+        }" data-qty-idx="${idx}" class="w-16 text-center px-2 py-1 rounded bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500" />
+      </td>
       <td class="px-4 py-3 text-right">${fmt(subtotal)}</td>
       <td class="px-4 py-3 text-center"><button class="px-3 py-1 rounded-lg border-2 border-yellow-600 text-yellow-300 hover:bg-yellow-900/30 transition" data-idx="${idx}">Hapus</button></td>
     `;
@@ -448,6 +480,17 @@ function renderCart() {
     0
   );
   if (emptyEl) emptyEl.classList.toggle("hidden", state.cart.length > 0);
+  tbody.querySelectorAll("input[data-qty-idx]").forEach((inp) => {
+    const handler = () => {
+      const i = parseInt(inp.getAttribute("data-qty-idx"), 10);
+      let v = parseInt(inp.value, 10);
+      if (Number.isNaN(v) || v < 1) v = 1;
+      state.cart[i].qty = v;
+      renderCart();
+    };
+    inp.addEventListener("change", handler);
+    inp.addEventListener("blur", handler);
+  });
   tbody.querySelectorAll("button[data-idx]").forEach((b) =>
     b.addEventListener("click", (e) => {
       const i = parseInt(e.currentTarget.getAttribute("data-idx"), 10);
@@ -666,14 +709,41 @@ async function submitOrder() {
     editingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const isHang = await getMemberHangaroundStatus(member_id);
   if (isHang) {
-    const invalid = state.cart.some((c) => {
+    const HANGAROUND_ALLOWED_GUNS = [
+      "PISTOL .50",
+      "CERAMIC PISTOL",
+      "TECH 9",
+      "PISTOL X17",
+      "MINI SMG",
+      "MICRO SMG",
+      "NAVY REVOLVER"
+    ].map(normItemName);
+
+    // Check Cart
+    for (const c of state.cart) {
       const n = normItemName(c.item);
-      return n === "VEST" || n === "ASSAULT RIFLE";
-    });
-    if (invalid) {
-      showAlert("Hangaround tidak boleh beli VEST atau ASSAULT RIFLE", "error");
-      endLoading();
-      return;
+      // VEST check
+      if (n === "VEST") {
+         showAlert("Hangaround tidak boleh beli VEST", "error");
+         endLoading();
+         return;
+      }
+      // Gun check
+      // Note: c.kategori might be missing if cart structure changed, but we added it in addToCart.
+      // If missing, we can try to look it up, but let's assume it's there or infer from catalog.
+      let isGun = c.kategori === "Gun";
+      if (!c.kategori) {
+          // Fallback check
+          isGun = (CATALOG.Gun || []).some(x => normItemName(x.name) === n);
+      }
+      
+      if (isGun) {
+          if (!HANGAROUND_ALLOWED_GUNS.includes(n)) {
+             showAlert(`Hangaround tidak boleh membeli ${c.item}`, "error");
+             endLoading();
+             return;
+          }
+      }
     }
   }
   const isVestItem = (name) =>
@@ -1234,7 +1304,6 @@ const GROUP_ORDER = [
 const GROUP_ITEMS = {
   "ORDER KE HIGH TABEL": [
     "SMG",
-    "NAVY REVOLVER",
     "PISTOL X17",
     "BLACK REVOLVER",
     "TECH 9",
@@ -1256,11 +1325,9 @@ const GROUP_ITEMS = {
     "LOCKPICK",
     "KVR",
     "AMMO .45",
+    "NAVY REVOLVER",
   ],
-  "ORDER KE BOA": [
-    "SHOTGUN",
-    "AMMO 12 GAUGE",
-  ],
+  "ORDER KE BOA": ["SHOTGUN", "AMMO 12 GAUGE"],
   "ORDER KE 4BLOODS": [
     "Tactical Flashlight",
     "Suppressor",
@@ -2505,7 +2572,7 @@ async function shareDashboardToDiscord() {
       if (groupTotals[grp] !== undefined) groupTotals[grp] += totalGrp;
     });
   });
-  
+
   const summaryGroups = [
     "ORDER KE HIGH TABEL",
     "ORDER KE ALLSTAR",
