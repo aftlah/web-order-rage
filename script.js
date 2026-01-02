@@ -20,7 +20,7 @@ const CATALOG = {
     { name: "Assault Rifle", price: 195000 }, //max 20
   ],
   Ammo: [
-    { name: "AMMO 9MM", price: 3000, scrap: 3 },
+    { name: "AMMO 9MM", price: 2800, scrap: 3 },
     { name: "AMMO 44 MAGNUM", price: 6500, scrap: 3 },
     { name: "AMMO 0.45", price: 6500, scrap: 3.4 },
     { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 },
