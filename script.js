@@ -6,28 +6,26 @@ const supabase =
 
 const CATALOG = {
   Gun: [
-    { name: "PISTOL .50", price: 9100 },
+    { name: "PISTOL .50", price: 9500 },
     { name: "CERAMIC PISTOL", price: 26000 },
     { name: "TECH 9", price: 26000 },
-    { name: "MINI SMG", price: 29900 },
-    { name: "MICRO SMG", price: 29900 },
-    { name: "SMG", price: 39000 },
+    { name: "MINI SMG", price: 30000 },
+    { name: "MICRO SMG", price: 31000 },
+    { name: "SMG", price: 40000 },
     { name: "SHOTGUN", price: 65000 },
-    { name: "NAVY REVOLVER", price: 71500 },
-    { name: "PISTOL X17", price: 32500 },
+    { name: "NAVY REVOLVER", price: 7200 },
+    { name: "PISTOL X17", price: 33000 },
     { name: "BLACK REVOLVER", price: 91000 },
     { name: "KVR", price: 78000 },
-    { name: "Assault Rifle", price: 150000 }, //max 20
+    { name: "Assault Rifle", price: 195000 }, //max 20
   ],
   Ammo: [
-    { name: "AMMO 9MM", price: 2730, scrap: 3 },
-    { name: "AMMO 44 MAGNUM", price: 5200, scrap: 3 },
-    { name: "AMMO 0.45", price: 5200, scrap: 3.4 },
+    { name: "AMMO 9MM", price: 3000, scrap: 3 },
+    { name: "AMMO 44 MAGNUM", price: 6500, scrap: 3 },
+    { name: "AMMO 0.45", price: 6500, scrap: 3.4 },
     { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 },
     { name: "AMMO .50", price: 750, scrap: 2 },
-    // { name: "Ammo 556", price: 5000 }, // Untuk Carbin
-    { name: "Ammo 762", price: 5000, scrap: 5 },
-    // untuk ammo rifle type 556, type  763 5000/box max 400box
+    { name: "Ammo 762", price: 7000, scrap: 5 },
   ],
   Attachment: [
     { name: "Tactical Flashlight", price: 4000, scrap: 5 },
@@ -43,9 +41,9 @@ const CATALOG = {
     { name: "Medium Scope", price: 4000, scrap: 5 },
   ],
   Others: [
-    { name: "VEST", price: 2600, scrap: 2 },
-    { name: "VEST MEDIUM", price: 1300 },
-    { name: "LOCKPICK", price: 1300 },
+    { name: "VEST", price: 3000, scrap: 2 },
+    { name: "VEST MEDIUM", price: 1500 },
+    { name: "LOCKPICK", price: 1500 },
   ],
 };
 
