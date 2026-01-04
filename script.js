@@ -22,7 +22,7 @@ const CATALOG = {
   Ammo: [
     { name: "AMMO 9MM", price: 2500, scrap: 3 }, // to BOA
     { name: "AMMO 44 MAGNUM", price: 6500, scrap: 3 },
-    { name: "AMMO 0.45", price: 6500, scrap: 3.4 },
+    { name: "AMMO .45", price: 6500, scrap: 3.4 },
     { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 },
     { name: "AMMO .50", price: 750, scrap: 2 },
     { name: "Ammo 762", price: 7000, scrap: 5 },
@@ -52,17 +52,17 @@ const ITEM_MAX_LIMITS = {
   "TECH 9": 20,
   "PISTOL .50": 60,
   "MINI SMG": 20,
-  "MICRO SMG": 30,
-  "CERAMIC PISTOL": 30,
+  "MICRO SMG": 50,
+  "CERAMIC PISTOL": 90,
   "SMG": 20,
-  "SHOTGUN": 20,
+  "SHOTGUN": 15,
   "NAVY REVOLVER": 20,
   "KVR": 20,
   "BLACK REVOLVER": 20,
   "AMMO 9MM": 600,
   "AMMO .50": 100,
   "AMMO .45": 200,
-  "AMMO 12 GAUGE": 50,
+  "AMMO 12 GAUGE": 150,
   "VEST": 200,
   "VEST MEDIUM": 150,
   "LOCKPICK": 60,
@@ -369,7 +369,7 @@ async function addToCart() {
   const qty = parseInt(document.getElementById("qty").value, 10) || 1;
   if (!itemName || !kategori || qty < 1) return;
   const nItem = normItemName(itemName);
-  
+
   if (isHang) {
     // 1. Existing VEST check
     if (nItem === "VEST") {
@@ -392,15 +392,16 @@ async function addToCart() {
         "PISTOL X17",
         "MINI SMG",
         "MICRO SMG",
-        "NAVY REVOLVER"
+        "NAVY REVOLVER",
       ];
-      if (!HANGAROUND_ALLOWED_GUNS.includes(itemName)) { // itemName is from value, usually matches catalog name
-         // Double check with normalized names to be safe
-         const allowedNorm = HANGAROUND_ALLOWED_GUNS.map(normItemName);
-         if (!allowedNorm.includes(nItem)) {
-             showAlert(`Hangaround tidak boleh membeli ${itemName}.`, "error");
-             return;
-         }
+      if (!HANGAROUND_ALLOWED_GUNS.includes(itemName)) {
+        // itemName is from value, usually matches catalog name
+        // Double check with normalized names to be safe
+        const allowedNorm = HANGAROUND_ALLOWED_GUNS.map(normItemName);
+        if (!allowedNorm.includes(nItem)) {
+          showAlert(`Hangaround tidak boleh membeli ${itemName}.`, "error");
+          return;
+        }
       }
     }
   }
@@ -712,7 +713,7 @@ async function submitOrder() {
       "PISTOL X17",
       "MINI SMG",
       "MICRO SMG",
-      "NAVY REVOLVER"
+      "NAVY REVOLVER",
     ].map(normItemName);
 
     // Check Cart
@@ -720,25 +721,25 @@ async function submitOrder() {
       const n = normItemName(c.item);
       // VEST check
       if (n === "VEST") {
-         showAlert("Hangaround tidak boleh beli VEST", "error");
-         endLoading();
-         return;
+        showAlert("Hangaround tidak boleh beli VEST", "error");
+        endLoading();
+        return;
       }
       // Gun check
       // Note: c.kategori might be missing if cart structure changed, but we added it in addToCart.
       // If missing, we can try to look it up, but let's assume it's there or infer from catalog.
       let isGun = c.kategori === "Gun";
       if (!c.kategori) {
-          // Fallback check
-          isGun = (CATALOG.Gun || []).some(x => normItemName(x.name) === n);
+        // Fallback check
+        isGun = (CATALOG.Gun || []).some((x) => normItemName(x.name) === n);
       }
-      
+
       if (isGun) {
-          if (!HANGAROUND_ALLOWED_GUNS.includes(n)) {
-             showAlert(`Hangaround tidak boleh membeli ${c.item}`, "error");
-             endLoading();
-             return;
-          }
+        if (!HANGAROUND_ALLOWED_GUNS.includes(n)) {
+          showAlert(`Hangaround tidak boleh membeli ${c.item}`, "error");
+          endLoading();
+          return;
+        }
       }
     }
   }
@@ -1303,31 +1304,31 @@ const GROUP_ITEMS = {
     "PISTOL X17",
     "BLACK REVOLVER",
     "TECH 9",
-    "TECH9",
     "MINI SMG",
     "VEST",
     "Assault Rifle",
     "Ammo 762",
   ],
+
   "ORDER KE ALLSTAR": [
     "PISTOL .50",
-    "CERAMIC PISTOL",
-    
-    "AMMO 44 MAGNUM",
     "AMMO .50",
-    "AMMO 0.45",
-    "VEST MEDIUM",
-    "LOCKPICK",
+    "AMMO 44 MAGNUM",
     "KVR",
     "AMMO .45",
+    "LOCKPICK",
     "NAVY REVOLVER",
   ],
+
   "ORDER KE BOA": [
-    "SHOTGUN", 
+    "SHOTGUN",
     "AMMO 12 GAUGE",
     "MICRO SMG",
     "AMMO 9MM",
+    "CERAMIC PISTOL",
+    "VEST MEDIUM",
   ],
+
   "ORDER KE 4BLOODS": [
     "Tactical Flashlight",
     "Suppressor",
@@ -1704,7 +1705,7 @@ AMMO COMPATIBILITY (Wajib hapal ini!):
 - AMMO 9MM: CERAMIC PISTOL, TECH 9, MINI SMG, MICRO SMG, SMG, PISTOL X17
 - AMMO 12 GAUGE: SHOTGUN
 - AMMO 44 MAGNUM: NAVY REVOLVER, BLACK REVOLVER
-- AMMO 0.45: KVR
+- AMMO .45: KVR
 `;
 
   return `You are Deri, a professional and helpful arms dealer assistant for R.A.G.E server.
