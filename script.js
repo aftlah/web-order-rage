@@ -7,10 +7,10 @@ const supabase =
 const CATALOG = {
   Gun: [
     { name: "PISTOL .50", price: 9500 },
-    { name: "CERAMIC PISTOL", price: 26000 },
+    { name: "CERAMIC PISTOL", price: 25000 }, // to BOA
     { name: "TECH 9", price: 26000 },
     { name: "MINI SMG", price: 30000 },
-    { name: "MICRO SMG", price: 31000 },
+    { name: "MICRO SMG", price: 30000 }, // to BOA
     { name: "SMG", price: 40000 },
     { name: "SHOTGUN", price: 65000 },
     { name: "NAVY REVOLVER", price: 7200 },
@@ -20,7 +20,7 @@ const CATALOG = {
     { name: "Assault Rifle", price: 195000 }, //max 20
   ],
   Ammo: [
-    { name: "AMMO 9MM", price: 2800, scrap: 3 },
+    { name: "AMMO 9MM", price: 2500, scrap: 3 }, // to BOA
     { name: "AMMO 44 MAGNUM", price: 6500, scrap: 3 },
     { name: "AMMO 0.45", price: 6500, scrap: 3.4 },
     { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 },
@@ -52,14 +52,14 @@ const ITEM_MAX_LIMITS = {
   "TECH 9": 20,
   "PISTOL .50": 60,
   "MINI SMG": 20,
-  "MICRO SMG": 20,
+  "MICRO SMG": 30,
   "CERAMIC PISTOL": 30,
   "SMG": 20,
   "SHOTGUN": 20,
   "NAVY REVOLVER": 20,
   "KVR": 20,
   "BLACK REVOLVER": 20,
-  "AMMO 9MM": 350,
+  "AMMO 9MM": 600,
   "AMMO .50": 100,
   "AMMO .45": 200,
   "AMMO 12 GAUGE": 50,
@@ -68,8 +68,6 @@ const ITEM_MAX_LIMITS = {
   "LOCKPICK": 60,
   "AMMO 44 MAGNUM": 100,
   "Assault Rifle": 20,
-  // "Carbine Rifle": 20,
-  // "Ammo 556": 400,
   "Ammo 762": 400,
   "Tactical Flashlight": 20,
   "Suppressor": 20,
@@ -1314,8 +1312,7 @@ const GROUP_ITEMS = {
   "ORDER KE ALLSTAR": [
     "PISTOL .50",
     "CERAMIC PISTOL",
-    "MICRO SMG",
-    "AMMO 9MM",
+    
     "AMMO 44 MAGNUM",
     "AMMO .50",
     "AMMO 0.45",
@@ -1325,7 +1322,12 @@ const GROUP_ITEMS = {
     "AMMO .45",
     "NAVY REVOLVER",
   ],
-  "ORDER KE BOA": ["SHOTGUN", "AMMO 12 GAUGE"],
+  "ORDER KE BOA": [
+    "SHOTGUN", 
+    "AMMO 12 GAUGE",
+    "MICRO SMG",
+    "AMMO 9MM",
+  ],
   "ORDER KE 4BLOODS": [
     "Tactical Flashlight",
     "Suppressor",
