@@ -1314,7 +1314,6 @@ const GROUP_ITEMS = {
     "AMMO 44 MAGNUM",
     "KVR",
     "AMMO .45",
-    "LOCKPICK",
     "NAVY REVOLVER",
   ],
 
@@ -1327,6 +1326,7 @@ const GROUP_ITEMS = {
     "AMMO 9MM",
     "CERAMIC PISTOL",
     "VEST MEDIUM",
+    "LOCKPICK",
   ],
 
   "ORDER KE 4BLOODS": [
