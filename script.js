@@ -6,25 +6,25 @@ const supabase =
 
 const CATALOG = {
   Gun: [
-    { name: "PISTOL .50", price: 9500 },
-    { name: "CERAMIC PISTOL", price: 25000 }, // to BOA
+    { name: "PISTOL .50", price: 9500 }, // to BOA
+    { name: "CERAMIC PISTOL", price: 26000 }, // to BOA
     { name: "TECH 9", price: 26000 },
     { name: "MINI SMG", price: 30000 },
     { name: "MICRO SMG", price: 30000 }, // to BOA
     { name: "SMG", price: 40000 },
-    { name: "SHOTGUN", price: 65000 },
-    { name: "NAVY REVOLVER", price: 7200 },
+    { name: "SHOTGUN", price: 65000 }, // to BOA
+    { name: "NAVY REVOLVER", price: 72000 },
     { name: "PISTOL X17", price: 33000 },
     { name: "BLACK REVOLVER", price: 91000 },
     { name: "KVR", price: 78000 },
     { name: "Assault Rifle", price: 195000 }, //max 20
   ],
   Ammo: [
-    { name: "AMMO 9MM", price: 2500, scrap: 3 }, // to BOA
+    { name: "AMMO 9MM", price: 3000, scrap: 3 }, // to BOA
     { name: "AMMO 44 MAGNUM", price: 6500, scrap: 3 },
     { name: "AMMO .45", price: 6500, scrap: 3.4 },
-    { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 },
-    { name: "AMMO .50", price: 750, scrap: 2 },
+    { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 }, // to BOA
+    { name: "AMMO .50", price: 1500, scrap: 2 }, // to BOA
     { name: "Ammo 762", price: 7000, scrap: 5 },
   ],
   Attachment: [
@@ -42,7 +42,7 @@ const CATALOG = {
   ],
   Others: [
     { name: "VEST", price: 3000, scrap: 2 },
-    { name: "VEST MEDIUM", price: 1500 },
+    { name: "VEST MEDIUM", price: 1500 }, // to BOA
     { name: "LOCKPICK", price: 1500 },
   ],
 };
@@ -53,14 +53,14 @@ const ITEM_MAX_LIMITS = {
   "PISTOL .50": 60,
   "MINI SMG": 20,
   "MICRO SMG": 50,
-  "CERAMIC PISTOL": 90,
+  "CERAMIC PISTOL": 60,
   "SMG": 20,
-  "SHOTGUN": 15,
+  "SHOTGUN": 20,
   "NAVY REVOLVER": 20,
   "KVR": 20,
   "BLACK REVOLVER": 20,
   "AMMO 9MM": 600,
-  "AMMO .50": 100,
+  "AMMO .50": 600,
   "AMMO .45": 200,
   "AMMO 12 GAUGE": 150,
   "VEST": 200,
@@ -1311,8 +1311,6 @@ const GROUP_ITEMS = {
   ],
 
   "ORDER KE ALLSTAR": [
-    "PISTOL .50",
-    "AMMO .50",
     "AMMO 44 MAGNUM",
     "KVR",
     "AMMO .45",
@@ -1321,6 +1319,8 @@ const GROUP_ITEMS = {
   ],
 
   "ORDER KE BOA": [
+    "PISTOL .50",
+    "AMMO .50",
     "SHOTGUN",
     "AMMO 12 GAUGE",
     "MICRO SMG",
