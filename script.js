@@ -2342,6 +2342,7 @@ function showAddMemberForm() {
   if (!modal || !input) return;
   input.value = "";
   modal.classList.remove("hidden");
+  loadMemberListInModal();
   setTimeout(() => input.focus(), 0);
 }
 
@@ -2369,7 +2370,9 @@ async function insertNewMember(name, isHang) {
     showAlert("Gagal menambah member", "error");
     return;
   }
-  hideMemberModal();
+  // hideMemberModal();
+  document.getElementById("memberNameInput").value = "";
+  loadMemberListInModal();
   const input = document.getElementById("dashNameInput");
   if (input) input.value = name;
   showAlert("Member berhasil ditambah", "success");
@@ -2626,3 +2629,97 @@ function fmtDateTime(iso) {
     return iso;
   }
 }
+
+async function loadMemberListInModal() {
+  const list = document.getElementById("memberList");
+  if (!list) return;
+  list.innerHTML = '<div class="text-center p-2">Loading...</div>';
+  
+  const { data, error } = await supabase
+    .from("members")
+    .select("id, nama, is_hangaround")
+    .order("nama", { ascending: true });
+
+  if (error || !data) {
+    list.innerHTML = '<div class="text-center p-2 text-red-500">Gagal memuat member</div>';
+    return;
+  }
+
+  if (data.length === 0) {
+    list.innerHTML = '<div class="text-center p-2 text-gray-500">Belum ada member</div>';
+    return;
+  }
+
+  list.innerHTML = data.map(m => `
+    <div class="flex items-center justify-between p-2 bg-[#fffbf0] dark:bg-[#0a0805] rounded border border-[#f3e8d8] dark:border-[#3d342d]">
+      <div>
+        <div class="font-semibold text-sm text-[#1a1410] dark:text-[#fef3c7]">${m.nama}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400">${m.is_hangaround ? 'Hangaround' : 'Member'}</div>
+      </div>
+      <button class="text-red-500 hover:text-red-700 px-2 py-1 text-xs border border-red-500 rounded" onclick="deleteMember('${m.id}', '${m.nama.replace(/'/g, "\\'")}')">
+        Hapus
+      </button>
+    </div>
+  `).join("");
+}
+
+window.deleteMember = async function(id, name) {
+  // 0. Check session
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    showAlert("Harus login untuk menghapus member", "error");
+    return;
+  }
+
+  // 1. Check for existing orders
+  const { count, error: countErr } = await supabase
+    .from("orders")
+    .select("*", { count: 'exact', head: true })
+    .eq("member_id", id);
+    
+  let confirmMsg = `Yakin ingin menghapus member "${name}"?`;
+  if (count && count > 0) {
+    confirmMsg = `Member "${name}" memiliki ${count} history order.\n\nMenghapus member ini akan MENGHAPUS SEMUA history ordernya.\n\nApakah Anda yakin ingin melanjutkan?`;
+  }
+
+  if (!confirm(confirmMsg)) return;
+  
+  // 2. Delete orders if any
+  if (count && count > 0) {
+    const { error: delOrderErr } = await supabase
+      .from("orders")
+      .delete()
+      .eq("member_id", id);
+      
+    if (delOrderErr) {
+      showAlert("Gagal menghapus history order: " + delOrderErr.message, "error");
+      return;
+    }
+  }
+  
+  // 3. Delete member
+  const { error } = await supabase
+    .from("members")
+    .delete()
+    .eq("id", id);
+
+  if (error) {
+    showAlert("Gagal menghapus member dari database: " + error.message, "error");
+  } else {
+    // 4. Double check deletion
+    const { count: checkCount } = await supabase
+      .from("members")
+      .select("*", { count: 'exact', head: true })
+      .eq("id", id);
+      
+    if (checkCount === 0) {
+        showAlert("Member dan datanya berhasil dihapus permanen.", "success");
+        loadMemberListInModal();
+        updateDashNameSuggestions();
+        loadDashboard(true);
+    } else {
+        showAlert("Gagal: Member masih ada di database. Cek permission/RLS.", "error");
+    }
+  }
+}
+
