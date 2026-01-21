@@ -763,9 +763,9 @@ async function submitOrder() {
     existingVest = (data || []).reduce((a, r) => a + (r.qty || 0), 0);
   } catch (e) {}
   const totalVest = existingVest + cartVestCount;
-  if (totalVest > 10) {
-    const remaining = Math.max(0, 10 - existingVest);
-    showAlert(`Maksimal VEST per orang 10. Tersisa ${remaining}.`, "error");
+  if (totalVest > 20) {
+    const remaining = Math.max(0, 20 - existingVest);
+    showAlert(`Maksimal VEST per orang 20. Tersisa ${remaining}.`, "error");
     endLoading();
     return;
   }
