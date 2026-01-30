@@ -18,6 +18,7 @@ const CATALOG = {
     { name: "BLACK REVOLVER", price: 91000 },
     { name: "KVR", price: 78000 },
     { name: "Assault Rifle", price: 195000 }, //max 20
+    { name: "Virtus#3", price: 230000 }, //max 20
   ],
   Ammo: [
     { name: "AMMO 9MM", price: 3000, scrap: 3 }, // to BOA
@@ -26,6 +27,7 @@ const CATALOG = {
     { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 }, // to BOA
     { name: "AMMO .50", price: 1500, scrap: 2 }, // to BOA
     { name: "Ammo 762", price: 7000, scrap: 5 },
+    { name: "Ammo 556", price: 7000, scrap: 5 },
   ],
   Attachment: [
     { name: "Tactical Flashlight", price: 4000, scrap: 5 },
@@ -68,7 +70,9 @@ const ITEM_MAX_LIMITS = {
   "LOCKPICK": 60,
   "AMMO 44 MAGNUM": 100,
   "Assault Rifle": 20,
+  "Virtus#3": 20,
   "Ammo 762": 400,
+  "Ammo 556": 400,
   "Tactical Flashlight": 20,
   "Suppressor": 20,
   "Tactical Suppressor": 20,
@@ -1308,6 +1312,8 @@ const GROUP_ITEMS = {
     "VEST",
     "Assault Rifle",
     "Ammo 762",
+    "Ammo 556",
+    "Virtus#3",
   ],
 
   "ORDER KE ALLSTAR": [
