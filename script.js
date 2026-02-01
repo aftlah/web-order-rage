@@ -14,7 +14,7 @@ const CATALOG = {
     { name: "SMG", price: 40000 },
     { name: "SHOTGUN", price: 65000 }, // to BOA
     { name: "NAVY REVOLVER", price: 72000 },
-    { name: "PISTOL X17", price: 33000 },
+    { name: "PISTOL X17", price: 33000 }, // to BOA
     { name: "BLACK REVOLVER", price: 91000 },
     { name: "KVR", price: 78000 },
     { name: "Assault Rifle", price: 195000 }, //max 20
@@ -383,6 +383,11 @@ async function addToCart() {
     // 2. Existing ASSAULT RIFLE check (redundant if we whitelist, but keeping for clarity/message)
     if (nItem === "ASSAULT RIFLE") {
       showAlert("Hangaround tidak boleh beli ASSAULT RIFLE", "error");
+      return;
+    }
+
+    if (nItem === "VIRTUS#3") {
+      showAlert("Hangaround tidak boleh beli Virtus#3", "error");
       return;
     }
     // 3. Whitelist check for Gun category
@@ -1300,12 +1305,12 @@ const GROUP_ORDER = [
   "ORDER KE ALLSTAR",
   "ORDER KE BOA",
   "ORDER KE 4BLOODS",
+  "ORDER KE 51R",
+  "ORDER KE GHO GANG",
   "LAINNYA",
 ];
 const GROUP_ITEMS = {
   "ORDER KE HIGH TABEL": [
-    "SMG",
-    "PISTOL X17",
     "BLACK REVOLVER",
     "TECH 9",
     "MINI SMG",
@@ -1332,7 +1337,7 @@ const GROUP_ITEMS = {
     "AMMO 9MM",
     "CERAMIC PISTOL",
     "VEST MEDIUM",
-    "LOCKPICK",
+    "PISTOL X17",
   ],
 
   "ORDER KE 4BLOODS": [
@@ -1347,6 +1352,14 @@ const GROUP_ITEMS = {
     "Rifle Drum",
     "Macro Scope",
     "Medium Scope",
+  ],
+
+  "ORDER KE 51R": [
+    "LOCKPICK",
+  ],
+
+  "ORDER KE GHO GANG": [
+    "SMG",
   ],
 };
 function normItemName(s) {
@@ -1712,6 +1725,8 @@ AMMO COMPATIBILITY (Wajib hapal ini!):
 - AMMO 12 GAUGE: SHOTGUN
 - AMMO 44 MAGNUM: NAVY REVOLVER, BLACK REVOLVER
 - AMMO .45: KVR
+- AMMO 762: Assault Rifle
+- AMMO 556: Virtus#3
 `;
 
   return `You are Deri, a professional and helpful arms dealer assistant for R.A.G.E server.
@@ -2588,6 +2603,7 @@ async function shareDashboardToDiscord() {
     "ORDER KE ALLSTAR",
     "ORDER KE BOA",
     "ORDER KE 4BLOODS",
+    "ORDER KE GHO GANG",
   ];
 
   lines.push("");
