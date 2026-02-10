@@ -6,6 +6,7 @@
     <title>Login - R.A.G.E</title>
     <link rel="icon" href="/images/LOGO_RAGE.png" type="image/png" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
       * {
         font-family: "Poppins", sans-serif;
@@ -128,6 +129,37 @@
           : null;
 
       function show(message, type = "info") {
+        // SweetAlert2 Implementation
+        if (typeof Swal !== 'undefined') {
+          const icons = {
+            success: 'success',
+            error: 'error',
+            warning: 'warning',
+            info: 'info'
+          };
+
+          Swal.fire({
+            text: message,
+            icon: icons[type] || 'info',
+            toast: true,
+            position: 'top',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            background: '#1f1410',
+            color: '#fef3c7',
+            iconColor: type === 'success' ? '#22c55e' : (type === 'error' ? '#ef4444' : '#eab308'),
+            customClass: {
+              popup: 'border border-yellow-600/30 shadow-xl rounded-xl'
+            },
+            didOpen: (toast) => {
+              toast.onmouseenter = Swal.stopTimer;
+              toast.onmouseleave = Swal.resumeTimer;
+            }
+          });
+          return;
+        }
+
         const box = document.getElementById("appAlertBox");
         if (!box) {
           alert(message);

@@ -652,8 +652,21 @@ function renderMyOrders(rows, useOrderanke) {
     btn.addEventListener("click", async () => {
       const id = parseInt(btn.getAttribute("data-del-id") || "", 10);
       if (!id) return;
-      const ok = window.confirm("Hapus baris order ini?");
-      if (!ok) return;
+      
+      const result = await Swal.fire({
+        title: 'Hapus baris order ini?',
+        text: "Tindakan ini tidak dapat dibatalkan!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, hapus!',
+        cancelButtonText: 'Batal',
+        background: '#1f1410',
+        color: '#fef3c7'
+      });
+      if (!result.isConfirmed) return;
+
       try {
         const { error } = await supabase.from("orders").delete().eq("id", id);
         if (error) {
@@ -1622,8 +1635,21 @@ function renderDashboard(groups) {
     btn.addEventListener("click", async () => {
       const id = parseInt(btn.getAttribute("data-del-id") || "", 10);
       if (!id) return;
-      const ok = window.confirm("Hapus item order ini?");
-      if (!ok) return;
+
+      const result = await Swal.fire({
+        title: 'Hapus item order ini?',
+        text: "Tindakan ini tidak dapat dibatalkan!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Ya, hapus!',
+        cancelButtonText: 'Batal',
+        background: '#1f1410',
+        color: '#fef3c7'
+      });
+      if (!result.isConfirmed) return;
+
       try {
         const { error } = await supabase.from("orders").delete().eq("id", id);
         if (error) {
@@ -2214,17 +2240,42 @@ async function deleteOrderWindow(id) {
     showAlert("Gagal memeriksa sesi", "error");
     return;
   }
-  const proceed = window.confirm(
-    "Hapus jadwal ini? Tindakan tidak dapat dibatalkan."
-  );
-  if (!proceed) return;
+  const proceed = await Swal.fire({
+    title: 'Hapus jadwal ini?',
+    text: "Tindakan tidak dapat dibatalkan.",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    cancelButtonColor: '#3085d6',
+    confirmButtonText: 'Ya, hapus',
+    cancelButtonText: 'Batal',
+    background: '#1f1410',
+    color: '#fef3c7'
+  });
+  if (!proceed.isConfirmed) return;
+
   const pin = (window && window.ADMIN_DELETE_PIN) || "";
   let ok = true;
   if (pin) {
-    const typed = window.prompt("Masukkan PIN delete untuk konfirmasi:", "");
+    const { value: typed } = await Swal.fire({
+      title: 'Masukkan PIN delete',
+      input: 'password',
+      inputLabel: 'PIN diperlukan',
+      inputPlaceholder: 'Masukkan PIN',
+      showCancelButton: true,
+      background: '#1f1410',
+      color: '#fef3c7'
+    });
     ok = !!typed && typed === pin;
   } else {
-    const typed = window.prompt("Ketik DELETE untuk konfirmasi:", "");
+    const { value: typed } = await Swal.fire({
+      title: 'Ketik DELETE untuk konfirmasi',
+      input: 'text',
+      inputPlaceholder: 'DELETE',
+      showCancelButton: true,
+      background: '#1f1410',
+      color: '#fef3c7'
+    });
     ok = (typed || "").toUpperCase() === "DELETE";
   }
   if (!ok) {
@@ -2660,6 +2711,37 @@ async function shareDashboardToDiscord() {
   showAlert("Ringkasan dikirim ke Discord", "success");
 }
 function showAlert(message, type = "info") {
+  // SweetAlert2 Implementation
+  if (typeof Swal !== 'undefined') {
+    const icons = {
+      success: 'success',
+      error: 'error',
+      warning: 'warning',
+      info: 'info'
+    };
+
+    Swal.fire({
+      text: message,
+      icon: icons[type] || 'info',
+      toast: true,
+      position: 'top',
+      showConfirmButton: false,
+      timer: 3000,
+      timerProgressBar: true,
+      background: '#1f1410',
+      color: '#fef3c7',
+      iconColor: type === 'success' ? '#22c55e' : (type === 'error' ? '#ef4444' : '#eab308'),
+      customClass: {
+        popup: 'border border-yellow-600/30 shadow-xl rounded-xl'
+      },
+      didOpen: (toast) => {
+        toast.onmouseenter = Swal.stopTimer;
+        toast.onmouseleave = Swal.resumeTimer;
+      }
+    });
+    return;
+  }
+
   const box = document.getElementById("appAlertBox");
   if (!box) {
     alert(message);
@@ -2890,7 +2972,20 @@ window.deleteMember = async function(id, name) {
     confirmMsg = `Member "${name}" memiliki ${count} history order.\n\nMenghapus member ini akan MENGHAPUS SEMUA history ordernya.\n\nApakah Anda yakin ingin melanjutkan?`;
   }
 
-  if (!confirm(confirmMsg)) return;
+  const result = await Swal.fire({
+      title: 'Konfirmasi Hapus',
+      text: confirmMsg,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Ya, hapus',
+      cancelButtonText: 'Batal',
+      background: '#1f1410',
+      color: '#fef3c7'
+  });
+  
+  if (!result.isConfirmed) return;
   
   // 2. Delete orders if any
   if (count && count > 0) {
