@@ -352,6 +352,63 @@ function populateItems() {
   });
 }
 
+function getRolePermissions(role) {
+  const R = role || "Hoodlum";
+  
+  // Define base items
+  const BASE_GUNS = ["PISTOL .50", "CERAMIC PISTOL", "TECH 9"];
+  const BASE_AMMO = ["AMMO .50", "AMMO 9MM"];
+  
+  const HANGAROUND_ADDITIONS = ["MINI SMG", "MICRO SMG", "SMG", "PISTOL X17"];
+  const HANGAROUND_AMMO = ["AMMO .45"];
+  
+  const HOODLUM_ADDITIONS = ["SHOTGUN", "NAVY REVOLVER", "KVR", "BLACK REVOLVER"];
+  const HOODLUM_AMMO = ["AMMO 12 GAUGE", "AMMO 44 MAGNUM"];
+
+  // Normalize helper
+  const norm = (list) => list.map(x => x.toUpperCase());
+
+  if (R === "Internship") {
+    return {
+      allowed: new Set(norm([...BASE_GUNS, ...BASE_AMMO, "VEST"])),
+      vestType: "VEST", // Merah
+      vestLimit: 5
+    };
+  }
+  
+  if (R === "Hangaround") {
+    return {
+      allowed: new Set(norm([
+        ...BASE_GUNS, ...BASE_AMMO, 
+        ...HANGAROUND_ADDITIONS, ...HANGAROUND_AMMO,
+        "VEST MEDIUM"
+      ])),
+      vestType: "VEST MEDIUM", // Biru
+      vestLimit: 5
+    };
+  }
+  
+  if (R === "Hoodlum") {
+    return {
+      allowed: new Set(norm([
+        ...BASE_GUNS, ...BASE_AMMO, 
+        ...HANGAROUND_ADDITIONS, ...HANGAROUND_AMMO,
+        ...HOODLUM_ADDITIONS, ...HOODLUM_AMMO,
+        "VEST MEDIUM"
+      ])),
+      vestType: "VEST MEDIUM", // Biru
+      vestLimit: 5
+    };
+  }
+  
+  // Highrank
+  return {
+    allowed: "ALL",
+    vestType: "BOTH", 
+    vestLimit: 5
+  };
+}
+
 async function addToCart() {
   const ok = await ensureOrderingOpen();
   if (!ok) {
@@ -367,55 +424,37 @@ async function addToCart() {
     return;
   }
   const role = await getMemberRole(hiddenId);
-  const isRestricted = (role === "Internship" || role === "Hangaround");
   const nama = document.getElementById("nama").value.trim();
   const kategori = document.getElementById("kategori").value;
   const itemName = document.getElementById("item").value;
   const qty = parseInt(document.getElementById("qty").value, 10) || 1;
   if (!itemName || !kategori || qty < 1) return;
-  const nItem = normItemName(itemName);
-
-  if (isRestricted) {
-    // 1. Existing VEST check
-    if (nItem === "VEST") {
-      showAlert("Hangaround tidak boleh beli VEST, hanya VEST MEDIUM", "error");
-      return;
-    }
-    // 2. Existing ASSAULT RIFLE check (redundant if we whitelist, but keeping for clarity/message)
-    if (nItem === "ASSAULT RIFLE") {
-      showAlert("Hangaround tidak boleh beli ASSAULT RIFLE", "error");
-      return;
-    }
-
-    if (nItem === "VIRTUS#3") {
-      showAlert("Hangaround tidak boleh beli Virtus#3", "error");
-      return;
-    }
-    // 3. Whitelist check for Gun category
-    // We need to know if the item is a Gun.
-    // The 'kategori' variable comes from the select input.
-    if (kategori === "Gun") {
-      const HANGAROUND_ALLOWED_GUNS = [
-        "PISTOL .50",
-        "CERAMIC PISTOL",
-        "TECH 9",
-        "PISTOL X17",
-        "MINI SMG",
-        "MICRO SMG",
-        "NAVY REVOLVER",
-      ];
-      if (!HANGAROUND_ALLOWED_GUNS.includes(itemName)) {
-        // itemName is from value, usually matches catalog name
-        // Double check with normalized names to be safe
-        const allowedNorm = HANGAROUND_ALLOWED_GUNS.map(normItemName);
-        if (!allowedNorm.includes(nItem)) {
-          showAlert(`Hangaround tidak boleh membeli ${itemName}.`, "error");
-          return;
+  
+  const nItem = itemName.toUpperCase();
+  const perms = getRolePermissions(role);
+  
+  // 1. Check allowed items
+  if (perms.allowed !== "ALL") {
+    if (!perms.allowed.has(nItem)) {
+      // Custom message for VEST mismatch
+      if (nItem.includes("VEST")) {
+        if (perms.vestType === "VEST" && nItem !== "VEST") {
+            showAlert(`${role} hanya boleh beli VEST (Merah)`, "error");
+            return;
         }
+        if (perms.vestType === "VEST MEDIUM" && nItem !== "VEST MEDIUM") {
+            showAlert(`${role} hanya boleh beli VEST MEDIUM (Biru)`, "error");
+            return;
+        }
+        showAlert(`${role} tidak diperbolehkan membeli ${itemName}`, "error");
+        return;
       }
+      showAlert(`${role} tidak diperbolehkan membeli ${itemName}`, "error");
+      return;
     }
   }
 
+  // 2. Check Item Max Limit (Global)
   const max = getItemMax(itemName);
   if (typeof max === "number") {
     const norm = normItemName(itemName);
@@ -430,6 +469,19 @@ async function addToCart() {
       return;
     }
   }
+  
+  // 3. Check Vest Personal Limit (Local Cart Check + DB check is done at submit, but good to check cart here)
+  if (nItem.includes("VEST")) {
+     const currentCartVest = state.cart
+        .filter(c => c.item.toUpperCase().includes("VEST"))
+        .reduce((a, c) => a + c.qty, 0);
+     
+     if (currentCartVest + qty > perms.vestLimit) {
+         showAlert(`Maksimal VEST per orang adalah ${perms.vestLimit}`, "error");
+         return;
+     }
+  }
+
   const item = CATALOG[kategori].find((i) => i.name === itemName);
   const existing = state.cart.find(
     (c) => c.item === itemName && c.kategori === kategori
@@ -715,52 +767,36 @@ async function submitOrder() {
   const orderId =
     editingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const role = await getMemberRole(member_id);
-  const isRestricted = (role === "Internship" || role === "Hangaround");
-  if (isRestricted) {
-    const HANGAROUND_ALLOWED_GUNS = [
-      "PISTOL .50",
-      "CERAMIC PISTOL",
-      "TECH 9",
-      "PISTOL X17",
-      "MINI SMG",
-      "MICRO SMG",
-      "NAVY REVOLVER",
-    ].map(normItemName);
-
-    // Check Cart
+  const perms = getRolePermissions(role);
+  
+  // 1. Validate Items in Cart against Role
+  if (perms.allowed !== "ALL") {
     for (const c of state.cart) {
       const n = normItemName(c.item);
-      // VEST check
-      if (n === "VEST") {
-        showAlert("Hangaround tidak boleh beli VEST", "error");
-        endLoading();
-        return;
-      }
-      // Gun check
-      // Note: c.kategori might be missing if cart structure changed, but we added it in addToCart.
-      // If missing, we can try to look it up, but let's assume it's there or infer from catalog.
-      let isGun = c.kategori === "Gun";
-      if (!c.kategori) {
-        // Fallback check
-        isGun = (CATALOG.Gun || []).some((x) => normItemName(x.name) === n);
-      }
-
-      if (isGun) {
-        if (!HANGAROUND_ALLOWED_GUNS.includes(n)) {
-          showAlert(`Hangaround tidak boleh membeli ${c.item}`, "error");
-          endLoading();
-          return;
-        }
+      if (!perms.allowed.has(n)) {
+         if (n.includes("VEST")) {
+            if (perms.vestType === "VEST" && n !== "VEST") {
+                 showAlert(`${role} hanya boleh beli VEST (Merah)`, "error");
+                 endLoading(); return;
+            }
+            if (perms.vestType === "VEST MEDIUM" && n !== "VEST MEDIUM") {
+                 showAlert(`${role} hanya boleh beli VEST MEDIUM (Biru)`, "error");
+                 endLoading(); return;
+            }
+         }
+         showAlert(`${role} tidak diperbolehkan membeli ${c.item}`, "error");
+         endLoading();
+         return;
       }
     }
   }
-  const isVestItem = (name) =>
-    String(name || "")
-      .toUpperCase()
-      .includes("VEST");
+
+  // 2. Validate Vest Limit (Database + Cart)
+  const isVestItem = (name) => String(name || "").toUpperCase().includes("VEST");
   const cartVestCount = state.cart
     .filter((c) => isVestItem(c.item))
     .reduce((a, c) => a + (c.qty || 0), 0);
+    
   let existingVest = 0;
   try {
     let q = supabase
@@ -773,10 +809,11 @@ async function submitOrder() {
     const { data } = await q;
     existingVest = (data || []).reduce((a, r) => a + (r.qty || 0), 0);
   } catch (e) {}
+  
   const totalVest = existingVest + cartVestCount;
-  if (totalVest > 20) {
-    const remaining = Math.max(0, 20 - existingVest);
-    showAlert(`Maksimal VEST per orang 20. Tersisa ${remaining}.`, "error");
+  if (totalVest > perms.vestLimit) {
+    const remaining = Math.max(0, perms.vestLimit - existingVest);
+    showAlert(`Maksimal VEST per orang ${perms.vestLimit}. Tersisa ${remaining}.`, "error");
     endLoading();
     return;
   }
@@ -2661,8 +2698,9 @@ function fmtDateTime(iso) {
 
 async function loadMemberListInModal() {
   const list = document.getElementById("memberList");
+  const countBadge = document.getElementById("memberCountBadge");
   if (!list) return;
-  list.innerHTML = '<div class="text-center p-2">Loading...</div>';
+  list.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500 animate-pulse">Loading...</td></tr>';
   
   const { data, error } = await supabase
     .from("members")
@@ -2670,32 +2708,144 @@ async function loadMemberListInModal() {
     .order("nama", { ascending: true });
 
   if (error || !data) {
-    list.innerHTML = '<div class="text-center p-2 text-red-500">Gagal memuat member</div>';
+    list.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-red-500">Gagal memuat member</td></tr>';
+    if (countBadge) countBadge.innerText = "0";
     return;
   }
+
+  if (countBadge) countBadge.innerText = data.length;
 
   if (data.length === 0) {
-    list.innerHTML = '<div class="text-center p-2 text-gray-500">Belum ada member</div>';
+    list.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500">Belum ada member</td></tr>';
     return;
   }
 
-  list.innerHTML = data.map(m => `
-    <div class="flex items-center justify-between p-2 bg-[#fffbf0] dark:bg-[#0a0805] rounded border border-[#f3e8d8] dark:border-[#3d342d]">
-      <div class="flex flex-col gap-1 flex-1 mr-4">
-        <div class="font-semibold text-sm text-[#1a1410] dark:text-[#fef3c7]">${m.nama}</div>
-        <select onchange="updateMemberRole('${m.id}', this.value)" 
-          class="text-xs px-2 py-1 rounded bg-transparent border border-[#f3e8d8] dark:border-[#3d342d] text-slate-500 dark:text-slate-400 focus:ring-1 focus:ring-amber-500">
-          <option value="Internship" ${m.role === 'Internship' ? 'selected' : ''}>Internship</option>
-          <option value="Hangaround" ${m.role === 'Hangaround' ? 'selected' : ''}>Hangaround</option>
-          <option value="Hoodlum" ${(!m.role || m.role === 'Hoodlum') ? 'selected' : ''}>Hoodlum</option>
-          <option value="Highrank" ${m.role === 'Highrank' ? 'selected' : ''}>Highrank</option>
-        </select>
-      </div>
-      <button class="text-red-500 hover:text-red-700 px-2 py-1 text-xs border border-red-500 rounded flex-shrink-0" onclick="deleteMember('${m.id}', '${m.nama.replace(/'/g, "\\'")}')">
-        Hapus
-      </button>
-    </div>
-  `).join("");
+  list.innerHTML = data.map(m => {
+    // Role logic
+    const roles = ['Internship', 'Hangaround', 'Hoodlum', 'Highrank'];
+    const currentRole = m.role || 'Hoodlum';
+    
+    // Style logic
+    let btnClass = "";
+    let dotClass = "";
+    
+    if (currentRole === 'Highrank') {
+      btnClass = "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20 dark:hover:bg-red-500/20";
+      dotClass = "bg-red-500";
+    } else if (currentRole === 'Hoodlum') {
+      btnClass = "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20 dark:hover:bg-amber-500/20";
+      dotClass = "bg-amber-500";
+    } else if (currentRole === 'Hangaround') {
+      btnClass = "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/20 dark:hover:bg-blue-500/20";
+      dotClass = "bg-blue-500";
+    } else {
+      btnClass = "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-500/10 dark:text-green-300 dark:border-green-500/20 dark:hover:bg-green-500/20";
+      dotClass = "bg-green-500";
+    }
+
+    return `
+    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group border-b border-transparent last:border-0">
+      <td class="px-5 py-3 font-medium text-slate-700 dark:text-slate-200">
+        ${m.nama}
+      </td>
+      <td class="px-5 py-3 relative">
+        <div class="relative role-dropdown-container">
+            <button onclick="toggleRoleDropdown('${m.id}')" 
+                class="w-36 px-3 py-1.5 rounded-lg border ${btnClass} text-xs font-bold flex items-center justify-between transition-all shadow-sm group/btn">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full ${dotClass}"></span>
+                    <span>${currentRole}</span>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 opacity-60 group-hover/btn:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+            
+            <div id="dropdown-${m.id}" class="role-dropdown-menu hidden absolute top-full left-0 mt-2 w-40 bg-white dark:bg-[#1a1410] rounded-xl border border-slate-200 dark:border-[#3d342d] shadow-xl z-50 overflow-hidden ring-1 ring-black/5 dark:ring-white/10 origin-top-left animate-in fade-in zoom-in-95 duration-100">
+                <div class="py-1">
+                    ${roles.map(r => {
+                        let dot = "bg-slate-400";
+                        if (r === 'Highrank') dot = "bg-red-500";
+                        if (r === 'Hoodlum') dot = "bg-amber-500";
+                        if (r === 'Hangaround') dot = "bg-blue-500";
+                        if (r === 'Internship') dot = "bg-green-500";
+                        
+                        const isActive = r === currentRole;
+                        const activeClass = isActive ? "bg-slate-50 dark:bg-white/5" : "";
+                        
+                        return `
+                        <button onclick="selectMemberRole('${m.id}', '${r}')" 
+                            class="w-full text-left px-3 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center gap-3 ${activeClass} text-slate-700 dark:text-slate-300">
+                            <span class="w-2 h-2 rounded-full ${dot} ${isActive ? 'ring-2 ring-offset-1 ring-slate-200 dark:ring-offset-black dark:ring-slate-700' : ''}"></span>
+                            ${r}
+                            ${isActive ? '<svg class="w-3 h-3 ml-auto text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' : ''}
+                        </button>
+                        `
+                    }).join('')}
+                </div>
+            </div>
+        </div>
+      </td>
+      <td class="px-5 py-3 text-right">
+        <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/40 transition-all text-xs font-medium ml-auto shadow-sm" onclick="deleteMember('${m.id}', '${m.nama.replace(/'/g, "\\'")}')" title="Hapus Member">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <span>Hapus</span>
+        </button>
+      </td>
+    </tr>
+  `}).join("");
+}
+
+// Global functions for custom dropdown
+window.toggleRoleDropdown = function(id) {
+    // Close other dropdowns first
+    const allDropdowns = document.querySelectorAll('.role-dropdown-menu');
+    allDropdowns.forEach(d => {
+        if (d.id !== `dropdown-${id}`) d.classList.add('hidden');
+    });
+    
+    const dropdown = document.getElementById(`dropdown-${id}`);
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
+    }
+    
+    // Stop propagation to prevent immediate closing
+    if (window.event) window.event.stopPropagation();
+}
+
+window.selectMemberRole = function(id, role) {
+    updateMemberRole(id, role);
+    const dropdown = document.getElementById(`dropdown-${id}`);
+    if (dropdown) dropdown.classList.add('hidden');
+    if (window.event) window.event.stopPropagation();
+}
+
+// Close dropdowns when clicking outside
+window.addEventListener('click', function(e) {
+    if (!e.target.closest('.role-dropdown-container')) {
+        document.querySelectorAll('.role-dropdown-menu').forEach(d => d.classList.add('hidden'));
+    }
+});
+
+window.filterMembers = function() {
+  const input = document.getElementById('memberSearchInput');
+  const filter = input.value.toUpperCase();
+  const list = document.getElementById("memberList");
+  const tr = list.getElementsByTagName('tr');
+
+  for (let i = 0; i < tr.length; i++) {
+    const td = tr[i].getElementsByTagName("td")[0];
+    if (td) {
+      const txtValue = td.textContent || td.innerText;
+      if (txtValue.toUpperCase().indexOf(filter) > -1) {
+        tr[i].style.display = "";
+      } else {
+        tr[i].style.display = "none";
+      }
+    }
+  }
 }
 
 window.updateMemberRole = async function(id, newRole) {
