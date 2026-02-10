@@ -366,7 +366,8 @@ async function addToCart() {
     showAlert("Pilih nama dari database", "error");
     return;
   }
-  const isHang = await getMemberHangaroundStatus(hiddenId);
+  const role = await getMemberRole(hiddenId);
+  const isRestricted = (role === "Internship" || role === "Hangaround");
   const nama = document.getElementById("nama").value.trim();
   const kategori = document.getElementById("kategori").value;
   const itemName = document.getElementById("item").value;
@@ -374,7 +375,7 @@ async function addToCart() {
   if (!itemName || !kategori || qty < 1) return;
   const nItem = normItemName(itemName);
 
-  if (isHang) {
+  if (isRestricted) {
     // 1. Existing VEST check
     if (nItem === "VEST") {
       showAlert("Hangaround tidak boleh beli VEST, hanya VEST MEDIUM", "error");
@@ -713,8 +714,9 @@ async function submitOrder() {
   const editingId = window.__editingOrderId || null;
   const orderId =
     editingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const isHang = await getMemberHangaroundStatus(member_id);
-  if (isHang) {
+  const role = await getMemberRole(member_id);
+  const isRestricted = (role === "Internship" || role === "Hangaround");
+  if (isRestricted) {
     const HANGAROUND_ALLOWED_GUNS = [
       "PISTOL .50",
       "CERAMIC PISTOL",
@@ -925,21 +927,24 @@ async function submitOrder() {
     endLoading();
   }
 }
-async function getMemberHangaroundStatus(id) {
-  if (!supabase || !id) return false;
-  const cache = (window.__memberHangCache ||= {});
-  if (typeof cache[id] !== "undefined") return !!cache[id];
+async function getMemberRole(id) {
+  if (!supabase || !id) return "Hoodlum";
+  const cache = (window.__memberRoleCache ||= {});
+  if (typeof cache[id] !== "undefined") return cache[id];
   try {
     const { data } = await supabase
       .from("members")
-      .select("id,is_hangaround")
+      .select("role")
       .eq("id", id)
       .limit(1);
-    const val = !!((data && data[0] && data[0].is_hangaround) || false);
+    
+    const row = data && data[0];
+    const val = (row && row.role) || "Hoodlum";
+    
     cache[id] = val;
     return val;
   } catch (e) {
-    return false;
+    return "Hoodlum";
   }
 }
 
@@ -2241,9 +2246,9 @@ function initDashboard() {
         showAlert("Nama member kosong", "error");
         return;
       }
-      const hangEl = document.getElementById("memberHangInput");
-      const isHang = !!(hangEl && hangEl.checked);
-      await insertNewMember(name, isHang);
+      const roleEl = document.getElementById("memberRoleInput");
+      const role = roleEl ? roleEl.value : "Hoodlum";
+      await insertNewMember(name, role);
       hideMemberModal();
     });
   const btn = document.getElementById("refreshDashboard");
@@ -2360,8 +2365,10 @@ async function addMemberFromDashboard() {
 function showAddMemberForm() {
   const modal = document.getElementById("memberModal");
   const input = document.getElementById("memberNameInput");
+  const roleEl = document.getElementById("memberRoleInput");
   if (!modal || !input) return;
   input.value = "";
+  if (roleEl) roleEl.value = "Hoodlum";
   modal.classList.remove("hidden");
   loadMemberListInModal();
   setTimeout(() => input.focus(), 0);
@@ -2372,7 +2379,7 @@ function hideMemberModal() {
   if (modal) modal.classList.add("hidden");
 }
 
-async function insertNewMember(name, isHang) {
+async function insertNewMember(name, role) {
   if (!supabase) return;
   const { data: exists } = await supabase
     .from("members")
@@ -2385,7 +2392,7 @@ async function insertNewMember(name, isHang) {
   }
   const { error } = await supabase
     .from("members")
-    .insert([{ nama: name, is_hangaround: !!isHang }])
+    .insert([{ nama: name, role: role }])
     .select("id");
   if (error) {
     showAlert("Gagal menambah member", "error");
@@ -2659,7 +2666,7 @@ async function loadMemberListInModal() {
   
   const { data, error } = await supabase
     .from("members")
-    .select("id, nama, is_hangaround")
+    .select("id,nama,role")
     .order("nama", { ascending: true });
 
   if (error || !data) {
@@ -2674,15 +2681,44 @@ async function loadMemberListInModal() {
 
   list.innerHTML = data.map(m => `
     <div class="flex items-center justify-between p-2 bg-[#fffbf0] dark:bg-[#0a0805] rounded border border-[#f3e8d8] dark:border-[#3d342d]">
-      <div>
+      <div class="flex flex-col gap-1 flex-1 mr-4">
         <div class="font-semibold text-sm text-[#1a1410] dark:text-[#fef3c7]">${m.nama}</div>
-        <div class="text-xs text-slate-500 dark:text-slate-400">${m.is_hangaround ? 'Hangaround' : 'Member'}</div>
+        <select onchange="updateMemberRole('${m.id}', this.value)" 
+          class="text-xs px-2 py-1 rounded bg-transparent border border-[#f3e8d8] dark:border-[#3d342d] text-slate-500 dark:text-slate-400 focus:ring-1 focus:ring-amber-500">
+          <option value="Internship" ${m.role === 'Internship' ? 'selected' : ''}>Internship</option>
+          <option value="Hangaround" ${m.role === 'Hangaround' ? 'selected' : ''}>Hangaround</option>
+          <option value="Hoodlum" ${(!m.role || m.role === 'Hoodlum') ? 'selected' : ''}>Hoodlum</option>
+          <option value="Highrank" ${m.role === 'Highrank' ? 'selected' : ''}>Highrank</option>
+        </select>
       </div>
-      <button class="text-red-500 hover:text-red-700 px-2 py-1 text-xs border border-red-500 rounded" onclick="deleteMember('${m.id}', '${m.nama.replace(/'/g, "\\'")}')">
+      <button class="text-red-500 hover:text-red-700 px-2 py-1 text-xs border border-red-500 rounded flex-shrink-0" onclick="deleteMember('${m.id}', '${m.nama.replace(/'/g, "\\'")}')">
         Hapus
       </button>
     </div>
   `).join("");
+}
+
+window.updateMemberRole = async function(id, newRole) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) {
+    showAlert("Harus login untuk mengubah role", "error");
+    loadMemberListInModal(); // Reset select to previous value
+    return;
+  }
+  
+  const { error } = await supabase
+    .from("members")
+    .update({ role: newRole })
+    .eq("id", id);
+    
+  if (error) {
+    showAlert("Gagal mengubah role: " + error.message, "error");
+    loadMemberListInModal(); // Reset on error
+  } else {
+    showAlert("Role berhasil diupdate", "success");
+    // Clear cache agar perubahan role langsung terdeteksi saat order
+    if (window.__memberRoleCache) delete window.__memberRoleCache[id];
+  }
 }
 
 window.deleteMember = async function(id, name) {
