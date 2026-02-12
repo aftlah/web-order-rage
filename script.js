@@ -358,6 +358,7 @@ function getRolePermissions(role) {
   // Define base items
   const BASE_GUNS = ["PISTOL .50", "CERAMIC PISTOL", "TECH 9"];
   const BASE_AMMO = ["AMMO .50", "AMMO 9MM"];
+  const BASE_ATTACHMENTS = CATALOG.Attachment.map(i => i.name);
   
   const HANGAROUND_ADDITIONS = ["MINI SMG", "MICRO SMG", "SMG", "PISTOL X17"];
   const HANGAROUND_AMMO = ["AMMO .45"];
@@ -370,7 +371,7 @@ function getRolePermissions(role) {
 
   if (R === "Internship") {
     return {
-      allowed: new Set(norm([...BASE_GUNS, ...BASE_AMMO, "VEST"])),
+      allowed: new Set(norm([...BASE_GUNS, ...BASE_AMMO, ...BASE_ATTACHMENTS, "VEST", "LOCKPICK"])),
       vestType: "VEST", // Merah
       vestLimit: 5
     };
@@ -379,9 +380,9 @@ function getRolePermissions(role) {
   if (R === "Hangaround") {
     return {
       allowed: new Set(norm([
-        ...BASE_GUNS, ...BASE_AMMO, 
+        ...BASE_GUNS, ...BASE_AMMO, ...BASE_ATTACHMENTS,
         ...HANGAROUND_ADDITIONS, ...HANGAROUND_AMMO,
-        "VEST MEDIUM"
+        "VEST MEDIUM", "LOCKPICK"
       ])),
       vestType: "VEST MEDIUM", // Biru
       vestLimit: 5
@@ -391,10 +392,10 @@ function getRolePermissions(role) {
   if (R === "Hoodlum") {
     return {
       allowed: new Set(norm([
-        ...BASE_GUNS, ...BASE_AMMO, 
+        ...BASE_GUNS, ...BASE_AMMO, ...BASE_ATTACHMENTS,
         ...HANGAROUND_ADDITIONS, ...HANGAROUND_AMMO,
         ...HOODLUM_ADDITIONS, ...HOODLUM_AMMO,
-        "VEST MEDIUM"
+        "VEST MEDIUM", "LOCKPICK"
       ])),
       vestType: "VEST MEDIUM", // Biru
       vestLimit: 5
