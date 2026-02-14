@@ -121,7 +121,7 @@ async function postToDiscord(message) {
     if (!url || !enabled || !message || typeof message !== "string") return;
     let content = message;
     if (window && window.MAINTENANCE_MODE === true) {
-      content = `@everyone\n SEDANG TESTING\n${content}`;
+      content = `@everyone\n ## MAINTENANCE DULUU\n${content}`;
     }
     const MAX = 1900;
     const isCode = content.startsWith("```") && content.endsWith("```");
@@ -371,8 +371,8 @@ function getRolePermissions(role) {
 
   if (R === "Internship") {
     return {
-      allowed: new Set(norm([...BASE_GUNS, ...BASE_AMMO, ...BASE_ATTACHMENTS, "VEST", "LOCKPICK"])),
-      vestType: "VEST", // Merah
+      allowed: new Set(norm([...BASE_GUNS, ...BASE_AMMO, ...BASE_ATTACHMENTS, "VEST MEDIUM", "LOCKPICK"])),
+      vestType: "VEST MEDIUM", // Merah
       vestLimit: 5
     };
   }
@@ -382,9 +382,9 @@ function getRolePermissions(role) {
       allowed: new Set(norm([
         ...BASE_GUNS, ...BASE_AMMO, ...BASE_ATTACHMENTS,
         ...HANGAROUND_ADDITIONS, ...HANGAROUND_AMMO,
-        "VEST MEDIUM", "LOCKPICK"
+        "VEST MEDIUM", "VEST", "LOCKPICK"
       ])),
-      vestType: "VEST MEDIUM", // Biru
+      vestType: "BOTH",
       vestLimit: 5
     };
   }
@@ -395,9 +395,9 @@ function getRolePermissions(role) {
         ...BASE_GUNS, ...BASE_AMMO, ...BASE_ATTACHMENTS,
         ...HANGAROUND_ADDITIONS, ...HANGAROUND_AMMO,
         ...HOODLUM_ADDITIONS, ...HOODLUM_AMMO,
-        "VEST MEDIUM", "LOCKPICK"
+        "VEST MEDIUM", "VEST", "LOCKPICK"
       ])),
-      vestType: "VEST MEDIUM", // Biru
+      vestType: "BOTH",
       vestLimit: 5
     };
   }
@@ -440,11 +440,11 @@ async function addToCart() {
       // Custom message for VEST mismatch
       if (nItem.includes("VEST")) {
         if (perms.vestType === "VEST" && nItem !== "VEST") {
-            showAlert(`${role} hanya boleh beli VEST (Merah)`, "error");
+            showAlert(`${role} hanya boleh beli VEST`, "error");
             return;
         }
         if (perms.vestType === "VEST MEDIUM" && nItem !== "VEST MEDIUM") {
-            showAlert(`${role} hanya boleh beli VEST MEDIUM (Biru)`, "error");
+            showAlert(`${role} hanya boleh beli VEST MEDIUM`, "error");
             return;
         }
         showAlert(`${role} tidak diperbolehkan membeli ${itemName}`, "error");
@@ -790,11 +790,11 @@ async function submitOrder() {
       if (!perms.allowed.has(n)) {
          if (n.includes("VEST")) {
             if (perms.vestType === "VEST" && n !== "VEST") {
-                 showAlert(`${role} hanya boleh beli VEST (Merah)`, "error");
+                 showAlert(`${role} hanya boleh beli VEST`, "error");
                  endLoading(); return;
             }
             if (perms.vestType === "VEST MEDIUM" && n !== "VEST MEDIUM") {
-                 showAlert(`${role} hanya boleh beli VEST MEDIUM (Biru)`, "error");
+                 showAlert(`${role} hanya boleh beli VEST MEDIUM`, "error");
                  endLoading(); return;
             }
          }
