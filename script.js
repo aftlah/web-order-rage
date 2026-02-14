@@ -406,7 +406,7 @@ function getRolePermissions(role) {
   return {
     allowed: "ALL",
     vestType: "BOTH", 
-    vestLimit: 5
+    vestLimit: 10
   };
 }
 
