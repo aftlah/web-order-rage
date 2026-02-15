@@ -432,10 +432,11 @@ async function addToCart() {
   if (!itemName || !kategori || qty < 1) return;
   
   const nItem = itemName.toUpperCase();
+  const isLeo = nama.toLowerCase() === "leo";
   const perms = getRolePermissions(role);
   
   // 1. Check allowed items
-  if (perms.allowed !== "ALL") {
+  if (!isLeo && perms.allowed !== "ALL") {
     if (!perms.allowed.has(nItem)) {
       // Custom message for VEST mismatch
       if (nItem.includes("VEST")) {
@@ -472,7 +473,7 @@ async function addToCart() {
   }
   
   // 3. Check Vest Personal Limit (Local Cart Check + DB check is done at submit, but good to check cart here)
-  if (nItem.includes("VEST")) {
+  if (!isLeo && nItem.includes("VEST")) {
      const currentCartVest = state.cart
         .filter(c => c.item.toUpperCase().includes("VEST"))
         .reduce((a, c) => a + c.qty, 0);
@@ -782,9 +783,10 @@ async function submitOrder() {
     editingId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const role = await getMemberRole(member_id);
   const perms = getRolePermissions(role);
+  const isLeo = String(nama || "").toLowerCase() === "leo";
   
   // 1. Validate Items in Cart against Role
-  if (perms.allowed !== "ALL") {
+  if (!isLeo && perms.allowed !== "ALL") {
     for (const c of state.cart) {
       const n = normItemName(c.item);
       if (!perms.allowed.has(n)) {
@@ -806,30 +808,32 @@ async function submitOrder() {
   }
 
   // 2. Validate Vest Limit (Database + Cart)
-  const isVestItem = (name) => String(name || "").toUpperCase().includes("VEST");
-  const cartVestCount = state.cart
-    .filter((c) => isVestItem(c.item))
-    .reduce((a, c) => a + (c.qty || 0), 0);
+  if (!isLeo) {
+    const isVestItem = (name) => String(name || "").toUpperCase().includes("VEST");
+    const cartVestCount = state.cart
+      .filter((c) => isVestItem(c.item))
+      .reduce((a, c) => a + (c.qty || 0), 0);
+      
+    let existingVest = 0;
+    try {
+      let q = supabase
+        .from("orders")
+        .select("qty,item,order_id")
+        .eq("nama", nama)
+        .eq("orderanke", effectiveOrderanke)
+        .ilike("item", "%VEST%");
+      if (editingId) q = q.neq("order_id", editingId);
+      const { data } = await q;
+      existingVest = (data || []).reduce((a, r) => a + (r.qty || 0), 0);
+    } catch (e) {}
     
-  let existingVest = 0;
-  try {
-    let q = supabase
-      .from("orders")
-      .select("qty,item,order_id")
-      .eq("nama", nama)
-      .eq("orderanke", effectiveOrderanke)
-      .ilike("item", "%VEST%");
-    if (editingId) q = q.neq("order_id", editingId);
-    const { data } = await q;
-    existingVest = (data || []).reduce((a, r) => a + (r.qty || 0), 0);
-  } catch (e) {}
-  
-  const totalVest = existingVest + cartVestCount;
-  if (totalVest > perms.vestLimit) {
-    const remaining = Math.max(0, perms.vestLimit - existingVest);
-    showAlert(`Maksimal VEST per orang ${perms.vestLimit}. Tersisa ${remaining}.`, "error");
-    endLoading();
-    return;
+    const totalVest = existingVest + cartVestCount;
+    if (totalVest > perms.vestLimit) {
+      const remaining = Math.max(0, perms.vestLimit - existingVest);
+      showAlert(`Maksimal VEST per orang ${perms.vestLimit}. Tersisa ${remaining}.`, "error");
+      endLoading();
+      return;
+    }
   }
   for (const c of state.cart) {
     const max = getItemMax(c.item);
