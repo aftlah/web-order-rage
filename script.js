@@ -121,13 +121,18 @@ function loadStoredDashboard() {
   }
 }
 
-async function postToDiscord(message) {
+async function postToDiscord(message, overrideUrl) {
   try {
-    const url = (window && window.DISCORD_WEBHOOK_URL) || "";
+    const url = overrideUrl || ((window && window.DISCORD_WEBHOOK_URL) || "");
     const enabled = window.DISCORD_ENABLED !== false;
     if (!url || !enabled || !message || typeof message !== "string") return;
     let content = message;
-    if (window && window.MAINTENANCE_MODE === true) {
+    const isStoranHook =
+      !!overrideUrl &&
+      typeof window !== "undefined" &&
+      window.DISCORD_STORAN_WEBHOOK_URL &&
+      overrideUrl === window.DISCORD_STORAN_WEBHOOK_URL;
+    if (window && window.MAINTENANCE_MODE === true && !isStoranHook) {
       content = `@everyone\n## **MAINTENANCE DULUU**\n${content}`;
     }
     const MAX = 1900;
@@ -301,6 +306,7 @@ async function init() {
     !!document.getElementById("dashboardSection") ||
     !!document.getElementById("dashboardBody") ||
     !!document.getElementById("dashMonth");
+  const isStoran = !!document.getElementById("storanSection");
   if (isDashboard) {
     const ok = await guardDashboard();
     if (!ok) return;
@@ -331,16 +337,18 @@ async function init() {
   if (isDashboard) {
     initDashboard();
   }
+  if (isStoran) {
+    initStoran();
+  }
   const nav = document.getElementById("mainNav");
   if (nav) {
     const links = Array.from(nav.querySelectorAll("a"));
     const path = (location.pathname || "").toLowerCase();
-    const isIndex = path.endsWith("/index.html") || path === "/" || path === "";
+    let file = path.split("/").pop() || "";
+    if (!file || file === "/") file = "index.html";
     links.forEach((a) => {
-      const href = a.getAttribute("href") || "";
-      const active = isIndex
-        ? href.endsWith("index.html")
-        : href.endsWith("dashboard.html");
+      const href = (a.getAttribute("href") || "").toLowerCase();
+      const active = file && href.endsWith(file);
       a.classList.toggle("btn-success", active);
     });
   }
@@ -693,6 +701,172 @@ function renderMyOrders(rows, useOrderanke) {
       }
     });
   });
+}
+
+function initStoran() {
+  const btn = document.getElementById("storanSubmit");
+  if (btn) btn.addEventListener("click", submitStoran);
+  setupStoranNameSearch();
+}
+
+async function submitStoran() {
+  const nameEl = document.getElementById("storanNama");
+  const statusEl = document.getElementById("storanStatus");
+  const noteEl = document.getElementById("storanCatatan");
+  const memberIdEl = document.getElementById("storanMemberId");
+  if (!nameEl || !statusEl) return;
+
+  const nama = nameEl.value.trim();
+  const statusVal = statusEl.value;
+  const catatan = (noteEl && noteEl.value.trim()) || "";
+
+  const memberId = memberIdEl ? parseInt(memberIdEl.value || "", 10) : NaN;
+  if (Number.isNaN(memberId) || !memberId) {
+    showAlert("Pilih nama dari database", "error");
+    return;
+  }
+
+  if (!nama) {
+    showAlert("Nama wajib diisi", "error");
+    return;
+  }
+  if (!statusVal) {
+    showAlert("Pilih status storan", "error");
+    return;
+  }
+
+  const now = new Date();
+  const ts = fmtDateTime(now.toISOString());
+  const labelStatus =
+    statusVal === "SUDAH" ? "Lunas 50k & 50 Metal Scrap" : "Belum storan minggu ini";
+  let periodeLabel = "";
+  if (supabase) {
+    try {
+      const win = await fetchActiveOrderWindow(null);
+      if (win && win.orderanke) {
+        const v = parseInt(win.orderanke, 10);
+        if (!Number.isNaN(v) && v > 0) {
+          const m = Math.floor(v / 10);
+          const w = v % 10;
+          periodeLabel = `M${m}-W${w} (#${v})`;
+        }
+      }
+    } catch (e) {}
+  }
+
+  let msg = "```";
+  msg += `\nSTORAN MINGGUAN`;
+  if (periodeLabel) msg += `\nPeriode: ${periodeLabel}`;
+  msg += `\nNama   : ${nama}`;
+  msg += `\nStatus : ${labelStatus}`;
+  if (catatan) msg += `\nNote   : ${catatan}`;
+  msg += `\nWaktu  : ${ts}`;
+  msg += "\n```";
+
+  try {
+    const hook = (window && window.DISCORD_STORAN_WEBHOOK_URL) || "";
+    await postToDiscord(msg, hook);
+    showAlert("Storan terkirim ke Discord", "success");
+    statusEl.value = "SUDAH";
+    if (noteEl) noteEl.value = "";
+  } catch (e) {
+    showAlert("Gagal mengirim storan ke Discord", "error");
+  }
+}
+
+function setupStoranNameSearch() {
+  const input = document.getElementById("storanNama");
+  const dd = document.getElementById("storanNamaDropdown");
+  const hidden = document.getElementById("storanMemberId");
+  const status = document.getElementById("storanNamaStatus");
+  if (!input || !dd || !hidden) return;
+
+  let active = -1;
+  const render = (items) => {
+    dd.innerHTML = items
+      .map(
+        (r, i) =>
+          `<div class="px-3 py-2 cursor-pointer ${
+            i === active ? "bg-yellow-900/30" : ""
+          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`
+      )
+      .join("");
+    dd.classList.toggle("hidden", items.length === 0);
+    dd.querySelectorAll("[data-id]").forEach((el) =>
+      el.addEventListener("mousedown", (e) => {
+        input.value = e.currentTarget.getAttribute("data-name");
+        hidden.value = e.currentTarget.getAttribute("data-id");
+        dd.classList.add("hidden");
+        if (status) {
+          status.textContent = "Nama valid";
+          status.classList.remove("text-red-500");
+          status.classList.add("text-green-500");
+        }
+      })
+    );
+  };
+
+  const run = debounce(async (term) => {
+    if (!supabase) return;
+    let q;
+    if (term)
+      q = supabase
+        .from("members")
+        .select("id,nama")
+        .ilike("nama", `%${term}%`)
+        .order("nama", { ascending: true })
+        .limit(20);
+    else
+      q = supabase
+        .from("members")
+        .select("id,nama")
+        .order("nama", { ascending: true })
+        .limit(20);
+    const { data, error } = await q;
+    if (error) return;
+    active = -1;
+    render(data || []);
+  }, 200);
+
+  input.addEventListener("input", (e) => {
+    hidden.value = "";
+    if (status) {
+      status.textContent = "Pilih nama dari database";
+      status.classList.remove("text-green-500");
+      status.classList.add("text-red-500");
+    }
+    run(e.target.value.trim());
+  });
+  input.addEventListener("focus", () => run(""));
+  input.addEventListener("click", () => run(input.value.trim()));
+  input.addEventListener("keydown", (e) => {
+    const items = Array.from(dd.querySelectorAll("[data-id]"));
+    if (!items.length) return;
+    if (e.key === "ArrowDown") {
+      active = Math.min(items.length - 1, active + 1);
+      e.preventDefault();
+    } else if (e.key === "ArrowUp") {
+      active = Math.max(0, active - 1);
+      e.preventDefault();
+    } else if (e.key === "Enter" && active >= 0) {
+      input.value = items[active].getAttribute("data-name");
+      hidden.value = items[active].getAttribute("data-id");
+      dd.classList.add("hidden");
+      if (status) {
+        status.textContent = "Nama valid";
+        status.classList.remove("text-red-500");
+        status.classList.add("text-green-500");
+      }
+    } else if (e.key === "Escape") {
+      dd.classList.add("hidden");
+    }
+    items.forEach((el, i) =>
+      el.classList.toggle("bg-yellow-900/30", i === active)
+    );
+  });
+  input.addEventListener("blur", () =>
+    setTimeout(() => dd.classList.add("hidden"), 150)
+  );
 }
 
 function startEditMyOrders() {
