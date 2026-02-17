@@ -712,12 +712,14 @@ function initStoran() {
 async function submitStoran() {
   const nameEl = document.getElementById("storanNama");
   const statusEl = document.getElementById("storanStatus");
+  const receiverEl = document.getElementById("storanPenerima");
   const noteEl = document.getElementById("storanCatatan");
   const memberIdEl = document.getElementById("storanMemberId");
-  if (!nameEl || !statusEl) return;
+  if (!nameEl || !statusEl || !receiverEl) return;
 
   const nama = nameEl.value.trim();
   const statusVal = statusEl.value;
+  const penerima = receiverEl.value.trim();
   const catatan = (noteEl && noteEl.value.trim()) || "";
 
   const memberId = memberIdEl ? parseInt(memberIdEl.value || "", 10) : NaN;
@@ -732,6 +734,10 @@ async function submitStoran() {
   }
   if (!statusVal) {
     showAlert("Pilih status storan", "error");
+    return;
+  }
+  if (!penerima) {
+    showAlert("Penerima wajib diisi", "error");
     return;
   }
 
@@ -756,11 +762,12 @@ async function submitStoran() {
 
   let msg = "```";
   msg += `\nSTORAN MINGGUAN`;
-  if (periodeLabel) msg += `\nPeriode: ${periodeLabel}`;
-  msg += `\nNama   : ${nama}`;
-  msg += `\nStatus : ${labelStatus}`;
-  if (catatan) msg += `\nNote   : ${catatan}`;
-  msg += `\nWaktu  : ${ts}`;
+  if (periodeLabel) msg += `\nPeriode : ${periodeLabel}`;
+  msg += `\nNama    : ${nama}`;
+  msg += `\nPenerima: ${penerima}`;
+  msg += `\nStatus  : ${labelStatus}`;
+  if (catatan) msg += `\nNote    : ${catatan}`;
+  msg += `\nWaktu   : ${ts}`;
   msg += "\n```";
 
   try {
