@@ -49,6 +49,13 @@ const CATALOG = {
   ],
 };
 
+function getEffectivePrice(kategori, basePrice) {
+  if (kategori === "Gun" || kategori === "Attachment") {
+    return Math.round(basePrice * 1.1);
+  }
+  return basePrice;
+}
+
 const ITEM_MAX_LIMITS = {
   "PISTOL X17": 20,
   "TECH 9": 20,
@@ -121,7 +128,7 @@ async function postToDiscord(message) {
     if (!url || !enabled || !message || typeof message !== "string") return;
     let content = message;
     if (window && window.MAINTENANCE_MODE === true) {
-      content = `@everyone\n ## MAINTENANCE DULUU\n${content}`;
+      content = `@everyone\n## **MAINTENANCE DULUU**\n${content}`;
     }
     const MAX = 1900;
     const isCode = content.startsWith("```") && content.endsWith("```");
@@ -347,7 +354,7 @@ function populateItems() {
   CATALOG[kategori].forEach((it) => {
     const o = document.createElement("option");
     o.value = it.name;
-    o.textContent = `${it.name} (${fmt(it.price)})`;
+    o.textContent = `${it.name} (${fmt(getEffectivePrice(kategori, it.price))})`;
     itemEl.appendChild(o);
   });
 }
@@ -493,7 +500,7 @@ async function addToCart() {
     state.cart.push({
       item: itemName,
       kategori,
-      price: item.price,
+      price: getEffectivePrice(kategori, item.price),
       qty,
       scrap: item.scrap || 0,
     });
