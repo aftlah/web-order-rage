@@ -578,18 +578,32 @@ function renderCart() {
 
 async function loadMyOrdersForSelection() {
   const hidden = document.getElementById("memberId");
+  const nameInput = document.getElementById("nama");
   const v = hidden ? parseInt(hidden.value || "", 10) : NaN;
-  const ok = !Number.isNaN(v) && !!v;
-  if (!ok) {
+  const hasMemberId = !Number.isNaN(v) && !!v;
+  const namaText = nameInput ? nameInput.value.trim() : "";
+
+  if (!supabase) {
     renderMyOrders([]);
     return;
   }
-  const { data, error } = await supabase
+
+  let query = supabase
     .from("orders")
     .select("id,order_id,item,qty,subtotal,orderanke,kategori,harga,waktu")
-    .eq("member_id", v)
     .order("waktu", { ascending: false })
     .limit(500);
+
+  if (hasMemberId) {
+    query = query.eq("member_id", v);
+  } else if (namaText) {
+    query = query.eq("nama", namaText);
+  } else {
+    renderMyOrders([]);
+    return;
+  }
+
+  const { data, error } = await query;
   if (error) {
     renderMyOrders([]);
     return;
@@ -707,6 +721,9 @@ function initStoran() {
   const btn = document.getElementById("storanSubmit");
   if (btn) btn.addEventListener("click", submitStoran);
   setupStoranNameSearch();
+  const reload = document.getElementById("storanReloadBtn");
+  if (reload) reload.addEventListener("click", () => loadStoranTable());
+  loadStoranTable();
 }
 
 async function submitStoran() {
@@ -746,12 +763,14 @@ async function submitStoran() {
   const labelStatus =
     statusVal === "SUDAH" ? "Lunas 50k & 50 Metal Scrap" : "Belum storan minggu ini";
   let periodeLabel = "";
+  let periodeValue = null;
   if (supabase) {
     try {
       const win = await fetchActiveOrderWindow(null);
       if (win && win.orderanke) {
         const v = parseInt(win.orderanke, 10);
         if (!Number.isNaN(v) && v > 0) {
+          periodeValue = v;
           const m = Math.floor(v / 10);
           const w = v % 10;
           periodeLabel = `M${m}-W${w} (#${v})`;
@@ -771,14 +790,150 @@ async function submitStoran() {
   msg += "\n```";
 
   try {
+    if (supabase) {
+      const { error: logErr } = await supabase.from("storan_logs").insert({
+        member_id: memberId,
+        nama,
+        status: statusVal,
+        status_label: labelStatus,
+        periode_orderanke: periodeValue,
+        penerima,
+        catatan,
+        waktu: now.toISOString(),
+      });
+      if (logErr) {
+        console.error("Gagal menyimpan storan_logs:", logErr);
+        showAlert("Gagal menyimpan log storan ke database", "error");
+      }
+    }
     const hook = (window && window.DISCORD_STORAN_WEBHOOK_URL) || "";
     await postToDiscord(msg, hook);
     showAlert("Storan terkirim ke Discord", "success");
     statusEl.value = "SUDAH";
     if (noteEl) noteEl.value = "";
+    if (typeof loadStoranTable === "function") {
+      try {
+        await loadStoranTable();
+      } catch (e) {}
+    }
   } catch (e) {
     showAlert("Gagal mengirim storan ke Discord", "error");
   }
+}
+
+async function loadStoranTable() {
+  if (!supabase) return;
+  const body = document.getElementById("storanTableBody");
+  const empty = document.getElementById("storanTableEmpty");
+  const labelEl = document.getElementById("storanPeriodeLabel");
+  if (!body || !empty || !labelEl) return;
+
+  body.innerHTML = "";
+  empty.textContent = "Memuat data storan...";
+  empty.classList.remove("hidden");
+
+  let periodeLabel = "";
+  let periodeValue = null;
+  try {
+    const win = await fetchActiveOrderWindow(null);
+    if (win && win.orderanke) {
+      const v = parseInt(win.orderanke, 10);
+      if (!Number.isNaN(v) && v > 0) {
+        periodeValue = v;
+        const m = Math.floor(v / 10);
+        const w = v % 10;
+        periodeLabel = `M${m}-W${w} (#${v})`;
+      }
+    }
+  } catch (e) {}
+
+  labelEl.textContent = periodeLabel || "Periode tidak aktif";
+  if (!periodeValue) {
+    empty.textContent = "Belum ada periode storan aktif";
+    return;
+  }
+
+  const [{ data: logs, error: logErr }, { data: members, error: memErr }] =
+    await Promise.all([
+      supabase
+        .from("storan_logs")
+        .select(
+          "id,member_id,nama,penerima,status,status_label,catatan,waktu,periode_orderanke"
+        )
+        .eq("periode_orderanke", periodeValue)
+        .order("waktu", { ascending: true }),
+      supabase
+        .from("members")
+        .select("id,nama")
+        .order("nama", { ascending: true }),
+    ]);
+
+  if (logErr || memErr) {
+    empty.textContent = "Gagal memuat data storan / member";
+    return;
+  }
+
+  const allMembers = members || [];
+  if (!allMembers.length) {
+    empty.textContent = "Belum ada member di database";
+    return;
+  }
+
+  const latestByMember = {};
+  (logs || []).forEach((r) => {
+    const key = r.member_id || null;
+    if (!key) return;
+    const prev = latestByMember[key];
+    if (!prev) {
+      latestByMember[key] = r;
+      return;
+    }
+    const tPrev = new Date(prev.waktu || 0).getTime();
+    const tCur = new Date(r.waktu || 0).getTime();
+    if (tCur >= tPrev) latestByMember[key] = r;
+  });
+
+  const rows = allMembers.map((m) => {
+    const log = latestByMember[m.id] || null;
+    const statusLabel = log
+      ? log.status_label || "Sudah storan"
+      : "Belum storan minggu ini";
+    const t = log && log.waktu ? fmtDateTime(log.waktu) : "";
+    const note = (log && log.catatan) || "";
+    const penerima = (log && log.penerima) || "";
+    return {
+      nama: m.nama || "",
+      penerima,
+      status: statusLabel,
+      catatan: note,
+      waktu: t,
+      isBelum: !log,
+    };
+  });
+
+  const html = rows
+    .map(
+      (r, idx) => `<tr class="table-row-hover ${
+        r.isBelum ? "bg-red-50/60 dark:bg-red-900/10" : idx % 2 === 0 ? "bg-transparent" : "bg-amber-50/40 dark:bg-[#1b120d]"
+      }">
+  <td class="px-3 py-2 whitespace-nowrap">${r.nama}</td>
+  <td class="px-3 py-2 whitespace-nowrap">${r.penerima}</td>
+  <td class="px-3 py-2">
+    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] ${
+      r.isBelum
+        ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-200"
+        : "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200"
+    }">
+      ${r.status}
+    </span>
+  </td>
+  <td class="px-3 py-2 text-xs sm:text-sm">${r.catatan}</td>
+  <td class="px-3 py-2 whitespace-nowrap text-xs sm:text-sm">${r.waktu}</td>
+</tr>`
+    )
+    .join("");
+  body.innerHTML = html;
+  empty.classList.add("hidden");
 }
 
 function setupStoranNameSearch() {
