@@ -12,6 +12,18 @@ const CATALOG = {
     { name: "MINI SMG", price: 30000 },
     { name: "MICRO SMG", price: 30000 }, // to BOA
     { name: "SMG", price: 40000 },
+    {
+      name: "SMG Full Attachment)",
+      price: 65000,
+    },
+    {
+      name: "MICRO SMG Full Attachment",
+      price: 50000,
+    },
+    {
+      name: "CERAMIC PISTOL Full Attachment",
+      price: 43000,
+    },
     { name: "SHOTGUN", price: 65000 }, // to BOA
     { name: "NAVY REVOLVER", price: 72000 },
     { name: "PISTOL X17", price: 33000 }, // to BOA
@@ -91,6 +103,9 @@ const ITEM_MAX_LIMITS = {
   "Rifle Drum": 20,
   "Macro Scope": 20,
   "Medium Scope": 20,
+  "SMG Full Attachment": 20,
+  "MICRO SMG Full Attachment": 30,
+  "CERAMIC Full Attachment": 30,
 };
 
 function getItemMax(name) {
