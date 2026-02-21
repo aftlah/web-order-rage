@@ -13,7 +13,7 @@ const CATALOG = {
     { name: "MICRO SMG", price: 30000 }, // to BOA
     { name: "SMG", price: 40000 },
     {
-      name: "SMG Full Attachment)",
+      name: "SMG Full Attachment",
       price: 65000,
     },
     {
@@ -105,7 +105,7 @@ const ITEM_MAX_LIMITS = {
   "Medium Scope": 20,
   "SMG Full Attachment": 20,
   "MICRO SMG Full Attachment": 30,
-  "CERAMIC Full Attachment": 30,
+  "CERAMIC PISTOL Full Attachment": 30,
 };
 
 function getItemMax(name) {
@@ -384,13 +384,22 @@ function populateItems() {
 
 function getRolePermissions(role) {
   const R = role || "Hoodlum";
-  
-  // Define base items
-  const BASE_GUNS = ["PISTOL .50", "CERAMIC PISTOL", "TECH 9"];
+  const BASE_GUNS = [
+    "PISTOL .50",
+    "CERAMIC PISTOL",
+    "TECH 9",
+    "CERAMIC PISTOL Full Attachment",
+  ];
   const BASE_AMMO = ["AMMO .50", "AMMO 9MM"];
   const BASE_ATTACHMENTS = CATALOG.Attachment.map(i => i.name);
-  
-  const HANGAROUND_ADDITIONS = ["MINI SMG", "MICRO SMG", "SMG", "PISTOL X17"];
+  const HANGAROUND_ADDITIONS = [
+    "MINI SMG",
+    "MICRO SMG",
+    "MICRO SMG Full Attachment",
+    "SMG",
+    "SMG Full Attachment",
+    "PISTOL X17",
+  ];
   const HANGAROUND_AMMO = ["AMMO .45"];
   
   const HOODLUM_ADDITIONS = ["SHOTGUN", "NAVY REVOLVER", "KVR", "BLACK REVOLVER"];
