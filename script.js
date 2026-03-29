@@ -33,7 +33,7 @@ const CATALOG = {
     { name: "Virtus#3", price: 230000 }, //max 20
   ],
   Ammo: [
-    { name: "AMMO 9MM", price: 3000, scrap: 3 }, // to BOA
+    { name: "AMMO 9MM", price: 4000, scrap: 3 }, // to BOA
     { name: "AMMO 44 MAGNUM", price: 6500, scrap: 3 },
     { name: "AMMO .45", price: 6500, scrap: 3.4 },
     { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 }, // to BOA
@@ -467,8 +467,14 @@ async function addToCart() {
   const nama = document.getElementById("nama").value.trim();
   const kategori = document.getElementById("kategori").value;
   const itemName = document.getElementById("item").value;
-  const qty = parseInt(document.getElementById("qty").value, 10) || 1;
+  const qtyInput = document.getElementById("qty");
+  const qty = parseInt(qtyInput ? qtyInput.value : "1", 10) || 1;
   if (!itemName || !kategori || qty < 1) return;
+
+  if (qty < 2) {
+    showAlert("Order tidak boleh hanya 1", "error");
+    return;
+  }
   
   const nItem = itemName.toUpperCase();
   const isLeo = nama.toLowerCase() === "leo";
@@ -1787,6 +1793,12 @@ const GROUP_ITEMS = {
 
   "ORDER KE GHO GANG": [
     "SMG",
+    "SMG Full Attachment",
+    "MICRO SMG Full Attachment",
+    "CERAMIC PISTOL Full Attachment",
+    "SMG & ATTACHMENT (SUPPRESOR + SMG DRUM)",
+    "MICRO SMG & ATTACHMENT (TACTICAL SUPRESSOR + EXTENDED SMG CLIP)",
+    "CERAMIC PISTOL & ATTACHMENT (TACTICAL SUPRESSOR + EXTENDED PISTOL CLIP)",
   ],
 };
 function normItemName(s) {
@@ -2979,6 +2991,8 @@ async function shareDashboardToDiscord() {
     "ORDER KE ALLSTAR": 0,
     "ORDER KE BOA": 0,
     "ORDER KE 4BLOODS": 0,
+    "ORDER KE GHO GANG": 0,
+    "ORDER KE 51R": 0,
     LAINNYA: 0,
   };
   keys.forEach((k) => {
@@ -3058,10 +3072,13 @@ async function shareDashboardToDiscord() {
             x.subFmt.padStart(subW)
         );
       });
-      // const label = ("Total " + grp + ":").padEnd(itemW + 3 + qtyW + 3 + hargaW);
       const label = "Total : ".padEnd(itemW + 3 + qtyW + 3 + hargaW);
       lines.push(label + " | " + fmt(totalGrp).padStart(subW));
-      if (groupTotals[grp] !== undefined) groupTotals[grp] += totalGrp;
+      
+      const gKey = Object.keys(groupTotals).find(k => k.trim().toUpperCase() === grp.trim().toUpperCase());
+      if (gKey) {
+        groupTotals[gKey] += totalGrp;
+      }
     });
   });
 
@@ -3071,6 +3088,8 @@ async function shareDashboardToDiscord() {
     "ORDER KE BOA",
     "ORDER KE 4BLOODS",
     "ORDER KE GHO GANG",
+    "ORDER KE 51R",
+    "LAINNYA",
   ];
 
   lines.push("");
