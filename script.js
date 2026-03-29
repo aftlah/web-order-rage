@@ -6,11 +6,11 @@ const supabase =
 
 const CATALOG = {
   Gun: [
-    { name: "PISTOL .50", price: 9500 }, // to BOA
-    { name: "CERAMIC PISTOL", price: 26000 }, // to BOA
+    { name: "PISTOL .50", price: 9500 },
+    { name: "CERAMIC PISTOL", price: 26000 },
     { name: "TECH 9", price: 26000 },
     { name: "MINI SMG", price: 30000 },
-    { name: "MICRO SMG", price: 30000 }, // to BOA
+    { name: "MICRO SMG", price: 30000 },
     { name: "SMG", price: 40000 },
     {
       name: "SMG Full Attachment",
@@ -33,11 +33,11 @@ const CATALOG = {
     { name: "Virtus#3", price: 230000 }, //max 20
   ],
   Ammo: [
-    { name: "AMMO 9MM", price: 4000, scrap: 3 }, // to BOA
+    { name: "AMMO 9MM", price: 3900, scrap: 3 },
+    { name: "AMMO .50", price: 1300, scrap: 2 },
     { name: "AMMO 44 MAGNUM", price: 6500, scrap: 3 },
     { name: "AMMO .45", price: 6500, scrap: 3.4 },
-    { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 }, // to BOA
-    { name: "AMMO .50", price: 1500, scrap: 2 }, // to BOA
+    { name: "AMMO 12 GAUGE", price: 6500, scrap: 7.5 },
     { name: "Ammo 762", price: 7000, scrap: 5 },
     { name: "Ammo 556", price: 7000, scrap: 5 },
   ],
@@ -56,7 +56,7 @@ const CATALOG = {
   ],
   Others: [
     { name: "VEST", price: 3000, scrap: 2 },
-    { name: "VEST MEDIUM", price: 1500 }, // to BOA
+    { name: "VEST MEDIUM", price: 1500 }, // to PP
     { name: "LOCKPICK", price: 1500 },
   ],
 };
@@ -69,23 +69,24 @@ function getEffectivePrice(kategori, basePrice) {
 }
 
 const ITEM_MAX_LIMITS = {
+  "PISTOL .50": 25,
+  "CERAMIC PISTOL": 25,
+  "TECH 9": 25,
+  "MINI SMG": 25,
+  "MICRO SMG": 25,
+  "AMMO 9MM": 300,
+  "AMMO .50": 300,
+  "VEST MEDIUM": 75,
   "PISTOL X17": 20,
-  "TECH 9": 20,
-  "PISTOL .50": 60,
-  "MINI SMG": 20,
-  "MICRO SMG": 50,
-  "CERAMIC PISTOL": 60,
   "SMG": 20,
   "SHOTGUN": 20,
   "NAVY REVOLVER": 20,
   "KVR": 20,
   "BLACK REVOLVER": 20,
-  "AMMO 9MM": 600,
-  "AMMO .50": 600,
   "AMMO .45": 200,
   "AMMO 12 GAUGE": 150,
   "VEST": 200,
-  "VEST MEDIUM": 150,
+  // "VEST MEDIUM": 150,
   "LOCKPICK": 60,
   "AMMO 44 MAGNUM": 100,
   "Assault Rifle": 20,
@@ -1740,13 +1741,12 @@ const GROUP_ORDER = [
   "ORDER KE 4BLOODS",
   "ORDER KE 51R",
   "ORDER KE GHO GANG",
+  "ORDER KE PP",
   "LAINNYA",
 ];
 const GROUP_ITEMS = {
   "ORDER KE HIGH TABEL": [
     "BLACK REVOLVER",
-    "TECH 9",
-    "MINI SMG",
     "VEST",
     "Assault Rifle",
     "Ammo 762",
@@ -1755,22 +1755,22 @@ const GROUP_ITEMS = {
   ],
 
   "ORDER KE ALLSTAR": [
+    // "AMMO 44 MAGNUM",
+    // "KVR",
+    // "AMMO .45",
+    // "NAVY REVOLVER",
+  ],
+
+  "ORDER KE BOA": [
+    "SHOTGUN",
+    "AMMO 12 GAUGE",
+    "VEST MEDIUM",
+    "PISTOL X17",
+
     "AMMO 44 MAGNUM",
     "KVR",
     "AMMO .45",
     "NAVY REVOLVER",
-  ],
-
-  "ORDER KE BOA": [
-    "PISTOL .50",
-    "AMMO .50",
-    "SHOTGUN",
-    "AMMO 12 GAUGE",
-    "MICRO SMG",
-    "AMMO 9MM",
-    "CERAMIC PISTOL",
-    "VEST MEDIUM",
-    "PISTOL X17",
   ],
 
   "ORDER KE 4BLOODS": [
@@ -1799,6 +1799,18 @@ const GROUP_ITEMS = {
     "SMG & ATTACHMENT (SUPPRESOR + SMG DRUM)",
     "MICRO SMG & ATTACHMENT (TACTICAL SUPRESSOR + EXTENDED SMG CLIP)",
     "CERAMIC PISTOL & ATTACHMENT (TACTICAL SUPRESSOR + EXTENDED PISTOL CLIP)",
+  ],
+
+  "ORDER KE PP": [
+    "PISTOL KACANG",
+    "PISTOL .50",
+    "CERAMIC PISTOL",
+    "TECH 9",
+    "MINI SMG",
+    "MICRO SMG",
+    "AMMO 9MM",
+    "AMMO .50",
+    "VEST MEDIUM",
   ],
 };
 function normItemName(s) {
@@ -2992,6 +3004,7 @@ async function shareDashboardToDiscord() {
     "ORDER KE BOA": 0,
     "ORDER KE 4BLOODS": 0,
     "ORDER KE GHO GANG": 0,
+    "ORDER KE PP": 0,
     "ORDER KE 51R": 0,
     LAINNYA: 0,
   };
@@ -3088,6 +3101,7 @@ async function shareDashboardToDiscord() {
     "ORDER KE BOA",
     "ORDER KE 4BLOODS",
     "ORDER KE GHO GANG",
+    "ORDER KE PP",
     "ORDER KE 51R",
     "LAINNYA",
   ];
