@@ -1492,7 +1492,6 @@ async function updateOrderWindowUI() {
       detailEl.textContent = `Buka: ${open} • Tutup: ${close} • Periode: M${m}-W${w} (#${v})`;
     } else {
       const c = computeOrderNo();
-      // detailEl.textContent = `Tidak ada jadwal aktif • Periode default: ${c.label} (#${c.value})`;
       detailEl.textContent = `Tidak ada Periode Order Aktif`;
     }
   }
