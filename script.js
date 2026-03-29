@@ -67,7 +67,6 @@ function getEffectivePrice(kategori, basePrice) {
   }
   return basePrice;
 }
-
 const ITEM_MAX_LIMITS = {
   "PISTOL .50": 25,
   "CERAMIC PISTOL": 25,
