@@ -1733,7 +1733,6 @@ const GROUP_ORDER = [
   "ORDER KE ALLSTAR",
   "ORDER KE BOA",
   "ORDER KE BURGENK",
-  "ORDER KE 51R",
   "ORDER KE GHO GANG",
   "ORDER KE PP",
   "LAINNYA",
@@ -1781,10 +1780,6 @@ const GROUP_ITEMS = {
     "Medium Scope",
   ],
 
-  "ORDER KE 51R": [
-    "LOCKPICK",
-  ],
-
   "ORDER KE GHO GANG": [
     "SMG",
     "SMG Full Attachment",
@@ -1805,6 +1800,10 @@ const GROUP_ITEMS = {
     "AMMO 9MM",
     "AMMO .50",
     "VEST MEDIUM",
+  ],
+
+  "LAINNYA": [
+    "LOCKPICK",
   ],
 };
 function normItemName(s) {
@@ -2999,8 +2998,7 @@ async function shareDashboardToDiscord() {
     "ORDER KE BURGENK": 0,
     "ORDER KE GHO GANG": 0,
     "ORDER KE PP": 0,
-    "ORDER KE 51R": 0,
-    LAINNYA: 0,
+    "LAINNYA": 0,
   };
   keys.forEach((k) => {
     const g = groups[k];
@@ -3096,7 +3094,6 @@ async function shareDashboardToDiscord() {
     "ORDER KE BURGENK",
     "ORDER KE GHO GANG",
     "ORDER KE PP",
-    "ORDER KE 51R",
     "LAINNYA",
   ];
 
