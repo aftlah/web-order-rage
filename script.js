@@ -1342,15 +1342,11 @@ async function submitOrder() {
         details +
         "```";
 
-      // console.log("Discord message:", msg);
       await postToDiscord(msg);
     } catch (e) {
-      // console.error("Discord post error", e);
     }
     endLoading();
   } catch (e) {
-    // console.error("Error in submitOrder:", e);
-    // statusEl.textContent = "Gagal menyimpan (network error)";
     showAlert("Gagal menyimpan (network error)", "error");
     endLoading();
   }
