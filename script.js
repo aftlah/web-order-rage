@@ -1732,7 +1732,7 @@ const GROUP_ORDER = [
   "ORDER KE HIGH TABEL",
   "ORDER KE ALLSTAR",
   "ORDER KE BOA",
-  "ORDER KE 4BLOODS",
+  "ORDER KE BURGENK",
   "ORDER KE 51R",
   "ORDER KE GHO GANG",
   "ORDER KE PP",
@@ -1767,7 +1767,7 @@ const GROUP_ITEMS = {
     "NAVY REVOLVER",
   ],
 
-  "ORDER KE 4BLOODS": [
+  "ORDER KE BURGENK": [
     "Tactical Flashlight",
     "Suppressor",
     "Tactical Suppressor",
@@ -2996,7 +2996,7 @@ async function shareDashboardToDiscord() {
     "ORDER KE HIGH TABEL": 0,
     "ORDER KE ALLSTAR": 0,
     "ORDER KE BOA": 0,
-    "ORDER KE 4BLOODS": 0,
+    "ORDER KE BURGENK": 0,
     "ORDER KE GHO GANG": 0,
     "ORDER KE PP": 0,
     "ORDER KE 51R": 0,
@@ -3093,7 +3093,7 @@ async function shareDashboardToDiscord() {
     "ORDER KE HIGH TABEL",
     "ORDER KE ALLSTAR",
     "ORDER KE BOA",
-    "ORDER KE 4BLOODS",
+    "ORDER KE BURGENK",
     "ORDER KE GHO GANG",
     "ORDER KE PP",
     "ORDER KE 51R",
