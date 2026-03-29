@@ -25,7 +25,7 @@ const CATALOG = {
       price: 43000,
     },
     { name: "SHOTGUN", price: 65000 }, // to BOA
-    { name: "NAVY REVOLVER", price: 72000 },
+    { name: "NAVY REVOLVER", price: 72000 }, // to BOA
     { name: "PISTOL X17", price: 33000 }, // to BOA
     { name: "BLACK REVOLVER", price: 91000 },
     { name: "KVR", price: 78000 },
