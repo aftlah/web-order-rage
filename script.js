@@ -3805,7 +3805,34 @@ async function submitDrugsData() {
     console.error("Gagal simpan data drugs:", error);
     showAlert("Gagal menyimpan data: " + error.message, "error");
   } else {
-    showAlert("Data penjualan drugs berhasil disimpan", "success");
+    const hook = (window && window.DISCORD_DRUGS_WEBHOOK_URL) || "";
+    if (hook) {
+      try {
+        const periode =
+          currentDrugsBatch && Number.isFinite(Number(currentDrugsBatch))
+            ? decodeOrderanke(parseInt(currentDrugsBatch, 10))
+            : null;
+        const periodeLabel = periode
+          ? `M${periode.m}-W${periode.w} (#${periode.raw})`
+          : "-";
+        const ts = fmtDateTime(new Date().toISOString());
+        let msg = "```";
+        msg += `\nGaji Penjualan Drugs`;
+        msg += `\nPeriode   : ${periodeLabel}`;
+        msg += `\nNama      : ${nama}`;
+        msg += `\nDuit Merah: ${fmt(duitMerah)}`;
+        msg += `\nGaji Putih: ${fmt(upahPutih)}`;
+        // msg += `\nKasRAGE  : ${fmt(uangRage)}`;
+        msg += `\nWaktu     : ${ts}`;
+        msg += "\n```";
+        await postToDiscord(msg, hook);
+        showAlert("Data drugs tersimpan & terkirim ke Discord", "success");
+      } catch (e) {
+        showAlert("Data tersimpan, tapi gagal kirim ke Discord", "warning");
+      }
+    } else {
+      showAlert("Data penjualan drugs berhasil disimpan", "success");
+    }
     document.getElementById("drugsNama").value = "";
     document.getElementById("drugsMemberId").value = "";
     document.getElementById("duitMerah").value = "";
@@ -3821,7 +3848,7 @@ async function loadDrugsTable() {
   const filter = document.getElementById("drugsBatchFilter");
   if (!body) return;
 
-  body.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
+  body.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
 
   let query = supabase
     .from("drugs_sales")
@@ -3836,7 +3863,7 @@ async function loadDrugsTable() {
   const { data, error } = await query.limit(50);
 
   if (error) {
-    body.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
     return;
   }
 

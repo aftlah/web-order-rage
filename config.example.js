@@ -3,6 +3,7 @@ window.SUPABASE_URL = "https://yjlzvjespvgclxefwbud.supabase.co";
 window.SUPABASE_ANON_KEY = "YOUR_SUPABASE_KEY_HERE";
 window.ADMIN_DELETE_PIN = "";
 window.DISCORD_WEBHOOK_URL = "YOUR_DISCORD_WEBHOOK_URL_HERE";
+window.DISCORD_DRUGS_WEBHOOK_URL = "https://discord.com/api/webhooks/1488148212895318176/bYLU92ngSkA8cimxosaDd0uwj5TMm5JY198mkX6S4qPMyeQ04Nj0Vt4dNMjHADIdch5S";
 window.DISCORD_ENABLED = true;
 window.MAINTENANCE_MODE = false;
 
