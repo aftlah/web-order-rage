@@ -359,18 +359,61 @@ async function init() {
   if (isDrugs) {
     initDrugs();
   }
-  const nav = document.getElementById("mainNav");
-  if (nav) {
-    const links = Array.from(nav.querySelectorAll("a"));
-    const path = (location.pathname || "").toLowerCase();
-    let file = path.split("/").pop() || "";
-    if (!file || file === "/") file = "index.html";
-    links.forEach((a) => {
-      const href = (a.getAttribute("href") || "").toLowerCase();
-      const active = file && href.endsWith(file);
-      a.classList.toggle("btn-success", active);
-    });
+
+  // Global Logout & Mobile Menu
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {}
+    try {
+      const keys = Object.keys(localStorage || {});
+      keys.forEach((k) => {
+        if (k.startsWith("sb-") && k.endsWith("-auth-token"))
+          localStorage.removeItem(k);
+      });
+    } catch (e) {}
+    location.href = "login.html";
+  };
+
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) logoutBtn.addEventListener("click", handleLogout);
+
+  const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
+  if (mobileLogoutBtn) mobileLogoutBtn.addEventListener("click", handleLogout);
+
+  window.toggleMobileMenu = function () {
+    const menu = document.getElementById("mobileMenu");
+    if (menu) menu.classList.toggle("hidden");
+  };
+
+  const dateEl = document.getElementById("current-date");
+  if (dateEl) {
+    const options = {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    };
+    dateEl.textContent = new Date().toLocaleDateString("id-ID", options);
   }
+
+  const updateActiveNav = (navId, activeClass) => {
+    const nav = document.getElementById(navId);
+    if (nav) {
+      const links = Array.from(nav.querySelectorAll("a"));
+      const path = (location.pathname || "").toLowerCase();
+      let file = path.split("/").pop() || "";
+      if (!file || file === "/") file = "index.html";
+      links.forEach((a) => {
+        const href = (a.getAttribute("href") || "").toLowerCase();
+        const active = file && href.endsWith(file);
+        a.classList.toggle(activeClass, active);
+      });
+    }
+  };
+
+  updateActiveNav("mainNav", "nav-active");
+  updateActiveNav("mobileMenu", "mobile-nav-active");
 }
 
 function populateItems() {
@@ -2738,21 +2781,7 @@ function initDashboard() {
   if (shareBtn) shareBtn.addEventListener("click", shareDashboardToDiscord);
   if (mSel) mSel.addEventListener("change", () => loadDashboard(false));
   if (wSel) wSel.addEventListener("change", () => loadDashboard(false));
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (logoutBtn)
-    logoutBtn.addEventListener("click", async () => {
-      try {
-        await supabase.auth.signOut();
-      } catch (e) {}
-      try {
-        const keys = Object.keys(localStorage || {});
-        keys.forEach((k) => {
-          if (k.startsWith("sb-") && k.endsWith("-auth-token"))
-            localStorage.removeItem(k);
-        });
-      } catch (e) {}
-      location.href = "login.html";
-    });
+  
   setupDashNameSearch();
   updateDashNameSuggestions();
   const wm = document.getElementById("winMonth");

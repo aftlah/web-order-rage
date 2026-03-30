@@ -23,10 +23,10 @@
               <p class="brand-subtitle text-[10px] uppercase font-bold tracking-wider">Order System</p>
             </div>
           </div>
-          <div class="flex items-center gap-8">
+          <div class="flex items-center gap-4 lg:gap-8">
             <!-- Desktop Nav -->
             <nav id="mainNav" class="hidden md:flex items-center gap-1">
-              <a href="index.html" class="nav-link nav-active">Order</a>
+              <a href="index.html" class="nav-link">Order</a>
               <a href="dashboard.html" class="nav-link">Dashboard</a>
               <a href="storan.html" class="nav-link">Storan</a>
               <a href="drugs.html" class="nav-link">Drugs</a>
@@ -40,618 +40,151 @@
               <p class="today-label">Today</p>
               <p class="today-date" id="current-date"></p>
             </div>
-          </div>
-        </div>
-      </div>
-    </header>
 
             <!-- Hamburger Button -->
-            <button
-              id="mobileMenuBtn"
-              class="md:hidden p-2 text-slate-700 dark:text-yellow-200 hover:bg-slate-100 dark:hover:bg-white/10 rounded-lg transition"
-              onclick="toggleMobileMenu()"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                class="w-8 h-8"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
-                />
+            <button id="mobileMenuBtn" class="md:hidden" onclick="toggleMobileMenu()">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
               </svg>
             </button>
-
-            <div class="text-right hidden sm:block">
-              <p
-                class="text-sm font-medium text-slate-700 dark:text-yellow-300"
-              >
-                Today
-              </p>
-              <p
-                class="text-xs text-slate-500 dark:text-yellow-200/70"
-                id="current-date"
-              ></p>
-            </div>
           </div>
         </div>
+      </div>
 
-        <!-- Mobile Menu (Absolute Dropdown) -->
-        <div
-          id="mobileMenu"
-          class="absolute top-full left-0 w-full bg-white dark:bg-[#1f1410] shadow-lg border-t border-[#f3e8d8] dark:border-[#3d342d] hidden flex flex-col z-50 animate-fade-in-down"
-        >
-          <div class="flex flex-col p-4 gap-2">
-            <a
-              href="index.html"
-              class="px-4 py-3 rounded-lg bg-amber-50 dark:bg-yellow-900/10 text-amber-900 dark:text-yellow-200 font-medium hover:bg-amber-100 dark:hover:bg-yellow-900/30 flex items-center gap-3"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                class="w-5 h-5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-                />
-              </svg>
-              Order
-            </a>
-            <a
-              href="dashboard.html"
-              class="px-4 py-3 rounded-lg bg-amber-50 dark:bg-yellow-900/10 text-amber-900 dark:text-yellow-200 font-medium hover:bg-amber-100 dark:hover:bg-yellow-900/30 flex items-center gap-3"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                class="w-5 h-5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
-                />
-              </svg>
-              Dashboard
-            </a>
-            <a
-              href="storan.html"
-              class="px-4 py-3 rounded-lg bg-amber-50 dark:bg-yellow-900/10 text-amber-900 dark:text-yellow-200 font-medium hover:bg-amber-100 dark:hover:bg-yellow-900/30 flex items-center gap-3"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                class="w-5 h-5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M12 6.75V4.5m0 2.25a2.25 2.25 0 100 4.5m0-4.5a2.25 2.25 0 010 4.5m-6.75 6h13.5a2.25 2.25 0 002.25-2.25V8.25A2.25 2.25 0 0018.75 6h-13.5A2.25 2.25 0 003 8.25v6.75A2.25 2.25 0 005.25 18z"
-                />
-              </svg>
-              Storan
-            </a>
-            <a
-              href="drugs.html"
-              class="px-4 py-3 rounded-lg bg-amber-50 dark:bg-yellow-900/10 text-amber-900 dark:text-yellow-200 font-medium hover:bg-amber-100 dark:hover:bg-yellow-900/30 flex items-center gap-3"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke-width="1.5"
-                stroke="currentColor"
-                class="w-5 h-5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M12 6.75V4.5m0 2.25a2.25 2.25 0 100 4.5m0-4.5a2.25 2.25 0 010 4.5m-6.75 6h13.5a2.25 2.25 0 002.25-2.25V8.25A2.25 2.25 0 0018.75 6h-13.5A2.25 2.25 0 003 8.25v6.75A2.25 2.25 0 005.25 18z"
-                />
-              </svg>
-              Drugs
-            </a>
-          </div>
+      <!-- Mobile Menu -->
+      <div id="mobileMenu" class="mobile-menu absolute top-full left-0 w-full hidden flex flex-col z-50">
+        <div class="flex flex-col p-4 gap-1">
+          <a href="index.html" class="mobile-nav-link">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            Order
+          </a>
+          <a href="dashboard.html" class="mobile-nav-link">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 0113.5 18v-2.25z" /></svg>
+            Dashboard
+          </a>
+          <a href="storan.html" class="mobile-nav-link">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75V4.5m0 2.25a2.25 2.25 0 100 4.5m0-4.5a2.25 2.25 0 010 4.5m-6.75 6h13.5a2.25 2.25 0 002.25-2.25V8.25A2.25 2.25 0 0018.75 6h-13.5A2.25 2.25 0 003 8.25v6.75A2.25 2.25 0 005.25 18z" /></svg>
+            Storan
+          </a>
+          <a href="drugs.html" class="mobile-nav-link">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75V4.5m0 2.25a2.25 2.25 0 100 4.5m0-4.5a2.25 2.25 0 010 4.5m-6.75 6h13.5a2.25 2.25 0 002.25-2.25V8.25A2.25 2.25 0 0018.75 6h-13.5A2.25 2.25 0 003 8.25v6.75A2.25 2.25 0 005.25 18z" /></svg>
+            Drugs
+          </a>
+          <hr class="border-[#2d1b14] my-2" />
+          <button id="mobileLogoutBtn" class="mobile-nav-link text-red-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
+            Logout
+          </button>
         </div>
       </div>
     </header>
 
-    <script>
-      function toggleMobileMenu() {
-        const menu = document.getElementById("mobileMenu");
-        menu.classList.toggle("hidden");
-      }
-    </script>
-
-    <main class="max-w-6xl mx-auto px-6 py-8 relative z-10">
-      <section id="orderSection">
-        <div
-          class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mb-8"
-        >
-          <h2
-            class="section-title text-xl font-bold mb-6 flex items-center gap-3"
-          >
-            <span class="section-divider w-1 h-6 rounded-full"></span>
-            Order Form
-          </h2>
-          <div
-            id="orderWindowStatus"
-            class="mb-2 px-4 py-2 rounded-lg text-white bg-green-600"
-          >
-            Order sedang dibuka
+    <main class="max-w-4xl mx-auto px-6 py-12 relative z-10">
+      <div class="flex flex-col gap-10">
+        <!-- Section Welcome -->
+        <div class="bg-white/95 dark:bg-[#1f1410]/95 backdrop-blur-sm border border-amber-200/70 dark:border-[#3d342d] rounded-2xl shadow-xl p-8 flex flex-col gap-4">
+          <div class="flex items-center gap-4">
+            <span class="w-2 h-10 rounded-full section-divider"></span>
+            <h2 class="text-3xl font-extrabold text-amber-900 dark:text-amber-50">Selamat Datang di Order System R.A.G.E</h2>
           </div>
-          <p
-            id="orderWindowDetail"
-            class="mb-4 text-xs md:text-sm text-slate-600 dark:text-yellow-300/80"
-          >
-            Menunggu informasi jendela order…
+          <p class="text-slate-600 dark:text-amber-200/70 text-lg leading-relaxed">
+            Silakan pilih nama Anda dan tambahkan item ke keranjang belanja Anda. Pastikan data yang Anda masukkan benar sebelum mengirim pesanan.
           </p>
-          <div class="space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div class="flex flex-col gap-2">
-                <label
-                  for="nama"
-                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-                >
-                  Customer Name
-                </label>
-                <div class="relative">
-                  <input
-                    id="nama"
-                    type="text"
-                    autocomplete="off"
-                    placeholder="Enter name"
-                    class="w-full px-4 py-3 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  />
-                  <input id="memberId" type="hidden" />
-                  <div
-                    id="namaDropdown"
-                    class="absolute left-0 right-0 mt-1 bg-[#1f1410] border border-[#3d342d] rounded-lg shadow max-h-60 overflow-auto hidden z-50"
-                  ></div>
+        </div>
+
+        <div id="orderSection" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <!-- Form Section -->
+          <div class="lg:col-span-7 flex flex-col gap-6">
+            <div class="bg-white/95 dark:bg-[#1f1410]/95 backdrop-blur-sm border border-amber-200/70 dark:border-[#3d342d] rounded-2xl shadow-xl p-8 flex flex-col gap-6">
+              <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-amber-900 dark:text-amber-50">Form Pesanan</h3>
+                <div id="orderNoUI" class="px-4 py-1.5 rounded-full bg-amber-50 dark:bg-yellow-900/20 text-amber-700 dark:text-yellow-500 text-xs font-bold border border-amber-200 dark:border-yellow-900/30">
+                  ORDER #000
                 </div>
-                <p id="namaStatus" class="mt-1 text-xs text-red-500"></p>
               </div>
-              <div class="flex flex-col gap-2">
-                <label
-                  for="orderNo"
-                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-                >
-                  Order No.
-                </label>
+
+              <!-- Nama Pelanggan -->
+              <div class="flex flex-col gap-2 relative">
+                <label for="nama" class="text-sm font-bold text-slate-700 dark:text-amber-100 uppercase tracking-wider">Nama Anggota</label>
                 <input
-                  id="orderNo"
                   type="text"
-                  readonly
-                  class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none"
+                  id="nama"
+                  placeholder="Cari nama Anda..."
+                  autocomplete="off"
+                  class="w-full px-5 py-3.5 rounded-xl border-2 border-amber-100 dark:border-[#3d342d] bg-white dark:bg-[#0a0805] text-slate-800 dark:text-amber-50 focus:outline-none focus:border-amber-500/50 focus:ring-4 focus:ring-amber-500/10 transition-all text-lg font-medium"
                 />
-                <input id="orderankeHidden" type="hidden" />
+                <p id="nameStatus" class="text-[10px] font-bold text-red-500 mt-1 uppercase tracking-widest">Pilih nama dari database</p>
+                <div id="customerDropdown" class="absolute left-0 right-0 top-[90px] bg-white dark:bg-[#1f1410] border-2 border-amber-100 dark:border-[#3d342d] rounded-xl shadow-2xl z-50 hidden max-h-60 overflow-y-auto custom-scrollbar"></div>
+                <input type="hidden" id="memberId" />
               </div>
 
-              <div class="flex flex-col gap-2">
-                <label
-                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-                >
-                  Total Items
-                </label>
-                <div
-                  class="px-4 py-3 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-yellow-900/30 dark:to-amber-900/30 border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 font-semibold"
-                >
-                  <span id="total-items">0</span> items
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Kategori -->
+                <div class="flex flex-col gap-2">
+                  <label for="kategori" class="text-sm font-bold text-slate-700 dark:text-amber-100 uppercase tracking-wider">Kategori</label>
+                  <select id="kategori" class="w-full px-5 py-3.5 rounded-xl border-2 border-amber-100 dark:border-[#3d342d] bg-white dark:bg-[#0a0805] text-slate-800 dark:text-amber-50 focus:outline-none focus:border-amber-500/50 transition-all font-semibold"></select>
+                </div>
+
+                <!-- Item -->
+                <div class="flex flex-col gap-2">
+                  <label for="item" class="text-sm font-bold text-slate-700 dark:text-amber-100 uppercase tracking-wider">Pilih Item</label>
+                  <select id="item" class="w-full px-5 py-3.5 rounded-xl border-2 border-amber-100 dark:border-[#3d342d] bg-white dark:bg-[#0a0805] text-slate-800 dark:text-amber-50 focus:outline-none focus:border-amber-500/50 transition-all font-semibold"></select>
                 </div>
               </div>
-            </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
-              <div class="flex flex-col gap-2">
-                <label
-                  for="kategori"
-                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-                >
-                  Category
-                </label>
-                <select
-                  id="kategori"
-                  class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
-                ></select>
+              <!-- Qty & Add Button -->
+              <div class="flex flex-col sm:flex-row items-end gap-4">
+                <div class="flex flex-col gap-2 w-full sm:w-32">
+                  <label for="qty" class="text-sm font-bold text-slate-700 dark:text-amber-100 uppercase tracking-wider">Jumlah</label>
+                  <input
+                    type="number"
+                    id="qty"
+                    value="2"
+                    min="2"
+                    class="w-full px-5 py-3.5 rounded-xl border-2 border-amber-100 dark:border-[#3d342d] bg-white dark:bg-[#0a0805] text-slate-800 dark:text-amber-50 focus:outline-none focus:border-amber-500/50 transition-all text-center font-bold text-xl"
+                  />
+                </div>
+                <button id="addBtn" class="flex-1 w-full py-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black text-lg shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 hover:-translate-y-1 transition-all active:translate-y-0 uppercase tracking-widest">
+                  Tambah ke Keranjang
+                </button>
               </div>
-              <div class="flex flex-col gap-2 md:col-span-2">
-                <label
-                  for="item"
-                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-                >
-                  Item
-                </label>
-                <select
-                  id="item"
-                  class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer"
-                ></select>
+            </div>
+          </div>
+
+          <!-- Cart Section -->
+          <div class="lg:col-span-5">
+            <div class="bg-white/95 dark:bg-[#1f1410]/95 backdrop-blur-sm border border-amber-200/70 dark:border-[#3d342d] rounded-2xl shadow-xl p-8 flex flex-col h-full">
+              <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-amber-900 dark:text-amber-50">Keranjang</h3>
+                <span id="cartCount" class="px-3 py-1 rounded-full bg-amber-500 text-white text-xs font-black">0 ITEMS</span>
               </div>
-              <div class="flex flex-col gap-2">
-                <label
-                  for="qty"
-                  class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-                >
-                  Qty
-                </label>
-                <input
-                  id="qty"
-                  type="number"
-                  min="1"
-                  value="1"
-                  class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
+
+              <div id="cartItems" class="flex-1 overflow-y-auto min-h-[300px] max-h-[450px] mb-6 pr-2 custom-scrollbar flex flex-col gap-3">
+                <!-- Cart items will be here -->
+                <div class="h-full flex flex-col items-center justify-center text-slate-400 dark:text-amber-200/20 italic text-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-16 h-16 mb-2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.375 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                  </svg>
+                  Keranjang masih kosong
+                </div>
               </div>
-              <button
-                id="addBtn"
-                class="px-6 py-3 rounded-lg bg-gradient-to-r from-amber-600 to-yellow-500 text-[#1f1410] font-semibold shadow hover:shadow-lg hover:-translate-y-0.5 transition"
-              >
-                + Add
-              </button>
+
+              <div class="pt-6 border-t-2 border-amber-100 dark:border-[#3d342d]">
+                <div class="flex justify-between items-center mb-6">
+                  <span class="text-slate-500 dark:text-amber-200/50 font-bold uppercase tracking-widest text-sm">Total Pembayaran</span>
+                  <span id="totalHarga" class="text-3xl font-black text-amber-600 dark:text-yellow-500 font-mono">$ 0</span>
+                </div>
+                <button id="submitBtn" class="w-full py-5 rounded-2xl bg-gradient-to-br from-green-600 to-emerald-700 text-white font-black text-xl shadow-xl shadow-green-900/20 hover:shadow-green-900/40 hover:-translate-y-1 transition-all active:translate-y-0 uppercase tracking-widest">
+                  Kirim Pesanan Sekarang
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div
-          class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8"
-        >
-          <h2
-            class="section-title text-xl font-bold mb-6 flex items-center gap-3"
-          >
-            <span class="section-divider w-1 h-6 rounded-full"></span>
-            Order Summary
-          </h2>
-
-          <div class="overflow-x-auto mb-8">
-            <table id="cartTable" class="w-full text-sm">
-              <thead>
-                <tr
-                  class="border-b-2 border-slate-200 dark:border-yellow-700/30"
-                >
-                  <th
-                    class="px-4 py-4 text-left font-semibold text-slate-700 dark:text-yellow-200"
-                  >
-                    Item
-                  </th>
-                  <th
-                    class="px-4 py-4 text-left font-semibold text-slate-700 dark:text-yellow-200"
-                  >
-                    Category
-                  </th>
-                  <th
-                    class="px-4 py-4 text-right font-semibold text-slate-700 dark:text-yellow-200"
-                  >
-                    Price
-                  </th>
-                  <th
-                    class="px-4 py-4 text-center font-semibold text-slate-700 dark:text-yellow-200"
-                  >
-                    Qty
-                  </th>
-                  <th
-                    class="px-4 py-4 text-right font-semibold text-slate-700 dark:text-yellow-200"
-                  >
-                    Subtotal
-                  </th>
-                  <th
-                    class="px-4 py-4 text-center font-semibold text-slate-700 dark:text-yellow-200"
-                  >
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody
-                id="cartBody"
-                class="divide-y divide-slate-100 dark:divide-yellow-700/20"
-              ></tbody>
-            </table>
-
-            <div id="emptyState" class="text-center py-12">
-              <svg
-                class="w-16 h-16 mx-auto mb-4 opacity-40"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="1.5"
-                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                ></path>
-              </svg>
-              <p class="text-slate-600 dark:text-yellow-200 font-medium">
-                Your order is empty
-              </p>
-              <p class="text-slate-400 dark:text-yellow-300/60 text-sm">
-                Add items to get started
-              </p>
-            </div>
-          </div>
-
-          <div class="space-y-4">
-            <div
-              class="flex justify-between items-center p-4 sm:p-6 bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-yellow-900/40 dark:to-amber-900/40 rounded-xl border-2 border-amber-300 dark:border-yellow-600"
-            >
-              <span
-                class="text-base sm:text-lg font-bold text-slate-800 dark:text-yellow-100"
-                >Total Price</span
-              >
-              <strong
-                id="totalAmount"
-                class="text-base sm:text-2xl bg-gradient-to-br from-amber-600 to-yellow-500 bg-clip-text text-transparent"
-              >
-                $0.00
-              </strong>
-            </div>
-
-            <div
-              class="flex justify-between items-center p-4 sm:p-6 bg-gradient-to-r from-gray-100 to-slate-200 dark:from-gray-800/40 dark:to-slate-700/40 rounded-xl border-2 border-gray-300 dark:border-gray-500"
-            >
-              <span
-                class="text-base sm:text-lg font-bold text-slate-800 dark:text-gray-100"
-                >Total Metal Scrap</span
-              >
-              <strong
-                id="totalScrap"
-                class="text-base sm:text-2xl text-slate-700 dark:text-gray-300"
-              >
-                0
-              </strong>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch">
-              <button
-                id="submitBtn"
-                class="px-4 py-2.5 sm:px-6 sm:py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow hover:shadow-lg hover:-translate-y-0.5 transition flex-1 sm:flex-none text-sm sm:text-base"
-              >
-                Submit Order
-              </button>
-              <button
-                id="resetBtn"
-                class="px-4 py-2.5 sm:px-6 sm:py-3 rounded-lg border-2 border-yellow-600 dark:border-yellow-500 text-yellow-700 dark:text-yellow-300 font-semibold hover:bg-yellow-50 dark:hover:bg-yellow-900/20 transition text-sm sm:text-base"
-              >
-                Reset
-              </button>
-              <div
-                id="status"
-                class="flex-1 text-xs sm:text-sm text-slate-600 dark:text-yellow-300/70 flex items-center"
-              ></div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mt-8"
-        >
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="section-title text-xl font-bold flex items-center gap-3">
-              <span class="section-divider w-1 h-6 rounded-full"></span>
-              Your Orders (This Period)
-            </h2>
-            <div class="flex items-center gap-3">
-              <span
-                id="myOrdersPeriod"
-                class="text-sm text-slate-500 dark:text-yellow-300/70"
-              ></span>
-              <select
-                id="myOrdersPeriodSelect"
-                class="px-2 py-1 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] text-sm"
-              ></select>
-              <button
-                id="myOrdersEditBtn"
-                class="hidden px-3 py-1 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200"
-              >
-                Edit
-              </button>
-            </div>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr>
-                  <th class="text-left px-2 py-2">Item</th>
-                  <th class="text-center px-2 py-2">Qty</th>
-                  <th class="text-right px-2 py-2">Subtotal</th>
-                  <th class="text-right px-2 py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="myOrdersBody"></tbody>
-            </table>
-            <p
-              id="myOrdersEmpty"
-              class="text-sm text-slate-500 dark:text-yellow-300/70 mt-3"
-            >
-              Belum ada order di periode ini
-            </p>
-          </div>
-          <div class="mt-4 flex justify-end">
-            <span class="text-sm font-semibold">Total:</span>
-            <span id="myOrdersTotal" class="ml-2 text-sm"></span>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <div
-      id="appAlert"
-      class="fixed inset-x-0 top-16 flex justify-center z-50 pointer-events-none"
-    >
-      <div
-        id="appAlertBox"
-        class="hidden px-4 py-2 rounded-lg bg-red-600 text-white shadow-lg pointer-events-auto"
-      ></div>
-    </div>
-
-    <!-- AI Chatbot Widget -->
-    <div
-      id="chatbot-container"
-      class="fixed bottom-6 right-6 z-50 flex flex-col items-end"
-    >
-      <!-- Chat Window -->
-      <div
-        id="chat-window"
-        class="hidden flex-col w-80 sm:w-96 h-[500px] bg-white dark:bg-[#1a1410] rounded-2xl shadow-2xl border border-yellow-600/30 overflow-hidden mb-4 transition-all duration-300 transform origin-bottom-right"
-      >
-        <!-- Header -->
-        <div
-          class="bg-gradient-to-r from-orange-900 to-amber-800 p-4 flex items-center justify-between"
-        >
-          <div class="flex items-center gap-3">
-            <div
-              class="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center text-orange-900 font-bold"
-            >
-              D
-            </div>
-            <div>
-              <h3 class="text-white font-bold text-sm">Deri</h3>
-              <p class="text-yellow-200/70 text-xs">R.A.G.E Assistant</p>
-            </div>
-          </div>
-          <button
-            id="chat-close-btn"
-            class="text-yellow-200 hover:text-white transition"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="w-6 h-6"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
-
-        <!-- Messages Area -->
-        <div
-          id="chat-messages"
-          class="flex-1 p-4 overflow-y-auto bg-[#f8f5f2] dark:bg-[#0f0a08] space-y-4"
-        >
-          <!-- Welcome Message -->
-          <div class="flex justify-start">
-            <div
-              class="bg-[#2a201a] border border-yellow-900/10 text-white p-3 rounded-2xl rounded-tl-none max-w-[85%] text-sm shadow-sm"
-            >
-              Halo, saya Deri, AI asisten RAGE. Ingin tanya harga vest atau butuh
-              info scrap? Silahkan tanyakan aja.
-            </div>
-          </div>
-        </div>
-
-        <div
-          class="p-3 bg-white dark:bg-[#1a1410] border-t border-yellow-900/10 flex gap-2"
-        >
-          <input
-            type="text"
-            id="chat-input"
-            placeholder="Tanya harga vest..."
-            class="flex-1 px-4 py-2 rounded-full bg-slate-100 dark:bg-[#2a201a] border-none focus:ring-2 focus:ring-yellow-500 text-sm text-slate-900 dark:text-white"
-          />
-          <button
-            onclick="sendChatMessage()"
-            class="p-2 rounded-full bg-amber-600 text-white hover:bg-amber-700 transition shadow-md"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke-width="1.5"
-              stroke="currentColor"
-              class="w-5 h-5"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
-              />
-            </svg>
-          </button>
         </div>
       </div>
-
-      <!-- Toggle Button -->
-      <button
-        id="chat-toggle-btn"
-        class="group flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xl hover:scale-110 transition-all duration-300 relative"
-      >
-        <span
-          class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full animate-pulse border-2 border-white dark:border-[#1a1410]"
-        ></span>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke-width="1.5"
-          stroke="currentColor"
-          class="w-7 h-7"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z"
-          />
-        </svg>
-      </button>
-    </div>
+    </main>
 
     <script src="config.js"></script>
-    <script>
-      // Standalone Chat UI Logic - Works even if main script fails
-      (function() {
-        const win = document.getElementById("chat-window");
-        const toggleBtn = document.getElementById("chat-toggle-btn");
-        const closeBtn = document.getElementById("chat-close-btn");
-
-        function toggleChatUI() {
-          if (!win) return;
-          if (win.classList.contains("hidden")) {
-            win.classList.remove("hidden");
-            win.classList.add("flex");
-            setTimeout(() => {
-              const input = document.getElementById("chat-input");
-              if (input) input.focus();
-            }, 100);
-          } else {
-            win.classList.add("hidden");
-            win.classList.remove("flex");
-          }
-        }
-
-        if (toggleBtn) toggleBtn.addEventListener("click", toggleChatUI);
-        if (closeBtn) closeBtn.addEventListener("click", toggleChatUI);
-      })();
-    </script>
     <script type="module" src="script.js"></script>
-    <script>
-      const today = new Date();
-      document.getElementById("current-date").textContent =
-        today.toLocaleDateString("en-US", {
-          weekday: "short",
-          month: "short",
-          day: "numeric",
-        });
-    </script>
   </body>
 </html>
