@@ -3432,7 +3432,6 @@ let currentDrugsBatch = null;
 async function initDrugs() {
   console.log("Initializing Drugs section...");
   
-  // Get active batch
   try {
     const win = await fetchActiveOrderWindow(null);
     if (win && win.orderanke) {
@@ -3449,6 +3448,7 @@ async function initDrugs() {
   }
 
   setupDrugsNameSearch();
+  updateDrugsNameValidity();
   loadDrugsTable();
 
   const duitMerahInput = document.getElementById("duitMerah");
@@ -3456,6 +3456,7 @@ async function initDrugs() {
   const submitBtn = document.getElementById("submitDrugs");
   const refreshBtn = document.getElementById("refreshDrugs");
   const batchFilter = document.getElementById("drugsBatchFilter");
+  const addBatchBtn = document.getElementById("addBatchBtn");
 
   if (duitMerahInput && estimasiGajiEl) {
     duitMerahInput.addEventListener("input", () => {
@@ -3476,6 +3477,74 @@ async function initDrugs() {
 
   if (batchFilter) {
     batchFilter.addEventListener("change", () => loadDrugsTable());
+  }
+
+  if (addBatchBtn) {
+    addBatchBtn.addEventListener("click", openCreateBatchModal);
+  }
+}
+
+async function openCreateBatchModal() {
+  const { value: formValues } = await Swal.fire({
+    title: 'Tambah Batch Baru',
+    html:
+      '<div class="flex flex-col gap-3 p-2">' +
+      '  <div class="flex flex-col text-left gap-1">' +
+      '    <label class="text-xs font-bold text-slate-500">Bulan (M)</label>' +
+      '    <input id="swal-month" type="number" class="swal2-input m-0 w-full" placeholder="Contoh: 2" value="' + (currentDrugsBatch ? Math.floor(currentDrugsBatch / 10) : "") + '">' +
+      '  </div>' +
+      '  <div class="flex flex-col text-left gap-1">' +
+      '    <label class="text-xs font-bold text-slate-500">Minggu (W)</label>' +
+      '    <input id="swal-week" type="number" class="swal2-input m-0 w-full" placeholder="Contoh: 4" value="' + (currentDrugsBatch ? (currentDrugsBatch % 10) + 1 : "") + '">' +
+      '  </div>' +
+      '  <div class="p-3 bg-amber-50 text-amber-800 text-[11px] rounded-lg text-left italic">' +
+      '    *Membuat batch baru akan menutup batch aktif sebelumnya untuk semua sistem.' +
+      '  </div>' +
+      '</div>',
+    focusConfirm: false,
+    showCancelButton: true,
+    confirmButtonText: 'Buat Batch',
+    confirmButtonColor: '#d97706',
+    preConfirm: () => {
+      return [
+        document.getElementById('swal-month').value,
+        document.getElementById('swal-week').value
+      ]
+    }
+  });
+
+  if (formValues) {
+    const m = parseInt(formValues[0], 10);
+    const w = parseInt(formValues[1], 10);
+    
+    if (isNaN(m) || isNaN(w) || m < 1 || w < 1) {
+      showAlert("Bulan dan Minggu harus diisi angka valid", "error");
+      return;
+    }
+
+    const orderanke = m * 10 + w;
+    const now = new Date();
+    const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // Default 7 hari
+
+    // 1. Close all active windows first
+    if (supabase) {
+      await supabase.from("order_windows").update({ is_active: false }).eq("is_active", true);
+      
+      // 2. Insert new one
+      const { error } = await supabase.from("order_windows").insert({
+        orderanke,
+        start_time: now.toISOString(),
+        end_time: end.toISOString(),
+        is_active: true
+      });
+
+      if (error) {
+        showAlert("Gagal membuat batch: " + error.message, "error");
+      } else {
+        showAlert(`Batch M${m}-W${w} berhasil dimulai!`, "success");
+        initDrugs(); // Refresh current display
+      }
+    }
   }
 }
 
@@ -3502,19 +3571,27 @@ function setupDrugsNameSearch() {
         input.value = e.currentTarget.getAttribute("data-name");
         hidden.value = e.currentTarget.getAttribute("data-id");
         dd.classList.add("hidden");
+        updateDrugsNameValidity();
       })
     );
   };
 
   const run = debounce(async (term) => {
     if (!supabase) return;
-    let q = supabase
-      .from("members")
-      .select("id,nama")
-      .order("nama", { ascending: true })
-      .limit(20);
-    
-    if (term) q = q.ilike("nama", `%${term}%`);
+    let q;
+    if (term)
+      q = supabase
+        .from("members")
+        .select("id,nama")
+        .ilike("nama", `%${term}%`)
+        .order("nama", { ascending: true })
+        .limit(20);
+    else
+      q = supabase
+        .from("members")
+        .select("id,nama")
+        .order("nama", { ascending: true })
+        .limit(20);
     
     const { data, error } = await q;
     if (error) return;
@@ -3524,11 +3601,45 @@ function setupDrugsNameSearch() {
 
   input.addEventListener("input", (e) => {
     hidden.value = "";
+    updateDrugsNameValidity();
     run(e.target.value.trim());
   });
   input.addEventListener("focus", () => run(""));
   input.addEventListener("click", () => run(input.value.trim()));
+  input.addEventListener("keydown", (e) => {
+    const items = Array.from(dd.querySelectorAll("[data-id]"));
+    if (!items.length) return;
+    if (e.key === "ArrowDown") {
+      active = Math.min(items.length - 1, active + 1);
+      e.preventDefault();
+    } else if (e.key === "ArrowUp") {
+      active = Math.max(0, active - 1);
+      e.preventDefault();
+    } else if (e.key === "Enter" && active >= 0) {
+      input.value = items[active].getAttribute("data-name");
+      hidden.value = items[active].getAttribute("data-id");
+      dd.classList.add("hidden");
+      updateDrugsNameValidity();
+    } else if (e.key === "Escape") {
+      dd.classList.add("hidden");
+    }
+    items.forEach((el, i) =>
+      el.classList.toggle("bg-amber-500/30", i === active)
+    );
+  });
   input.addEventListener("blur", () => setTimeout(() => dd.classList.add("hidden"), 200));
+}
+
+function updateDrugsNameValidity() {
+  const hidden = document.getElementById("drugsMemberId");
+  const status = document.getElementById("drugsNamaStatus");
+  const v = hidden ? parseInt(hidden.value || "", 10) : NaN;
+  const ok = !Number.isNaN(v) && !!v;
+  if (status) {
+    status.textContent = ok ? "Nama valid" : "Pilih nama dari database";
+    status.classList.toggle("text-green-500", ok);
+    status.classList.toggle("text-red-500", !ok);
+  }
 }
 
 async function submitDrugsData() {
