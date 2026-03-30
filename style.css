@@ -320,4 +320,72 @@ header {
   background-color: rgba(251, 191, 36, 0.1);
 }
 
+/* Modern R.A.G.E Modal Styles */
+.rage-modal-popup {
+  background: #1a0f0a !important;
+  background-image: radial-gradient(circle at top right, rgba(251, 191, 36, 0.05), transparent),
+                    radial-gradient(circle at bottom left, rgba(217, 119, 6, 0.05), transparent) !important;
+  border: 1px solid rgba(251, 191, 36, 0.2) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
+  padding: 2rem !important;
+}
+
+.rage-modal-title {
+  color: #fbbf24 !important;
+  font-family: 'Poppins', sans-serif !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em !important;
+  padding-top: 0.5rem !important;
+}
+
+.rage-modal-input {
+  background: #0a0805 !important;
+  border: 1.5px solid rgba(251, 191, 36, 0.1) !important;
+  border-radius: 14px !important;
+  color: #fef3c7 !important;
+  font-family: 'Poppins', sans-serif !important;
+  height: 3.5rem !important;
+  margin: 0 !important;
+  transition: all 0.3s ease !important;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06) !important;
+}
+
+.rage-modal-input:focus {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.1) !important;
+}
+
+.rage-modal-confirm {
+  background: linear-gradient(to right, #d97706, #f59e0b) !important;
+  border-radius: 14px !important;
+  color: #1a0f0a !important;
+  font-weight: 800 !important;
+  padding: 12px 32px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 0 10px 15px -3px rgba(217, 119, 6, 0.3) !important;
+}
+
+.rage-modal-confirm:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 20px 25px -5px rgba(217, 119, 6, 0.4) !important;
+}
+
+.rage-modal-cancel {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 14px !important;
+  color: #a8a29e !important;
+  font-weight: 600 !important;
+  padding: 12px 24px !important;
+  transition: all 0.3s ease !important;
+}
+
+.rage-modal-cancel:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fef3c7 !important;
+}
+
 

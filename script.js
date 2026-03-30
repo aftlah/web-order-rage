@@ -1461,16 +1461,32 @@ function getNowIso() {
   return new Date().toISOString();
 }
 
-async function fetchActiveOrderWindow(orderanke) {
+function decodeOrderanke(val) {
+  if (!val) return { isDrugs: false, m: 0, w: 0, raw: 0 };
+  const isDrugs = val >= 1000;
+  const v = isDrugs ? val - 1000 : val;
+  const m = Math.floor(v / 10);
+  const w = v % 10;
+  return { isDrugs, m, w, raw: v };
+}
+
+async function fetchActiveOrderWindow(orderanke, type = "order") {
   const now = getNowIso();
   let q = supabase
     .from("order_windows")
     .select("id,orderanke,start_time,end_time,is_active")
     .eq("is_active", true)
     .lte("start_time", now)
-    .gte("end_time", now)
-    .order("orderanke", { ascending: false })
-    .limit(1);
+    .gte("end_time", now);
+
+  if (type === "drugs") {
+    q = q.gte("orderanke", 1000);
+  } else {
+    q = q.lt("orderanke", 1000);
+  }
+
+  q = q.order("orderanke", { ascending: false }).limit(1);
+
   if (orderanke) q = q.eq("orderanke", orderanke);
   const { data, error } = await q;
   if (error) return null;
@@ -1602,6 +1618,7 @@ async function fetchOrdersSafe(limit = 500) {
     .select(
       "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered"
     )
+    .lt("orderanke", 1000) // Hanya ambil orderan reguler
     .order("waktu", { ascending: false })
     .limit(limit);
   if (error && String(error.message || "").includes("delivered")) {
@@ -1610,6 +1627,7 @@ async function fetchOrdersSafe(limit = 500) {
       .select(
         "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal"
       )
+      .lt("orderanke", 1000) // Hanya ambil orderan reguler
       .order("waktu", { ascending: false })
       .limit(limit);
     return { data: res.data || [], error: res.error || null };
@@ -2381,6 +2399,7 @@ async function loadDashboard(force = false) {
   const nameVal = nameInput ? nameInput.value.trim() : "";
   const nameIsAll = nameVal.toLowerCase() === "semua";
   const filtered = (data || []).filter((r) => {
+    if ((r.orderanke || 0) >= 1000) return false; // Abaikan periode Drugs di dashboard Order
     const m = Math.floor((r.orderanke || 0) / 10);
     const w = (r.orderanke || 0) % 10;
     if (month && m !== month) return false;
@@ -2473,10 +2492,17 @@ async function announceOpenedWindows() {
     if (__openAnnounceLock.has(String(r.id))) continue;
     __openAnnounceLock.add(String(r.id));
     const v = r.orderanke || null;
-    const label = v ? `M${Math.floor(v / 10)}-W${v % 10}` : "Periode";
+    let label = "Periode";
+    let typeStr = "Orderan";
+    if (v) {
+      const isDrugs = v >= 1000;
+      const val = isDrugs ? v - 1000 : v;
+      label = `M${Math.floor(val / 10)}-W${val % 10}`;
+      if (isDrugs) typeStr = "Drugs";
+    }
     const start = fmtDateTime(r.start_time);
     const end = fmtDateTime(r.end_time);
-    const msg = `# Orderan periode ${label} dibuka dari ${start} sampai ${end}\n@here`;
+    const msg = `# ${typeStr} periode ${label} dibuka dari ${start} sampai ${end}\n@here`;
     await postToDiscord(msg);
     set.add(String(r.id));
     try {
@@ -2534,10 +2560,17 @@ async function expireOrderWindows() {
     if (__closeAnnounceLock.has(String(r.id))) continue;
     __closeAnnounceLock.add(String(r.id));
     const v = r.orderanke || null;
-    const label = v ? `M${Math.floor(v / 10)}-W${v % 10}` : "Periode";
+    let label = "Periode";
+    let typeStr = "Orderan";
+    if (v) {
+      const isDrugs = v >= 1000;
+      const val = isDrugs ? v - 1000 : v;
+      label = `M${Math.floor(val / 10)}-W${val % 10}`;
+      if (isDrugs) typeStr = "Drugs";
+    }
     const start = fmtDateTime(r.start_time);
     const end = fmtDateTime(r.end_time);
-    const msg = `# Orderan periode ${label} telah ditutup.\nDibuka dari ${start} sampai ${end}\nDi tunggu open order selanjutnya yaa \n@here`;
+    const msg = `# ${typeStr} periode ${label} telah ditutup.\nDibuka dari ${start} sampai ${end}\nDi tunggu open order selanjutnya yaa \n@here`;
     await postToDiscord(msg);
     set.add(String(r.id));
     try {
@@ -2557,11 +2590,17 @@ async function createOrderWindow() {
   const e = document.getElementById("winEnd");
   const wm = document.getElementById("winMonth");
   const ww = document.getElementById("winWeek");
+  const wt = document.getElementById("winType");
   if (!s || !e) return;
   const m = wm ? parseInt(wm.value, 10) : NaN;
   const w = ww ? parseInt(ww.value, 10) : NaN;
-  const orderanke =
-    !Number.isNaN(m) && !Number.isNaN(w) && m && w ? m * 10 + w : null;
+  const type = wt ? wt.value : "order";
+  
+  let orderanke = !Number.isNaN(m) && !Number.isNaN(w) && m && w ? m * 10 + w : null;
+  if (orderanke !== null && type === "drugs") {
+    orderanke += 1000;
+  }
+
   const row = {
     start_time: new Date(s.value).toISOString(),
     end_time: new Date(e.value).toISOString(),
@@ -2601,9 +2640,14 @@ function renderOrderWindows(rows) {
   body.innerHTML = (rows || [])
     .map((r) => {
       const val = r.orderanke || null;
-      const label = val
-        ? `M${Math.floor(val / 10)}-W${val % 10} (#${val})`
-        : "-";
+      let label = "-";
+      if (val) {
+        const isDrugs = val >= 1000;
+        const v = isDrugs ? val - 1000 : val;
+        const m = Math.floor(v / 10);
+        const w = v % 10;
+        label = `${isDrugs ? '[DRUGS] ' : ''}M${m}-W${w} (#${val})`;
+      }
       const now = Date.now();
       const st = !r.is_active
         ? "Nonaktif"
@@ -2653,16 +2697,21 @@ function startEditWindow(row) {
   const e = document.getElementById("winEnd");
   const wm = document.getElementById("winMonth");
   const ww = document.getElementById("winWeek");
+  const wt = document.getElementById("winType");
   const btn = document.getElementById("winCreateBtn");
   if (s) s.value = toLocalInput(row.start_time);
   if (e) e.value = toLocalInput(row.end_time);
   const val = row.orderanke || 0;
-  const m = Math.floor(val / 10);
-  const w = val % 10;
+  const isDrugs = val >= 1000;
+  if (wt) wt.value = isDrugs ? "drugs" : "order";
+  const v = isDrugs ? val - 1000 : val;
+  const m = Math.floor(v / 10);
+  const w = v % 10;
   if (wm) wm.value = m ? String(m) : "";
   if (ww) ww.value = w ? String(w) : "";
   window.__editingWindowId = row.id;
-  if (btn) btn.textContent = "Update";
+  window.__editingWindowType = isDrugs ? "drugs" : "order";
+  if (btn) btn.textContent = `Update ${isDrugs ? 'Drugs' : 'Order'}`;
 }
 async function deleteOrderWindow(id) {
   try {
@@ -3153,15 +3202,15 @@ function showAlert(message, type = "info") {
       text: message,
       icon: icons[type] || 'info',
       toast: true,
-      position: 'top',
+      position: 'top-end',
       showConfirmButton: false,
       timer: 3000,
       timerProgressBar: true,
-      background: '#1f1410',
+      background: '#1a0f0a',
       color: '#fef3c7',
-      iconColor: type === 'success' ? '#22c55e' : (type === 'error' ? '#ef4444' : '#eab308'),
+      iconColor: type === 'success' ? '#fbbf24' : (type === 'error' ? '#ef4444' : '#eab308'),
       customClass: {
-        popup: 'border border-yellow-600/30 shadow-xl rounded-xl'
+        popup: 'rage-modal-popup border-amber-500/30 shadow-2xl rounded-2xl p-4'
       },
       didOpen: (toast) => {
         toast.onmouseenter = Swal.stopTimer;
@@ -3462,15 +3511,17 @@ async function initDrugs() {
   console.log("Initializing Drugs section...");
   
   try {
-    const win = await fetchActiveOrderWindow(null);
+    const win = await fetchActiveOrderWindow(null, "drugs");
     if (win && win.orderanke) {
       currentDrugsBatch = parseInt(win.orderanke, 10);
       const display = document.getElementById("currentBatchDisplay");
       if (display) {
-        const m = Math.floor(currentDrugsBatch / 10);
-        const w = currentDrugsBatch % 10;
-        display.textContent = `Batch M${m}-W${w} (#${currentDrugsBatch})`;
+        const { m, w, raw } = decodeOrderanke(currentDrugsBatch);
+        display.textContent = `Batch Drugs M${m}-W${w} (#${raw})`;
       }
+    } else {
+      const display = document.getElementById("currentBatchDisplay");
+      if (display) display.textContent = "Tidak ada batch aktif";
     }
   } catch (e) {
     console.error("Gagal ambil periode drugs:", e);
@@ -3514,26 +3565,34 @@ async function initDrugs() {
 }
 
 async function openCreateBatchModal() {
+  const currentVal = currentDrugsBatch ? currentDrugsBatch - 1000 : null;
   const { value: formValues } = await Swal.fire({
-    title: 'Tambah Batch Baru',
+    title: 'Tambah Batch Drugs Baru',
     html:
-      '<div class="flex flex-col gap-3 p-2">' +
-      '  <div class="flex flex-col text-left gap-1">' +
-      '    <label class="text-xs font-bold text-slate-500">Bulan (M)</label>' +
-      '    <input id="swal-month" type="number" class="swal2-input m-0 w-full" placeholder="Contoh: 2" value="' + (currentDrugsBatch ? Math.floor(currentDrugsBatch / 10) : "") + '">' +
+      '<div class="flex flex-col gap-5 py-2">' +
+      '  <div class="flex flex-col text-left gap-2">' +
+      '    <label class="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] ml-1">Bulan (M)</label>' +
+      '    <input id="swal-month" type="number" class="swal2-input rage-modal-input" placeholder="Contoh: 2" value="' + (currentVal ? Math.floor(currentVal / 10) : "") + '">' +
       '  </div>' +
-      '  <div class="flex flex-col text-left gap-1">' +
-      '    <label class="text-xs font-bold text-slate-500">Minggu (W)</label>' +
-      '    <input id="swal-week" type="number" class="swal2-input m-0 w-full" placeholder="Contoh: 4" value="' + (currentDrugsBatch ? (currentDrugsBatch % 10) + 1 : "") + '">' +
+      '  <div class="flex flex-col text-left gap-2">' +
+      '    <label class="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] ml-1">Minggu (W)</label>' +
+      '    <input id="swal-week" type="number" class="swal2-input rage-modal-input" placeholder="Contoh: 4" value="' + (currentVal ? (currentVal % 10) + 1 : "") + '">' +
       '  </div>' +
-      '  <div class="p-3 bg-amber-50 text-amber-800 text-[11px] rounded-lg text-left italic">' +
-      '    *Membuat batch baru akan menutup batch aktif sebelumnya untuk semua sistem.' +
+      '  <div class="p-4 bg-amber-500/5 border border-amber-500/10 text-amber-200/60 text-[11px] rounded-xl text-left italic leading-relaxed">' +
+      '    *Batch Drugs dipisahkan dari sistem Orderan. Membuat batch baru hanya akan menutup batch Drugs aktif sebelumnya.' +
       '  </div>' +
       '</div>',
     focusConfirm: false,
     showCancelButton: true,
     confirmButtonText: 'Buat Batch',
-    confirmButtonColor: '#d97706',
+    cancelButtonText: 'Batal',
+    reverseButtons: true,
+    customClass: {
+      popup: 'rage-modal-popup',
+      title: 'rage-modal-title',
+      confirmButton: 'rage-modal-confirm',
+      cancelButton: 'rage-modal-cancel'
+    },
     preConfirm: () => {
       return [
         document.getElementById('swal-month').value,
@@ -3551,13 +3610,17 @@ async function openCreateBatchModal() {
       return;
     }
 
-    const orderanke = m * 10 + w;
+    const orderanke = 1000 + (m * 10 + w);
     const now = new Date();
     const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // Default 7 hari
 
-    // 1. Close all active windows first
+    // 1. Close only active DRUGS windows
     if (supabase) {
-      await supabase.from("order_windows").update({ is_active: false }).eq("is_active", true);
+      await supabase
+        .from("order_windows")
+        .update({ is_active: false })
+        .eq("is_active", true)
+        .gte("orderanke", 1000);
       
       // 2. Insert new one
       const { error } = await supabase.from("order_windows").insert({
@@ -3570,7 +3633,7 @@ async function openCreateBatchModal() {
       if (error) {
         showAlert("Gagal membuat batch: " + error.message, "error");
       } else {
-        showAlert(`Batch M${m}-W${w} berhasil dimulai!`, "success");
+        showAlert(`Batch Drugs M${m}-W${w} berhasil dimulai!`, "success");
         initDrugs(); // Refresh current display
       }
     }
@@ -3731,6 +3794,7 @@ async function loadDrugsTable() {
   let query = supabase
     .from("drugs_sales")
     .select("*")
+    .gte("periode_orderanke", 1000) // Hanya ambil data Drugs
     .order("waktu", { ascending: false });
 
   if (filter && filter.value === "current" && currentDrugsBatch) {
@@ -3754,9 +3818,8 @@ async function loadDrugsTable() {
   body.innerHTML = data.map(r => {
     let periodeStr = "";
     if (r.periode_orderanke) {
-      const m = Math.floor(r.periode_orderanke / 10);
-      const w = r.periode_orderanke % 10;
-      periodeStr = `<span class="block text-[10px] text-slate-500 uppercase">M${m}-W${w}</span>`;
+      const { isDrugs, m, w } = decodeOrderanke(r.periode_orderanke);
+      periodeStr = `<span class="block text-[10px] text-slate-500 uppercase">${isDrugs ? 'Drugs ' : ''}M${m}-W${w}</span>`;
     }
     
     return `
