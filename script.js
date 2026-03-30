@@ -3787,9 +3787,9 @@ async function submitDrugsData() {
 
   // Rumus:
   // Gaji Putih = (duit merah * 40%) * 63%
-  // Uang RAGE = (duit merah * 40%) * 37% (sisanya untuk RAGE)
+  // Uang RAGE = (duit merah * 60%) * 37% (sisanya untuk RAGE)
   const upahPutih = (duitMerah * 0.4) * 0.63;
-  const uangRage = (duitMerah * 0.4) * 0.37;
+  const uangRage = (duitMerah * 0.6) * 0.63;
 
   const { error } = await supabase.from("drugs_sales").insert({
     member_id: memberId || null,
@@ -3818,10 +3818,10 @@ async function submitDrugsData() {
         const ts = fmtDateTime(new Date().toISOString());
         let msg = "```";
         msg += `\nGaji Penjualan Drugs`;
-        msg += `\nPeriode   : ${periodeLabel}`;
+        msg += `\nPeriode   : ${periodeLabel}\n`;
         msg += `\nNama      : ${nama}`;
         msg += `\nDuit Merah: ${fmt(duitMerah)}`;
-        msg += `\nGaji Putih: ${fmt(upahPutih)}`;
+        msg += `\nGaji Putih: ${fmt(upahPutih)}\n`;
         // msg += `\nKasRAGE  : ${fmt(uangRage)}`;
         msg += `\nWaktu     : ${ts}`;
         msg += "\n```";
