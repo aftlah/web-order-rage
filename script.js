@@ -322,6 +322,7 @@ async function init() {
     !!document.getElementById("dashboardBody") ||
     !!document.getElementById("dashMonth");
   const isStoran = !!document.getElementById("storanSection");
+  const isDrugs = !!document.getElementById("drugsNama");
   if (isDashboard) {
     const ok = await guardDashboard();
     if (!ok) return;
@@ -354,6 +355,9 @@ async function init() {
   }
   if (isStoran) {
     initStoran();
+  }
+  if (isDrugs) {
+    initDrugs();
   }
   const nav = document.getElementById("mainNav");
   if (nav) {
@@ -3420,5 +3424,213 @@ window.deleteMember = async function(id, name) {
         showAlert("Gagal: Member masih ada di database. Cek permission/RLS.", "error");
     }
   }
+}
+
+// --- DRUGS SECTION ---
+let currentDrugsBatch = null;
+
+async function initDrugs() {
+  console.log("Initializing Drugs section...");
+  
+  // Get active batch
+  try {
+    const win = await fetchActiveOrderWindow(null);
+    if (win && win.orderanke) {
+      currentDrugsBatch = parseInt(win.orderanke, 10);
+      const display = document.getElementById("currentBatchDisplay");
+      if (display) {
+        const m = Math.floor(currentDrugsBatch / 10);
+        const w = currentDrugsBatch % 10;
+        display.textContent = `Batch M${m}-W${w} (#${currentDrugsBatch})`;
+      }
+    }
+  } catch (e) {
+    console.error("Gagal ambil periode drugs:", e);
+  }
+
+  setupDrugsNameSearch();
+  loadDrugsTable();
+
+  const duitMerahInput = document.getElementById("duitMerah");
+  const estimasiGajiEl = document.getElementById("estimasiGaji");
+  const submitBtn = document.getElementById("submitDrugs");
+  const refreshBtn = document.getElementById("refreshDrugs");
+  const batchFilter = document.getElementById("drugsBatchFilter");
+
+  if (duitMerahInput && estimasiGajiEl) {
+    duitMerahInput.addEventListener("input", () => {
+      const val = parseFloat(duitMerahInput.value) || 0;
+      // Rumus: (duit merah * 40%) * 63%
+      const gaji = (val * 0.4) * 0.63;
+      estimasiGajiEl.textContent = fmt(gaji);
+    });
+  }
+
+  if (submitBtn) {
+    submitBtn.addEventListener("click", submitDrugsData);
+  }
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => loadDrugsTable());
+  }
+
+  if (batchFilter) {
+    batchFilter.addEventListener("change", () => loadDrugsTable());
+  }
+}
+
+function setupDrugsNameSearch() {
+  const input = document.getElementById("drugsNama");
+  const dd = document.getElementById("drugsNamaDropdown");
+  const hidden = document.getElementById("drugsMemberId");
+  if (!input || !dd || !hidden) return;
+
+  let active = -1;
+  const render = (items) => {
+    dd.innerHTML = items
+      .map(
+        (r, i) =>
+          `<div class="px-4 py-2.5 cursor-pointer hover:bg-amber-500/20 border-b border-white/5 last:border-0 transition ${
+            i === active ? "bg-amber-500/30" : ""
+          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`
+      )
+      .join("");
+    dd.classList.toggle("hidden", items.length === 0);
+    
+    dd.querySelectorAll("[data-id]").forEach((el) =>
+      el.addEventListener("mousedown", (e) => {
+        input.value = e.currentTarget.getAttribute("data-name");
+        hidden.value = e.currentTarget.getAttribute("data-id");
+        dd.classList.add("hidden");
+      })
+    );
+  };
+
+  const run = debounce(async (term) => {
+    if (!supabase) return;
+    let q = supabase
+      .from("members")
+      .select("id,nama")
+      .order("nama", { ascending: true })
+      .limit(20);
+    
+    if (term) q = q.ilike("nama", `%${term}%`);
+    
+    const { data, error } = await q;
+    if (error) return;
+    active = -1;
+    render(data || []);
+  }, 200);
+
+  input.addEventListener("input", (e) => {
+    hidden.value = "";
+    run(e.target.value.trim());
+  });
+  input.addEventListener("focus", () => run(""));
+  input.addEventListener("click", () => run(input.value.trim()));
+  input.addEventListener("blur", () => setTimeout(() => dd.classList.add("hidden"), 200));
+}
+
+async function submitDrugsData() {
+  const memberId = document.getElementById("drugsMemberId").value;
+  const nama = document.getElementById("drugsNama").value.trim();
+  const duitMerah = parseFloat(document.getElementById("duitMerah").value) || 0;
+
+  if (!nama) {
+    showAlert("Pilih nama anggota terlebih dahulu", "error");
+    return;
+  }
+  if (duitMerah <= 0) {
+    showAlert("Masukkan jumlah uang merah yang valid", "error");
+    return;
+  }
+
+  if (!supabase) {
+    showAlert("Supabase tidak terhubung", "error");
+    return;
+  }
+
+  // Rumus:
+  // Gaji Putih = (duit merah * 40%) * 63%
+  // Uang RAGE = (duit merah * 40%) * 37% (sisanya untuk RAGE)
+  const upahPutih = (duitMerah * 0.4) * 0.63;
+  const uangRage = (duitMerah * 0.4) * 0.37;
+
+  const { error } = await supabase.from("drugs_sales").insert({
+    member_id: memberId || null,
+    nama: nama,
+    uang_merah: duitMerah,
+    upah_putih: upahPutih,
+    uang_rage: uangRage,
+    periode_orderanke: currentDrugsBatch,
+    waktu: new Date().toISOString()
+  });
+
+  if (error) {
+    console.error("Gagal simpan data drugs:", error);
+    showAlert("Gagal menyimpan data: " + error.message, "error");
+  } else {
+    showAlert("Data penjualan drugs berhasil disimpan", "success");
+    document.getElementById("drugsNama").value = "";
+    document.getElementById("drugsMemberId").value = "";
+    document.getElementById("duitMerah").value = "";
+    document.getElementById("estimasiGaji").textContent = "$ 0";
+    loadDrugsTable();
+  }
+}
+
+async function loadDrugsTable() {
+  if (!supabase) return;
+  const body = document.getElementById("drugsTableBody");
+  const empty = document.getElementById("drugsEmptyState");
+  const filter = document.getElementById("drugsBatchFilter");
+  if (!body) return;
+
+  body.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
+
+  let query = supabase
+    .from("drugs_sales")
+    .select("*")
+    .order("waktu", { ascending: false });
+
+  if (filter && filter.value === "current" && currentDrugsBatch) {
+    query = query.eq("periode_orderanke", currentDrugsBatch);
+  }
+
+  const { data, error } = await query.limit(50);
+
+  if (error) {
+    body.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    body.innerHTML = "";
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  empty.classList.add("hidden");
+  body.innerHTML = data.map(r => {
+    let periodeStr = "";
+    if (r.periode_orderanke) {
+      const m = Math.floor(r.periode_orderanke / 10);
+      const w = r.periode_orderanke % 10;
+      periodeStr = `<span class="block text-[10px] text-slate-500 uppercase">M${m}-W${w}</span>`;
+    }
+    
+    return `
+      <tr class="hover:bg-white/5 transition-colors">
+        <td class="px-4 py-3 font-medium text-amber-900 dark:text-amber-100">
+          ${r.nama}
+          ${periodeStr}
+        </td>
+        <td class="px-4 py-3">${fmt(r.uang_merah)}</td>
+        <td class="px-4 py-3 text-green-600 dark:text-green-400 font-semibold">${fmt(r.upah_putih)}</td>
+        <td class="px-4 py-3 text-blue-600 dark:text-blue-400">${fmt(r.uang_rage)}</td>
+        <td class="px-4 py-3 text-xs text-slate-400">${fmtDateTime(r.waktu)}</td>
+      </tr>
+    `;
+  }).join("");
 }
 

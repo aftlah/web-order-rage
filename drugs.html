@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>R.A.G.E - Drugs</title>
+    <link rel="icon" href="images/LOGO_RAGE.png" type="image/png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        font-family: "Poppins", sans-serif;
+      }
+      :root {
+        --bg-card: #ffffff;
+        --text-primary: #1a1410;
+        --border-color: #f3e8d8;
+        --rage-gold: #fbbf24;
+        --rage-black: #1f1410;
+      }
+      .dark {
+        --bg-card: #1f1410;
+        --text-primary: #fef3c7;
+        --border-color: #3d342d;
+      }
+      body {
+        background-image: url("/images/foto_rage1.png");
+        background-attachment: fixed;
+        background-size: cover;
+        background-position: center;
+        color: var(--text-primary);
+        min-height: 100vh;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        pointer-events: none;
+        z-index: 0;
+      }
+      .section-divider {
+        background: linear-gradient(to bottom, #f59e0b, #d97706);
+      }
+    </style>
+  </head>
+  <body>
+    <header
+      class="bg-white dark:bg-[#1f1410] border-b border-[#f3e8d8] dark:border-[#3d342d] shadow sticky top-0 z-50"
+    >
+      <div class="max-w-6xl mx-auto px-6 py-1">
+        <div class="flex items-center justify-between">
+          <div class="logo-container flex items-center gap-3">
+            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-14" />
+            <div>
+              <h1 class="text-xl font-extrabold tracking-tighter text-amber-900 dark:text-yellow-500 leading-none">R.A.G.E</h1>
+              <p class="text-[10px] font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-yellow-200/60 leading-none mt-1">Order System</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-6">
+            <nav id="mainNav" class="hidden md:flex gap-2">
+              <a href="index.html" class="px-3 py-2 rounded-lg border-2 border-transparent text-slate-600 dark:text-yellow-200/70 hover:bg-amber-50 dark:hover:bg-yellow-900/20 transition">Order</a>
+              <a href="dashboard.html" class="px-3 py-2 rounded-lg border-2 border-transparent text-slate-600 dark:text-yellow-200/70 hover:bg-amber-50 dark:hover:bg-yellow-900/20 transition">Dashboard</a>
+              <a href="storan.html" class="px-3 py-2 rounded-lg border-2 border-transparent text-slate-600 dark:text-yellow-200/70 hover:bg-amber-50 dark:hover:bg-yellow-900/20 transition">Storan</a>
+              <a href="drugs.html" class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 bg-amber-50/50 dark:bg-yellow-900/20 font-medium transition">Drugs</a>
+            </nav>
+            <div class="text-right hidden sm:block">
+              <p class="text-sm font-medium text-slate-700 dark:text-yellow-300">Today</p>
+              <p class="text-xs text-slate-500 dark:text-yellow-200/70" id="current-date"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-6 py-8 relative z-10">
+      <div class="bg-white/90 dark:bg-[#1f1410]/90 backdrop-blur-md border border-amber-200/70 dark:border-[#3d342d] rounded-2xl shadow-lg p-6 mb-8 flex flex-col gap-2">
+        <div class="flex items-center gap-3">
+          <span class="w-1.5 h-8 rounded-full section-divider"></span>
+          <h2 class="text-2xl font-bold text-amber-900 dark:text-amber-100">Pencatatan Gaji Drugs</h2>
+        </div>
+        <p class="text-sm text-slate-600 dark:text-amber-200/70 ml-[18px]">
+          Catat setoran duit merah dari penjualan Weed & Meth. Gaji otomatis dihitung dengan rumus: (Duit Merah × 40%) × 63%.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Form Section -->
+        <div class="lg:col-span-1">
+          <div class="bg-white dark:bg-[#1f1410] border border-amber-200/70 dark:border-[#3d342d] rounded-2xl shadow-sm p-6 flex flex-col gap-5 sticky top-24">
+            <h3 class="text-lg font-bold text-amber-900 dark:text-amber-100 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Tambah Data
+            </h3>
+            
+            <div class="flex flex-col gap-1.5 relative">
+              <label class="text-sm font-medium text-slate-700 dark:text-amber-100">Nama Anggota</label>
+              <input type="text" id="drugsNama" placeholder="Cari nama anggota..." class="w-full px-4 py-2.5 rounded-xl border border-amber-200/70 dark:border-[#3d342d] bg-white dark:bg-[#0a0805] text-slate-800 dark:text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition" />
+              <div id="drugsNamaDropdown" class="absolute left-0 right-0 top-full mt-1 bg-[#1f1410] border border-[#3d342d] rounded-xl shadow-2xl z-50 hidden max-h-60 overflow-y-auto text-amber-50"></div>
+              <input type="hidden" id="drugsMemberId" />
+            </div>
+
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-medium text-slate-700 dark:text-amber-100">Uang Merah (Total)</label>
+              <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                <input type="number" id="duitMerah" placeholder="0" class="w-full pl-8 pr-4 py-2.5 rounded-xl border border-amber-200/70 dark:border-[#3d342d] bg-white dark:bg-[#0a0805] text-slate-800 dark:text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition" />
+              </div>
+            </div>
+
+            <div class="p-4 rounded-xl bg-amber-50/50 dark:bg-yellow-900/10 border border-amber-100 dark:border-yellow-900/30">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-medium text-slate-500 dark:text-yellow-200/60 uppercase tracking-wider">Periode Aktif</span>
+              </div>
+              <p id="currentBatchDisplay" class="text-lg font-bold text-amber-900 dark:text-yellow-200">Loading...</p>
+            </div>
+
+            <div class="p-4 rounded-xl bg-amber-50/50 dark:bg-yellow-900/10 border border-amber-100 dark:border-yellow-900/30">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-xs font-medium text-slate-500 dark:text-yellow-200/60 uppercase tracking-wider">Estimasi Gaji (63% dari 40%)</span>
+              </div>
+              <p id="estimasiGaji" class="text-2xl font-bold text-amber-600 dark:text-yellow-500">$ 0</p>
+            </div>
+
+            <button id="submitDrugs" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 hover:-translate-y-0.5 transition active:translate-y-0 flex items-center justify-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              Simpan Data
+            </button>
+          </div>
+        </div>
+
+        <!-- Table Section -->
+        <div class="lg:col-span-2">
+          <div class="bg-white/95 dark:bg-[#1f1410]/95 border border-amber-200/70 dark:border-[#3d342d] rounded-2xl shadow-lg p-6">
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-lg font-bold text-amber-900 dark:text-amber-100 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+                Riwayat Penjualan
+              </h3>
+              <div class="flex items-center gap-3">
+                <select id="drugsBatchFilter" class="bg-white dark:bg-[#0a0805] border border-amber-200 dark:border-yellow-900/50 rounded-lg px-3 py-1.5 text-xs text-amber-900 dark:text-yellow-200 focus:outline-none transition">
+                  <option value="current">Batch Aktif</option>
+                  <option value="all">Semua Batch</option>
+                </select>
+                <button id="refreshDrugs" class="px-3 py-1.5 rounded-lg border border-amber-200 dark:border-yellow-900/50 text-xs font-medium text-amber-800 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20 transition">Refresh</button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-amber-100 dark:border-[#3d342d]">
+              <table class="w-full text-sm text-left">
+                <thead class="bg-amber-50 dark:bg-[#24140c] text-amber-900 dark:text-amber-100">
+                  <tr>
+                    <th class="px-4 py-3 font-semibold">Anggota</th>
+                    <th class="px-4 py-3 font-semibold">Uang Merah</th>
+                    <th class="px-4 py-3 font-semibold">Gaji (Putih)</th>
+                    <th class="px-4 py-3 font-semibold">Uang RAGE</th>
+                    <th class="px-4 py-3 font-semibold">Waktu</th>
+                  </tr>
+                </thead>
+                <tbody id="drugsTableBody" class="divide-y divide-amber-100 dark:divide-[#3d342d] text-slate-700 dark:text-amber-50/80">
+                  <!-- Data will be loaded here -->
+                </tbody>
+              </table>
+            </div>
+            <div id="drugsEmptyState" class="py-12 text-center hidden">
+              <p class="text-slate-400 dark:text-amber-200/40 text-sm italic">Belum ada data penjualan</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script type="module" src="script.js"></script>
+    <script>
+      // Update current date
+      const options = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
+      document.getElementById('current-date').textContent = new Date().toLocaleDateString('id-ID', options);
+    </script>
+  </body>
+</html>
