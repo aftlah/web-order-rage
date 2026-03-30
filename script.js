@@ -1538,27 +1538,42 @@ async function refreshItemTotals(orderanke) {
 async function updateOrderWindowUI() {
   await announceOpenedWindows();
   await expireOrderWindows();
-  const el = document.getElementById("orderWindowStatus");
+  const container = document.getElementById("orderWindowStatus");
+  const statusBox = document.getElementById("orderStatusBox");
   const detailEl = document.getElementById("orderWindowDetail");
+  
   const ok = await ensureOrderingOpen();
-  if (el) {
-    el.textContent = ok ? "Order sedang dibuka" : "Order ditutup";
-    el.classList.toggle("bg-red-600", !ok);
-    el.classList.toggle("bg-green-600", ok);
+  
+  if (container) {
+    container.classList.toggle("hidden", false); // Selalu tampilkan info
   }
+
+  if (statusBox) {
+    statusBox.textContent = ok ? "Order sedang dibuka" : "Order ditutup";
+    statusBox.classList.toggle("bg-red-600", !ok);
+    statusBox.classList.toggle("bg-green-600", ok);
+  }
+
   const win = await fetchActiveOrderWindow(null);
   const vNow = win && win.orderanke ? parseInt(win.orderanke, 10) : null;
   if (vNow) await refreshItemTotals(vNow);
+
   if (detailEl) {
     if (win) {
-      const v = parseInt(win.orderanke, 10);
-      const m = Math.floor(v / 10);
-      const w = v % 10;
-      const open = new Date(win.start_time).toLocaleString();
-      const close = new Date(win.end_time).toLocaleString();
-      detailEl.textContent = `Buka: ${open} • Tutup: ${close} • Periode: M${m}-W${w} (#${v})`;
+      const { m, w, raw } = decodeOrderanke(win.orderanke);
+      const options = { 
+        year: 'numeric', 
+        month: 'numeric', 
+        day: 'numeric', 
+        hour: 'numeric', 
+        minute: 'numeric', 
+        second: 'numeric', 
+        hour12: true 
+      };
+      const open = new Date(win.start_time).toLocaleString('en-US', options);
+      const close = new Date(win.end_time).toLocaleString('en-US', options);
+      detailEl.textContent = `Buka: ${open} • Tutup: ${close} • Periode: M${m}-W${w} (#${raw})`;
     } else {
-      const c = computeOrderNo();
       detailEl.textContent = `Tidak ada Periode Order Aktif`;
     }
   }
@@ -2496,6 +2511,18 @@ async function announceOpenedWindows() {
     if (__openAnnounceLock.has(String(r.id))) continue;
     __openAnnounceLock.add(String(r.id));
     const v = r.orderanke || null;
+    if (v && v >= 1000) {
+      // Skip Discord announcement for Drugs periods
+      set.add(String(r.id));
+      try {
+        await supabase
+          .from("order_windows")
+          .update({ announced_open: true })
+          .eq("id", r.id);
+      } catch (e) {}
+      __openAnnounceLock.delete(String(r.id));
+      continue;
+    }
     let label = "Periode";
     let typeStr = "Orderan";
     if (v) {
@@ -2564,6 +2591,18 @@ async function expireOrderWindows() {
     if (__closeAnnounceLock.has(String(r.id))) continue;
     __closeAnnounceLock.add(String(r.id));
     const v = r.orderanke || null;
+    if (v && v >= 1000) {
+      // Skip Discord announcement for Drugs periods
+      set.add(String(r.id));
+      try {
+        await supabase
+          .from("order_windows")
+          .update({ announced_close: true })
+          .eq("id", r.id);
+      } catch (e) {}
+      __closeAnnounceLock.delete(String(r.id));
+      continue;
+    }
     let label = "Periode";
     let typeStr = "Orderan";
     if (v) {
@@ -2594,16 +2633,11 @@ async function createOrderWindow() {
   const e = document.getElementById("winEnd");
   const wm = document.getElementById("winMonth");
   const ww = document.getElementById("winWeek");
-  const wt = document.getElementById("winType");
   if (!s || !e) return;
   const m = wm ? parseInt(wm.value, 10) : NaN;
   const w = ww ? parseInt(ww.value, 10) : NaN;
-  const type = wt ? wt.value : "order";
-  
-  let orderanke = !Number.isNaN(m) && !Number.isNaN(w) && m && w ? m * 10 + w : null;
-  if (orderanke !== null && type === "drugs") {
-    orderanke += 1000;
-  }
+  const orderanke =
+    !Number.isNaN(m) && !Number.isNaN(w) && m && w ? m * 10 + w : null;
 
   const row = {
     start_time: new Date(s.value).toISOString(),
@@ -2641,17 +2675,15 @@ async function createOrderWindow() {
 function renderOrderWindows(rows) {
   const body = document.getElementById("windowsTableBody");
   if (!body) return;
-  body.innerHTML = (rows || [])
+  const displayRows = (rows || []).filter(
+    (r) => !(parseInt((r || {}).orderanke || 0, 10) >= 1000)
+  );
+  body.innerHTML = displayRows
     .map((r) => {
       const val = r.orderanke || null;
-      let label = "-";
-      if (val) {
-        const isDrugs = val >= 1000;
-        const v = isDrugs ? val - 1000 : val;
-        const m = Math.floor(v / 10);
-        const w = v % 10;
-        label = `${isDrugs ? '[DRUGS] ' : ''}M${m}-W${w} (#${val})`;
-      }
+      const label = val
+        ? `M${Math.floor(val / 10)}-W${val % 10} (#${val})`
+        : "-";
       const now = Date.now();
       const st = !r.is_active
         ? "Nonaktif"
@@ -2674,7 +2706,7 @@ function renderOrderWindows(rows) {
   body.querySelectorAll("[data-edit-id]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-edit-id");
-      const row = (rows || []).find((x) => String(x.id) === String(id));
+      const row = displayRows.find((x) => String(x.id) === String(id));
       if (!row) return;
       startEditWindow(row);
     });
@@ -2701,21 +2733,17 @@ function startEditWindow(row) {
   const e = document.getElementById("winEnd");
   const wm = document.getElementById("winMonth");
   const ww = document.getElementById("winWeek");
-  const wt = document.getElementById("winType");
   const btn = document.getElementById("winCreateBtn");
   if (s) s.value = toLocalInput(row.start_time);
   if (e) e.value = toLocalInput(row.end_time);
   const val = row.orderanke || 0;
-  const isDrugs = val >= 1000;
-  if (wt) wt.value = isDrugs ? "drugs" : "order";
-  const v = isDrugs ? val - 1000 : val;
+  const v = val >= 1000 ? val - 1000 : val;
   const m = Math.floor(v / 10);
   const w = v % 10;
   if (wm) wm.value = m ? String(m) : "";
   if (ww) ww.value = w ? String(w) : "";
   window.__editingWindowId = row.id;
-  window.__editingWindowType = isDrugs ? "drugs" : "order";
-  if (btn) btn.textContent = `Update ${isDrugs ? 'Drugs' : 'Order'}`;
+  if (btn) btn.textContent = "Update";
 }
 async function deleteOrderWindow(id) {
   try {
@@ -3836,8 +3864,45 @@ async function loadDrugsTable() {
         <td class="px-4 py-3 text-green-600 dark:text-green-400 font-semibold">${fmt(r.upah_putih)}</td>
         <td class="px-4 py-3 text-blue-600 dark:text-blue-400">${fmt(r.uang_rage)}</td>
         <td class="px-4 py-3 text-xs text-slate-400">${fmtDateTime(r.waktu)}</td>
+        <td class="px-4 py-3 text-center">
+          <button class="px-3 py-1 rounded bg-red-700/20 text-red-400 border border-red-700/30 text-[10px] font-bold uppercase hover:bg-red-700/40 transition" data-del-drugs-id="${r.id}">
+            Hapus
+          </button>
+        </td>
       </tr>
     `;
   }).join("");
+
+  body.querySelectorAll("[data-del-drugs-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-del-drugs-id");
+      if (!id) return;
+
+      const result = await Swal.fire({
+        title: 'Hapus data ini?',
+        text: "Data gaji drugs akan dihapus permanen!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, hapus!',
+        cancelButtonText: 'Batal',
+        customClass: {
+          popup: 'rage-modal-popup',
+          title: 'rage-modal-title',
+          confirmButton: 'rage-modal-confirm !bg-red-600',
+          cancelButton: 'rage-modal-cancel'
+        }
+      });
+
+      if (result.isConfirmed) {
+        const { error } = await supabase.from("drugs_sales").delete().eq("id", id);
+        if (error) {
+          showAlert("Gagal menghapus: " + error.message, "error");
+        } else {
+          showAlert("Data berhasil dihapus", "success");
+          loadDrugsTable();
+        }
+      }
+    });
+  });
 }
 
