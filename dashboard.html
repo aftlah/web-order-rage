@@ -9,180 +9,8 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
-    <style>
-      * {
-        font-family: "Poppins", sans-serif;
-      }
-      :root {
-        --bg-main: linear-gradient(135deg, #fefdf2 0%, #fef3c7 100%);
-        --bg-card: #ffffff;
-        --text-primary: #1a1410;
-        --text-secondary: #78716c;
-        --border-color: #f3e8d8;
-        --input-bg: #fffbf0;
-        --accent-primary: #d97706;
-        --accent-secondary: #f59e0b;
-        --success-color: #b45309;
-        --rage-gold: #fbbf24;
-        --rage-black: #1f1410;
-      }
-      .dark {
-        --bg-main: linear-gradient(135deg, #0a0805 0%, #1a1410 100%);
-        --bg-card: #1f1410;
-        --text-primary: #fef3c7;
-        --text-secondary: #d4a574;
-        --border-color: #3d342d;
-        --input-bg: #0a0805;
-        --accent-primary: #f59e0b;
-        --accent-secondary: #fbbf24;
-        --success-color: #d97706;
-      }
-      body {
-        background-image: url("/images/foto_rage1.png");
-        background-attachment: fixed;
-        background-size: cover;
-        background-position: center;
-        color: var(--text-primary);
-        transition: color 0.3s ease;
-        min-height: 100vh;
-      }
-      body::before {
-        content: "";
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        pointer-events: none;
-        z-index: 0;
-      }
-      .card-shadow {
-        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-      }
-      .card-shadow:hover {
-        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12);
-        transform: translateY(-2px);
-      }
-      .btn-primary {
-        background: linear-gradient(
-          135deg,
-          var(--accent-primary) 0%,
-          var(--accent-secondary) 100%
-        );
-        color: var(--rage-black);
-        box-shadow: 0 4px 15px rgba(217, 119, 6, 0.3);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        font-weight: 600;
-      }
-      .btn-success {
-        background: linear-gradient(
-          135deg,
-          var(--success-color) 0%,
-          var(--accent-primary) 100%
-        );
-        color: white;
-        box-shadow: 0 4px 15px rgba(180, 83, 9, 0.3);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-      .table-row-hover {
-        transition: all 0.2s ease;
-        animation: slideIn 0.3s ease;
-      }
-      .table-row-hover:hover {
-        background-color: var(--input-bg);
-      }
-      @keyframes slideIn {
-        from {
-          opacity: 0;
-          transform: translateY(-10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      .header-bg {
-        background: var(--bg-card);
-        border-color: var(--border-color);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        position: relative;
-        z-index: 50;
-      }
-      .section-title {
-        color: var(--text-primary);
-      }
-      .section-divider {
-        background: linear-gradient(
-          to bottom,
-          var(--accent-primary),
-          var(--accent-secondary)
-        );
-      }
-      .brand-title {
-        display: flex;
-        flex-direction: column;
-      }
-      .brand-title h1 {
-        font-size: 24px;
-        font-weight: 800;
-        color: var(--rage-black);
-        letter-spacing: -0.5px;
-      }
-      .dark .brand-title h1 {
-        color: var(--rage-gold);
-      }
-      .brand-subtitle {
-        font-size: 11px;
-        color: #a89968;
-        font-weight: 500;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
-      }
-      .bg-white {
-        background-color: #1f1410 !important;
-      }
-      .border {
-        border-color: #3d342d !important;
-      }
-      .border-\[\#f3e8d8\] {
-        border-color: #3d342d !important;
-      }
-      .border-amber-300 {
-        border-color: #3d342d !important;
-      }
-      .border-slate-200 {
-        border-color: #3d342d !important;
-      }
-      .divide-slate-100 > * + * {
-        border-color: #3d342d !important;
-      }
-      .bg-white {
-        background-color: #1f1410 !important;
-      }
-      .border {
-        border-color: #3d342d !important;
-      }
-      .border-\[\#f3e8d8\] {
-        border-color: #3d342d !important;
-      }
-      .border-amber-300 {
-        border-color: #3d342d !important;
-      }
-      .border-slate-200 {
-        border-color: #3d342d !important;
-      }
-      .divide-slate-100 > * + * {
-        border-color: #3d342d !important;
-      }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
     <script>
       (function () {
         try {
@@ -218,42 +46,37 @@
     </script>
   </head>
   <body class="transition-colors duration-300">
-    <header
-      class="bg-white dark:bg-[#1f1410] border-b border-[#f3e8d8] dark:border-[#3d342d] shadow sticky top-0 z-50"
-    >
-      <div class="max-w-6xl mx-auto px-6 py-1">
+    <header class="shadow-xl sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-6 py-2">
         <div class="flex items-center justify-between">
-          <div class="logo-container flex items-center gap-3">
-            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-14" />
+          <div class="logo-container">
+            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-12" />
             <div class="brand-title">
-              <h1>R.A.G.E</h1>
-              <p class="brand-subtitle">Order System</p>
+              <h1 class="text-xl font-black">R.A.G.E</h1>
+              <p class="brand-subtitle text-[10px] uppercase font-bold tracking-wider">Order System</p>
             </div>
           </div>
-          <div class="flex items-center gap-6">
+          <div class="flex items-center gap-8">
             <!-- Desktop Nav -->
-            <nav id="mainNav" class="hidden md:flex gap-2">
-              <a
-                href="index.html"
-                class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20"
-                >Order</a
-              >
-              <a
-                href="dashboard.html"
-                class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20"
-                >Dashboard</a
-              >
-              <a
-                href="storan.html"
-                class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20"
-                >Storan</a
-              >
-              <a
-                href="drugs.html"
-                class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20"
-                >Drugs</a
-              >
+            <nav id="mainNav" class="hidden md:flex items-center gap-1">
+              <a href="index.html" class="nav-link">Order</a>
+              <a href="dashboard.html" class="nav-link nav-active">Dashboard</a>
+              <a href="storan.html" class="nav-link">Storan</a>
+              <a href="drugs.html" class="nav-link">Drugs</a>
             </nav>
+            
+            <button id="logoutBtn" class="btn-logout hidden md:block">
+              Logout
+            </button>
+
+            <div class="text-right hidden sm:block border-l border-[#2d1b14] pl-6">
+              <p class="today-label">Today</p>
+              <p class="today-date" id="current-date"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
             <button
               id="logoutBtn"
               class="hidden md:block px-3 py-2 rounded-lg bg-gradient-to-r from-red-600 to-orange-600 text-white"
