@@ -3787,7 +3787,7 @@ async function submitDrugsData() {
 
   // Rumus:
   // Gaji Putih = (duit merah * 40%) * 63%
-  // Uang RAGE = (duit merah * 60%) * 37% (sisanya untuk RAGE)
+  // Uang RAGE = (duit merah * 60%) * 63% (sisanya untuk RAGE)
   const upahPutih = (duitMerah * 0.4) * 0.63;
   const uangRage = (duitMerah * 0.6) * 0.63;
 
