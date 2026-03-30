@@ -1438,22 +1438,26 @@ function computeOrderNo(d = new Date()) {
 }
 
 async function setOrderNoUI() {
-  const display = document.getElementById("orderNo");
+  const display = document.getElementById("orderNoUI");
   const hidden = document.getElementById("orderankeHidden");
   let value, label;
   const win = supabase ? await fetchActiveOrderWindow(null) : null;
   if (win && win.orderanke) {
-    const v = parseInt(win.orderanke, 10);
-    const m = Math.floor(v / 10);
-    const w = v % 10;
-    value = v;
+    const { m, w, raw } = decodeOrderanke(win.orderanke);
+    value = raw;
     label = `M${m}-W${w}`;
   } else {
     const c = computeOrderNo();
     value = c.value;
     label = c.label;
   }
-  if (display) display.value = `${label} (#${value})`;
+  if (display) {
+    if (display.tagName === "INPUT") {
+      display.value = `${label} (#${value})`;
+    } else {
+      display.textContent = `${label} (#${value})`;
+    }
+  }
   if (hidden) hidden.value = String(value);
 }
 
