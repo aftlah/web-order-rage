@@ -3569,6 +3569,7 @@ async function initDrugs() {
   const refreshBtn = document.getElementById("refreshDrugs");
   const batchFilter = document.getElementById("drugsBatchFilter");
   const addBatchBtn = document.getElementById("addBatchBtn");
+  const sendTotalsBtn = document.getElementById("sendDrugsTotals");
 
   if (duitMerahInput && estimasiGajiEl) {
     duitMerahInput.addEventListener("input", () => {
@@ -3593,6 +3594,9 @@ async function initDrugs() {
 
   if (addBatchBtn) {
     addBatchBtn.addEventListener("click", openCreateBatchModal);
+  }
+  if (sendTotalsBtn) {
+    sendTotalsBtn.addEventListener("click", sendDrugsTotalsToDiscord);
   }
 }
 
@@ -3767,7 +3771,8 @@ function updateDrugsNameValidity() {
 }
 
 async function submitDrugsData() {
-  const memberId = document.getElementById("drugsMemberId").value;
+  const memberIdRaw = document.getElementById("drugsMemberId").value;
+  const memberId = parseInt(memberIdRaw || "", 10);
   const nama = document.getElementById("drugsNama").value.trim();
   const duitMerah = parseFloat(document.getElementById("duitMerah").value) || 0;
 
@@ -3775,8 +3780,16 @@ async function submitDrugsData() {
     showAlert("Pilih nama anggota terlebih dahulu", "error");
     return;
   }
+  if (Number.isNaN(memberId) || !memberId) {
+    showAlert("Pilih nama dari database terlebih dahulu", "error");
+    return;
+  }
   if (duitMerah <= 0) {
     showAlert("Masukkan jumlah uang merah yang valid", "error");
+    return;
+  }
+  if (!currentDrugsBatch) {
+    showAlert("Tidak ada batch drugs aktif", "error");
     return;
   }
 
@@ -3791,53 +3804,199 @@ async function submitDrugsData() {
   const upahPutih = (duitMerah * 0.4) * 0.63;
   const uangRage = (duitMerah * 0.6) * 0.63;
 
-  const { error } = await supabase.from("drugs_sales").insert({
-    member_id: memberId || null,
-    nama: nama,
-    uang_merah: duitMerah,
-    upah_putih: upahPutih,
-    uang_rage: uangRage,
-    periode_orderanke: currentDrugsBatch,
-    waktu: new Date().toISOString()
+  const nowIso = new Date().toISOString();
+  let existing = null;
+  try {
+    const { data: exData } = await supabase
+      .from("drugs_sales")
+      .select("id,uang_merah,upah_putih,uang_rage,waktu")
+      .eq("periode_orderanke", currentDrugsBatch)
+      .eq("member_id", memberId)
+      .order("waktu", { ascending: false })
+      .limit(1);
+    existing = (exData || [])[0] || null;
+  } catch (e) {}
+
+  if (existing && existing.id) {
+    const nextUangMerah = (parseFloat(existing.uang_merah) || 0) + duitMerah;
+    const nextUpahPutih = (parseFloat(existing.upah_putih) || 0) + upahPutih;
+    const nextUangRage = (parseFloat(existing.uang_rage) || 0) + uangRage;
+    const { error } = await supabase
+      .from("drugs_sales")
+      .update({
+        uang_merah: nextUangMerah,
+        upah_putih: nextUpahPutih,
+        uang_rage: nextUangRage,
+        waktu: nowIso,
+      })
+      .eq("id", existing.id);
+    if (error) {
+      console.error("Gagal update data drugs:", error);
+      showAlert("Gagal menyimpan data: " + error.message, "error");
+      return;
+    }
+    showAlert("Data ditambahkan ke total batch (nama sama)", "success");
+    await sendDrugsEntryToDiscord({
+      nama,
+      periode_orderanke: currentDrugsBatch,
+      duitMerahDelta: duitMerah,
+      upahPutihDelta: upahPutih,
+      uangRageDelta: uangRage,
+      duitMerahTotal: nextUangMerah,
+      upahPutihTotal: nextUpahPutih,
+      uangRageTotal: nextUangRage,
+      waktu: nowIso,
+      mode: "update",
+    });
+  } else {
+    const { error } = await supabase.from("drugs_sales").insert({
+      member_id: memberId,
+      nama: nama,
+      uang_merah: duitMerah,
+      upah_putih: upahPutih,
+      uang_rage: uangRage,
+      periode_orderanke: currentDrugsBatch,
+      waktu: nowIso,
+    });
+    if (error) {
+      console.error("Gagal simpan data drugs:", error);
+      showAlert("Gagal menyimpan data: " + error.message, "error");
+      return;
+    }
+    showAlert("Data penjualan drugs berhasil disimpan", "success");
+    await sendDrugsEntryToDiscord({
+      nama,
+      periode_orderanke: currentDrugsBatch,
+      duitMerahDelta: duitMerah,
+      upahPutihDelta: upahPutih,
+      uangRageDelta: uangRage,
+      duitMerahTotal: duitMerah,
+      upahPutihTotal: upahPutih,
+      uangRageTotal: uangRage,
+      waktu: nowIso,
+      mode: "insert",
+    });
+  }
+
+  document.getElementById("drugsNama").value = "";
+  document.getElementById("drugsMemberId").value = "";
+  document.getElementById("duitMerah").value = "";
+  document.getElementById("estimasiGaji").textContent = "$ 0";
+  loadDrugsTable();
+}
+
+async function sendDrugsEntryToDiscord(payload) {
+  const hook =
+    (window && window.DISCORD_DRUGS_WEBHOOK_URL) ||
+    (window && window.DISCORD_WEBHOOK_URL) ||
+    "";
+  if (!hook) return;
+
+  try {
+    const periode =
+      payload && payload.periode_orderanke
+        ? decodeOrderanke(parseInt(payload.periode_orderanke, 10))
+        : null;
+    const periodeLabel = periode
+      ? `M${periode.m}-W${periode.w} (#${periode.raw})`
+      : "-";
+    const ts = fmtDateTime(
+      payload && payload.waktu ? payload.waktu : new Date().toISOString()
+    );
+
+    let msg = "```";
+    msg += "\nGaji Penjualan Drugs";
+    msg += `\nPeriode   : ${periodeLabel}\n`;
+    msg += `\nNama      : ${payload.nama || "-"}`;
+    msg += `\nDuit Merah: ${fmt(payload.duitMerahTotal || 0)}`;
+    msg += `\nGaji Putih: ${fmt(payload.upahPutihTotal || 0)}\n`;
+    msg += `\nWaktu     : ${ts}`;
+    msg += "\n```";
+
+    await postToDiscord(msg, hook);
+  } catch (e) {
+    showAlert("Data tersimpan, tapi gagal kirim ke Discord", "warning");
+  }
+}
+
+async function sendDrugsTotalsToDiscord() {
+  const hook = (window && window.DISCORD_DRUGS_WEBHOOK_URL) || "";
+  if (!hook) {
+    showAlert("DISCORD_DRUGS_WEBHOOK_URL belum diisi", "error");
+    return;
+  }
+  if (!supabase) {
+    showAlert("Supabase tidak terhubung", "error");
+    return;
+  }
+  if (!currentDrugsBatch) {
+    showAlert("Tidak ada batch drugs aktif", "error");
+    return;
+  }
+
+  const confirm = await Swal.fire({
+    title: "Kirim total gaji batch ini?",
+    text: "Ini akan mengirim rangkuman total per nama untuk batch aktif.",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonText: "Kirim",
+    cancelButtonText: "Batal",
+    customClass: {
+      popup: "rage-modal-popup",
+      title: "rage-modal-title",
+      confirmButton: "rage-modal-confirm",
+      cancelButton: "rage-modal-cancel",
+    },
+  });
+  if (!confirm.isConfirmed) return;
+
+  const { data, error } = await supabase
+    .from("drugs_sales")
+    .select("*")
+    .eq("periode_orderanke", currentDrugsBatch)
+    .order("nama", { ascending: true });
+  if (error) {
+    showAlert("Gagal memuat data: " + error.message, "error");
+    return;
+  }
+
+  const map = new Map();
+  (data || []).forEach((r) => {
+    const key = String(r.member_id || r.nama || "-");
+    const prev = map.get(key) || {
+      nama: r.nama || "-",
+      uang_merah: 0,
+      upah_putih: 0,
+      uang_rage: 0,
+      waktu: null,
+    };
+    prev.uang_merah += parseFloat(r.uang_merah) || 0;
+    prev.upah_putih += parseFloat(r.upah_putih) || 0;
+    prev.uang_rage += parseFloat(r.uang_rage) || 0;
+    if (!prev.waktu || new Date(r.waktu).getTime() > new Date(prev.waktu).getTime()) {
+      prev.waktu = r.waktu;
+    }
+    map.set(key, prev);
   });
 
-  if (error) {
-    console.error("Gagal simpan data drugs:", error);
-    showAlert("Gagal menyimpan data: " + error.message, "error");
-  } else {
-    const hook = (window && window.DISCORD_DRUGS_WEBHOOK_URL) || "";
-    if (hook) {
-      try {
-        const periode =
-          currentDrugsBatch && Number.isFinite(Number(currentDrugsBatch))
-            ? decodeOrderanke(parseInt(currentDrugsBatch, 10))
-            : null;
-        const periodeLabel = periode
-          ? `M${periode.m}-W${periode.w} (#${periode.raw})`
-          : "-";
-        const ts = fmtDateTime(new Date().toISOString());
-        let msg = "```";
-        msg += `\nGaji Penjualan Drugs`;
-        msg += `\nPeriode   : ${periodeLabel}\n`;
-        msg += `\nNama      : ${nama}`;
-        msg += `\nDuit Merah: ${fmt(duitMerah)}`;
-        msg += `\nGaji Putih: ${fmt(upahPutih)}\n`;
-        // msg += `\nKasRAGE  : ${fmt(uangRage)}`;
-        msg += `\nWaktu     : ${ts}`;
-        msg += "\n```";
-        await postToDiscord(msg, hook);
-        showAlert("Data drugs tersimpan & terkirim ke Discord", "success");
-      } catch (e) {
-        showAlert("Data tersimpan, tapi gagal kirim ke Discord", "warning");
-      }
-    } else {
-      showAlert("Data penjualan drugs berhasil disimpan", "success");
-    }
-    document.getElementById("drugsNama").value = "";
-    document.getElementById("drugsMemberId").value = "";
-    document.getElementById("duitMerah").value = "";
-    document.getElementById("estimasiGaji").textContent = "$ 0";
-    loadDrugsTable();
+  const periode = decodeOrderanke(parseInt(currentDrugsBatch, 10));
+  let msg = "```";
+  msg += "\nTotal Gaji Drugs (Batch Aktif)";
+  msg += `\nPeriode : M${periode.m}-W${periode.w} (#${periode.raw})\n`;
+  Array.from(map.values())
+    .sort((a, b) => String(a.nama).localeCompare(String(b.nama)))
+    .forEach((r) => {
+      msg += `\nNama  : ${r.nama}`;
+      msg += `\nTanggal: ${fmtDateTime(r.waktu || new Date().toISOString())}`;
+      msg += `\nGaji  : ${fmt(r.upah_putih)}\n`;
+    });
+  msg += "\n```";
+
+  try {
+    await postToDiscord(msg, hook);
+    showAlert("Total batch terkirim ke Discord", "success");
+  } catch (e) {
+    showAlert("Gagal mengirim ke Discord", "error");
   }
 }
 
@@ -3874,14 +4033,42 @@ async function loadDrugsTable() {
   }
 
   empty.classList.add("hidden");
-  body.innerHTML = data.map(r => {
-    let periodeStr = "";
-    if (r.periode_orderanke) {
-      const { isDrugs, m, w } = decodeOrderanke(r.periode_orderanke);
-      periodeStr = `<span class="block text-[10px] text-slate-500 uppercase">${isDrugs ? 'Drugs ' : ''}M${m}-W${w}</span>`;
+  const grouped = new Map();
+  (data || []).forEach((r) => {
+    const key = `${r.member_id || r.nama || "-"}|${r.periode_orderanke || ""}`;
+    const prev = grouped.get(key) || {
+      ids: [],
+      member_id: r.member_id || null,
+      nama: r.nama || "-",
+      periode_orderanke: r.periode_orderanke || null,
+      uang_merah: 0,
+      upah_putih: 0,
+      uang_rage: 0,
+      waktu: null,
+    };
+    prev.ids.push(r.id);
+    prev.uang_merah += parseFloat(r.uang_merah) || 0;
+    prev.upah_putih += parseFloat(r.upah_putih) || 0;
+    prev.uang_rage += parseFloat(r.uang_rage) || 0;
+    if (!prev.waktu || new Date(r.waktu).getTime() > new Date(prev.waktu).getTime()) {
+      prev.waktu = r.waktu;
     }
-    
-    return `
+    grouped.set(key, prev);
+  });
+
+  const rows = Array.from(grouped.values()).sort(
+    (a, b) => new Date(b.waktu || 0).getTime() - new Date(a.waktu || 0).getTime()
+  );
+
+  body.innerHTML = rows
+    .map((r) => {
+      let periodeStr = "";
+      if (r.periode_orderanke) {
+        const { m, w } = decodeOrderanke(r.periode_orderanke);
+        periodeStr = `<span class="block text-[10px] text-slate-500 uppercase">M${m}-W${w}</span>`;
+      }
+      const ids = (r.ids || []).filter(Boolean).map(String).join(",");
+      return `
       <tr class="hover:bg-white/5 transition-colors">
         <td class="px-4 py-3 font-medium text-amber-900 dark:text-amber-100">
           ${r.nama}
@@ -3892,18 +4079,23 @@ async function loadDrugsTable() {
         <td class="px-4 py-3 text-blue-600 dark:text-blue-400">${fmt(r.uang_rage)}</td>
         <td class="px-4 py-3 text-xs text-slate-400">${fmtDateTime(r.waktu)}</td>
         <td class="px-4 py-3 text-center">
-          <button class="px-3 py-1 rounded bg-red-700/20 text-red-400 border border-red-700/30 text-[10px] font-bold uppercase hover:bg-red-700/40 transition" data-del-drugs-id="${r.id}">
+          <button class="px-3 py-1 rounded bg-red-700/20 text-red-400 border border-red-700/30 text-[10px] font-bold uppercase hover:bg-red-700/40 transition" data-del-drugs-ids="${ids}">
             Hapus
           </button>
         </td>
       </tr>
     `;
-  }).join("");
+    })
+    .join("");
 
-  body.querySelectorAll("[data-del-drugs-id]").forEach((btn) => {
+  body.querySelectorAll("[data-del-drugs-ids]").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      const id = btn.getAttribute("data-del-drugs-id");
-      if (!id) return;
+      const raw = btn.getAttribute("data-del-drugs-ids") || "";
+      const ids = raw
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      if (!ids.length) return;
 
       const result = await Swal.fire({
         title: 'Hapus data ini?',
@@ -3921,7 +4113,7 @@ async function loadDrugsTable() {
       });
 
       if (result.isConfirmed) {
-        const { error } = await supabase.from("drugs_sales").delete().eq("id", id);
+        const { error } = await supabase.from("drugs_sales").delete().in("id", ids);
         if (error) {
           showAlert("Gagal menghapus: " + error.message, "error");
         } else {
