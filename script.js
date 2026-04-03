@@ -3575,8 +3575,7 @@ async function initDrugs() {
   if (duitMerahInput && estimasiGajiEl) {
     duitMerahInput.addEventListener("input", () => {
       const val = parseFloat(duitMerahInput.value) || 0;
-      // Rumus: (duit merah * 40%) * 63%
-      const gaji = (val * 0.4) * 0.63;
+      const gaji = (val * 0.40) * 0.65;
       estimasiGajiEl.textContent = fmt(gaji);
     });
   }
@@ -4006,10 +4005,10 @@ async function submitDrugsData() {
   }
 
   // Rumus:
-  // Gaji Putih = (duit merah * 40%) * 63%
-  // Uang RAGE = (duit merah * 60%) * 63% (sisanya untuk RAGE)
-  const upahPutih = (duitMerah * 0.4) * 0.63;
-  const uangRage = (duitMerah * 0.6) * 0.63;
+  // Gaji Putih = (duit merah * 35%) * 65%
+  // Uang RAGE = (duit merah * 65%) * 65%
+  const upahPutih = (duitMerah * 0.40) * 0.65;
+  const uangRage = (duitMerah * 0.60) * 0.65;
 
   const nowIso = new Date().toISOString();
   let existing = null;
