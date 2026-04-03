@@ -517,11 +517,6 @@ async function addToCart() {
   const qtyInput = document.getElementById("qty");
   const qty = parseInt(qtyInput ? qtyInput.value : "1", 10) || 1;
   if (!itemName || !kategori || qty < 1) return;
-
-  if (qty < 2) {
-    showAlert("Order tidak boleh hanya 1", "error");
-    return;
-  }
   
   const nItem = itemName.toUpperCase();
   const isLeo = nama.toLowerCase() === "leo";
@@ -1154,6 +1149,11 @@ async function submitOrder() {
   if (state.cart.length === 0) {
     //  statusEl.textContent = "Keranjang kosong";
     showAlert("Keranjang kosong", "error");
+    return;
+  }
+  const totalQty = (state.cart || []).reduce((a, c) => a + (c.qty || 0), 0);
+  if (totalQty < 2) {
+    showAlert("Jumlah total item minimal 2", "error");
     return;
   }
   //   statusEl.textContent = "Menyimpan...";
