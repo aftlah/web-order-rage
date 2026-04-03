@@ -118,7 +118,10 @@
             <div class="p-4 rounded-xl bg-amber-50/50 dark:bg-yellow-900/10 border border-amber-100 dark:border-yellow-900/30 shadow-inner">
               <div class="flex justify-between items-center mb-2">
                 <span class="text-xs font-bold text-slate-500 dark:text-yellow-200/60 uppercase tracking-wider">Periode Aktif</span>
-                <button id="addBatchBtn" class="text-[10px] font-extrabold text-amber-600 dark:text-yellow-500 hover:text-amber-700 dark:hover:text-yellow-400 transition-colors uppercase">Mulai Batch Baru</button>
+                <div class="flex items-center gap-2">
+                  <button id="setActiveBatchBtn" class="text-[10px] font-extrabold text-amber-600 dark:text-yellow-500 hover:text-amber-700 dark:hover:text-yellow-400 transition-colors uppercase">Atur Periode</button>
+                  <button id="addBatchBtn" class="text-[10px] font-extrabold text-amber-600 dark:text-yellow-500 hover:text-amber-700 dark:hover:text-yellow-400 transition-colors uppercase">Mulai Batch Baru</button>
+                </div>
               </div>
               <p id="currentBatchDisplay" class="text-lg font-bold text-amber-900 dark:text-yellow-200">Loading...</p>
             </div>

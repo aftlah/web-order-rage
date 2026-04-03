@@ -3570,6 +3570,7 @@ async function initDrugs() {
   const batchFilter = document.getElementById("drugsBatchFilter");
   const addBatchBtn = document.getElementById("addBatchBtn");
   const sendTotalsBtn = document.getElementById("sendDrugsTotals");
+  const setActiveBatchBtn = document.getElementById("setActiveBatchBtn");
 
   if (duitMerahInput && estimasiGajiEl) {
     duitMerahInput.addEventListener("input", () => {
@@ -3598,6 +3599,212 @@ async function initDrugs() {
   if (sendTotalsBtn) {
     sendTotalsBtn.addEventListener("click", sendDrugsTotalsToDiscord);
   }
+  if (setActiveBatchBtn) {
+    setActiveBatchBtn.addEventListener("click", openSelectActiveDrugsBatchModal);
+  }
+}
+
+async function openSelectActiveDrugsBatchModal() {
+  if (!supabase) {
+    showAlert("Supabase tidak terhubung", "error");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("order_windows")
+    .select("id,orderanke,start_time,end_time,is_active")
+    .gte("orderanke", 1000)
+    .order("start_time", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    showAlert("Gagal memuat periode drugs: " + error.message, "error");
+    return;
+  }
+
+  const rows = (data || []).filter((r) => r && r.id && r.orderanke);
+  if (!rows.length) {
+    showAlert("Belum ada periode drugs", "error");
+    return;
+  }
+
+  const inputOptions = {};
+  rows.forEach((r) => {
+    const { m, w, raw } = decodeOrderanke(parseInt(r.orderanke, 10));
+    const active = r.is_active ? " (aktif)" : "";
+    inputOptions[String(r.id)] = `M${m}-W${w} (#${raw})${active}`;
+  });
+
+  const current = rows.find((r) => parseInt(r.orderanke || 0, 10) === parseInt(currentDrugsBatch || 0, 10));
+  const res = await Swal.fire({
+    title: "Atur Periode Aktif Drugs",
+    input: "select",
+    inputOptions,
+    inputValue: current ? String(current.id) : String(rows[0].id),
+    showCancelButton: true,
+    confirmButtonText: "Aktifkan",
+    showDenyButton: true,
+    denyButtonText: "Hapus",
+    cancelButtonText: "Batal",
+    customClass: {
+      popup: "rage-modal-popup",
+      title: "rage-modal-title",
+      confirmButton: "rage-modal-confirm",
+      denyButton: "rage-modal-confirm !bg-red-600",
+      cancelButton: "rage-modal-cancel",
+      input: "rage-modal-input",
+    },
+    inputValidator: (v) => (!v ? "Pilih periode" : undefined),
+    preConfirm: () => {
+      const el = Swal.getInput();
+      return el ? el.value : "";
+    },
+    preDeny: () => {
+      const el = Swal.getInput();
+      return el ? el.value : "";
+    },
+  });
+
+  const pickedId = res.value;
+  if (!pickedId) return;
+
+  const picked = rows.find((r) => String(r.id) === String(pickedId));
+  if (!picked) {
+    showAlert("Periode tidak ditemukan", "error");
+    return;
+  }
+
+  if (res.isDenied) {
+    const confirm = await Swal.fire({
+      title: "Hapus periode drugs ini?",
+      text: "Data periode dan semua pencatatan drugs di periode ini akan dihapus permanen.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Lanjut",
+      cancelButtonText: "Batal",
+      customClass: {
+        popup: "rage-modal-popup",
+        title: "rage-modal-title",
+        confirmButton: "rage-modal-confirm !bg-red-600",
+        cancelButton: "rage-modal-cancel",
+      },
+    });
+    if (!confirm.isConfirmed) return;
+
+    const pin = (window && window.ADMIN_DELETE_PIN) || "";
+    let ok = true;
+    if (pin) {
+      const { value: typed } = await Swal.fire({
+        title: "Masukkan PIN delete",
+        input: "password",
+        inputLabel: "PIN diperlukan",
+        inputPlaceholder: "Masukkan PIN",
+        showCancelButton: true,
+        confirmButtonText: "Konfirmasi",
+        cancelButtonText: "Batal",
+        customClass: {
+          popup: "rage-modal-popup",
+          title: "rage-modal-title",
+          confirmButton: "rage-modal-confirm !bg-red-600",
+          cancelButton: "rage-modal-cancel",
+          input: "rage-modal-input",
+        },
+      });
+      ok = !!typed && typed === pin;
+    } else {
+      const { value: typed } = await Swal.fire({
+        title: "Ketik DELETE untuk konfirmasi",
+        input: "text",
+        inputPlaceholder: "DELETE",
+        showCancelButton: true,
+        confirmButtonText: "Konfirmasi",
+        cancelButtonText: "Batal",
+        customClass: {
+          popup: "rage-modal-popup",
+          title: "rage-modal-title",
+          confirmButton: "rage-modal-confirm !bg-red-600",
+          cancelButton: "rage-modal-cancel",
+          input: "rage-modal-input",
+        },
+      });
+      ok = (typed || "").toUpperCase() === "DELETE";
+    }
+    if (!ok) {
+      showAlert("Konfirmasi hapus tidak valid", "error");
+      return;
+    }
+
+    const periodeOrderanke = parseInt(picked.orderanke || 0, 10);
+    if (periodeOrderanke) {
+      const { error: delSalesErr } = await supabase
+        .from("drugs_sales")
+        .delete()
+        .eq("periode_orderanke", periodeOrderanke);
+      if (delSalesErr) {
+        showAlert("Gagal menghapus data drugs: " + delSalesErr.message, "error");
+        return;
+      }
+    }
+
+    const { error: delWinErr } = await supabase
+      .from("order_windows")
+      .delete()
+      .eq("id", picked.id);
+    if (delWinErr) {
+      showAlert("Gagal menghapus periode: " + delWinErr.message, "error");
+      return;
+    }
+
+    if (parseInt(currentDrugsBatch || 0, 10) === periodeOrderanke) {
+      currentDrugsBatch = null;
+      const display = document.getElementById("currentBatchDisplay");
+      if (display) display.textContent = "Tidak ada batch aktif";
+    }
+
+    showAlert("Periode drugs berhasil dihapus", "success");
+    loadDrugsTable();
+    return;
+  }
+
+  const now = new Date();
+  const startOld = new Date(picked.start_time);
+  const endOld = new Date(picked.end_time);
+  const startNew = startOld.getTime() > now.getTime() ? now : startOld;
+  const endNew =
+    endOld.getTime() < now.getTime()
+      ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+      : endOld;
+
+  await supabase
+    .from("order_windows")
+    .update({ is_active: false })
+    .eq("is_active", true)
+    .gte("orderanke", 1000);
+
+  const { error: upErr } = await supabase
+    .from("order_windows")
+    .update({
+      is_active: true,
+      start_time: startNew.toISOString(),
+      end_time: endNew.toISOString(),
+    })
+    .eq("id", picked.id);
+
+  if (upErr) {
+    showAlert("Gagal mengaktifkan periode: " + upErr.message, "error");
+    return;
+  }
+
+  currentDrugsBatch = parseInt(picked.orderanke, 10);
+  const display = document.getElementById("currentBatchDisplay");
+  if (display) {
+    const { m, w, raw } = decodeOrderanke(currentDrugsBatch);
+    display.textContent = `Batch Drugs M${m}-W${w} (#${raw})`;
+  }
+  const filter = document.getElementById("drugsBatchFilter");
+  if (filter) filter.value = "current";
+  showAlert("Periode drugs aktif berhasil diubah", "success");
+  loadDrugsTable();
 }
 
 async function openCreateBatchModal() {
