@@ -285,6 +285,12 @@ function fmt(n) {
     currency: "USD",
   }).format(n);
 }
+
+function fmtNumber(n) {
+  const v = typeof n === "number" ? n : parseFloat(n || "0");
+  const safe = Number.isFinite(v) ? v : 0;
+  return new Intl.NumberFormat("en-US").format(safe);
+}
 async function getSession() {
   const { data } = await supabase.auth.getSession();
   return data ? data.session : null;
@@ -3538,6 +3544,7 @@ window.deleteMember = async function(id, name) {
 
 // --- DRUGS SECTION ---
 let currentDrugsBatch = null;
+let drugsSalesHasJenisJumlah = null;
 
 async function initDrugs() {
   console.log("Initializing Drugs section...");
@@ -3561,6 +3568,7 @@ async function initDrugs() {
 
   setupDrugsNameSearch();
   updateDrugsNameValidity();
+  await checkDrugsSalesJenisJumlahSchema();
   loadDrugsTable();
 
   const duitMerahInput = document.getElementById("duitMerah");
@@ -3575,7 +3583,7 @@ async function initDrugs() {
   if (duitMerahInput && estimasiGajiEl) {
     duitMerahInput.addEventListener("input", () => {
       const val = parseFloat(duitMerahInput.value) || 0;
-      const gaji = (val * 0.40) * 0.65;
+      const gaji = (val * 0.35) * 0.65;
       estimasiGajiEl.textContent = fmt(gaji);
     });
   }
@@ -3601,6 +3609,25 @@ async function initDrugs() {
   if (setActiveBatchBtn) {
     setActiveBatchBtn.addEventListener("click", openSelectActiveDrugsBatchModal);
   }
+}
+
+async function checkDrugsSalesJenisJumlahSchema() {
+  if (drugsSalesHasJenisJumlah !== null) return drugsSalesHasJenisJumlah;
+  if (!supabase) {
+    drugsSalesHasJenisJumlah = false;
+    return drugsSalesHasJenisJumlah;
+  }
+  const { error } = await supabase.from("drugs_sales").select("jenis,jumlah").limit(1);
+  if (error && String(error.message || "").toLowerCase().includes("column")) {
+    drugsSalesHasJenisJumlah = false;
+    showAlert(
+      "Kolom 'jenis' & 'jumlah' belum ada di database (drugs_sales). Tambahkan dulu di Supabase supaya tampil di riwayat.",
+      "warning"
+    );
+    return drugsSalesHasJenisJumlah;
+  }
+  drugsSalesHasJenisJumlah = true;
+  return drugsSalesHasJenisJumlah;
 }
 
 async function openSelectActiveDrugsBatchModal() {
@@ -3981,6 +4008,8 @@ async function submitDrugsData() {
   const memberId = parseInt(memberIdRaw || "", 10);
   const nama = document.getElementById("drugsNama").value.trim();
   const duitMerah = parseFloat(document.getElementById("duitMerah").value) || 0;
+  const jenis = (document.getElementById("drugsJenis") || {}).value || "";
+  const jumlah = parseInt((document.getElementById("drugsJumlah") || {}).value || "0", 10) || 0;
 
   if (!nama) {
     showAlert("Pilih nama anggota terlebih dahulu", "error");
@@ -3988,6 +4017,14 @@ async function submitDrugsData() {
   }
   if (Number.isNaN(memberId) || !memberId) {
     showAlert("Pilih nama dari database terlebih dahulu", "error");
+    return;
+  }
+  if (!jenis) {
+    showAlert("Pilih jenis jualan (Weed/Meth)", "error");
+    return;
+  }
+  if (jumlah <= 0) {
+    showAlert("Masukkan jumlah terjual yang valid", "error");
     return;
   }
   if (duitMerah <= 0) {
@@ -4004,38 +4041,69 @@ async function submitDrugsData() {
     return;
   }
 
+  await checkDrugsSalesJenisJumlahSchema();
+
   // Rumus:
   // Gaji Putih = (duit merah * 35%) * 65%
   // Uang RAGE = (duit merah * 65%) * 65%
-  const upahPutih = (duitMerah * 0.40) * 0.65;
-  const uangRage = (duitMerah * 0.60) * 0.65;
+  const upahPutih = (duitMerah * 0.35) * 0.65;
+  const uangRage = (duitMerah * 0.65) * 0.65;
 
   const nowIso = new Date().toISOString();
   let existing = null;
   try {
-    const { data: exData } = await supabase
+    const { data: exData, error: exErr } = await supabase
       .from("drugs_sales")
-      .select("id,uang_merah,upah_putih,uang_rage,waktu")
+      .select("id,uang_merah,upah_putih,uang_rage,waktu,jenis,jumlah")
       .eq("periode_orderanke", currentDrugsBatch)
       .eq("member_id", memberId)
+      .eq("jenis", jenis)
       .order("waktu", { ascending: false })
       .limit(1);
-    existing = (exData || [])[0] || null;
+    if (exErr && String(exErr.message || "").toLowerCase().includes("column")) {
+      const { data: exData2 } = await supabase
+        .from("drugs_sales")
+        .select("id,uang_merah,upah_putih,uang_rage,waktu")
+        .eq("periode_orderanke", currentDrugsBatch)
+        .eq("member_id", memberId)
+        .order("waktu", { ascending: false })
+        .limit(1);
+      existing = (exData2 || [])[0] || null;
+    } else {
+      existing = (exData || [])[0] || null;
+    }
   } catch (e) {}
 
   if (existing && existing.id) {
     const nextUangMerah = (parseFloat(existing.uang_merah) || 0) + duitMerah;
     const nextUpahPutih = (parseFloat(existing.upah_putih) || 0) + upahPutih;
     const nextUangRage = (parseFloat(existing.uang_rage) || 0) + uangRage;
-    const { error } = await supabase
+    const nextJumlah = (parseFloat(existing.jumlah) || 0) + jumlah;
+    let updatePayload = {
+      uang_merah: nextUangMerah,
+      upah_putih: nextUpahPutih,
+      uang_rage: nextUangRage,
+      waktu: nowIso,
+      jumlah: nextJumlah,
+      jenis,
+    };
+    let { error } = await supabase
       .from("drugs_sales")
-      .update({
+      .update(updatePayload)
+      .eq("id", existing.id);
+    if (error && String(error.message || "").toLowerCase().includes("column")) {
+      updatePayload = {
         uang_merah: nextUangMerah,
         upah_putih: nextUpahPutih,
         uang_rage: nextUangRage,
         waktu: nowIso,
-      })
-      .eq("id", existing.id);
+      };
+      const res2 = await supabase
+        .from("drugs_sales")
+        .update(updatePayload)
+        .eq("id", existing.id);
+      error = res2.error || null;
+    }
     if (error) {
       console.error("Gagal update data drugs:", error);
       showAlert("Gagal menyimpan data: " + error.message, "error");
@@ -4045,6 +4113,8 @@ async function submitDrugsData() {
     await sendDrugsEntryToDiscord({
       nama,
       periode_orderanke: currentDrugsBatch,
+      jenis,
+      jumlahTotal: nextJumlah,
       duitMerahDelta: duitMerah,
       upahPutihDelta: upahPutih,
       uangRageDelta: uangRage,
@@ -4055,7 +4125,7 @@ async function submitDrugsData() {
       mode: "update",
     });
   } else {
-    const { error } = await supabase.from("drugs_sales").insert({
+    let insertPayload = {
       member_id: memberId,
       nama: nama,
       uang_merah: duitMerah,
@@ -4063,7 +4133,23 @@ async function submitDrugsData() {
       uang_rage: uangRage,
       periode_orderanke: currentDrugsBatch,
       waktu: nowIso,
-    });
+      jenis,
+      jumlah,
+    };
+    let { error } = await supabase.from("drugs_sales").insert(insertPayload);
+    if (error && String(error.message || "").toLowerCase().includes("column")) {
+      insertPayload = {
+        member_id: memberId,
+        nama: nama,
+        uang_merah: duitMerah,
+        upah_putih: upahPutih,
+        uang_rage: uangRage,
+        periode_orderanke: currentDrugsBatch,
+        waktu: nowIso,
+      };
+      const res2 = await supabase.from("drugs_sales").insert(insertPayload);
+      error = res2.error || null;
+    }
     if (error) {
       console.error("Gagal simpan data drugs:", error);
       showAlert("Gagal menyimpan data: " + error.message, "error");
@@ -4073,6 +4159,8 @@ async function submitDrugsData() {
     await sendDrugsEntryToDiscord({
       nama,
       periode_orderanke: currentDrugsBatch,
+      jenis,
+      jumlahTotal: jumlah,
       duitMerahDelta: duitMerah,
       upahPutihDelta: upahPutih,
       uangRageDelta: uangRage,
@@ -4086,6 +4174,9 @@ async function submitDrugsData() {
 
   document.getElementById("drugsNama").value = "";
   document.getElementById("drugsMemberId").value = "";
+  const jenisEl = document.getElementById("drugsJenis");
+  if (jenisEl) jenisEl.value = "Weed";
+  document.getElementById("drugsJumlah").value = "";
   document.getElementById("duitMerah").value = "";
   document.getElementById("estimasiGaji").textContent = "$ 0";
   loadDrugsTable();
@@ -4114,6 +4205,8 @@ async function sendDrugsEntryToDiscord(payload) {
     msg += "\nGaji Penjualan Drugs";
     msg += `\nPeriode   : ${periodeLabel}\n`;
     msg += `\nNama      : ${payload.nama || "-"}`;
+    if (payload.jenis) msg += `\nJenis     : ${payload.jenis}`;
+    if (payload.jumlahTotal != null) msg += `\nJumlah    : ${fmtNumber(payload.jumlahTotal)}`;
     msg += `\nDuit Merah: ${fmt(payload.duitMerahTotal || 0)}`;
     msg += `\nGaji Putih: ${fmt(payload.upahPutihTotal || 0)}\n`;
     msg += `\nWaktu     : ${ts}`;
@@ -4213,7 +4306,7 @@ async function loadDrugsTable() {
   const filter = document.getElementById("drugsBatchFilter");
   if (!body) return;
 
-  body.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
+  body.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
 
   let query = supabase
     .from("drugs_sales")
@@ -4228,7 +4321,7 @@ async function loadDrugsTable() {
   const { data, error } = await query.limit(50);
 
   if (error) {
-    body.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
     return;
   }
 
@@ -4241,18 +4334,21 @@ async function loadDrugsTable() {
   empty.classList.add("hidden");
   const grouped = new Map();
   (data || []).forEach((r) => {
-    const key = `${r.member_id || r.nama || "-"}|${r.periode_orderanke || ""}`;
+    const key = `${r.member_id || r.nama || "-"}|${r.periode_orderanke || ""}|${r.jenis || ""}`;
     const prev = grouped.get(key) || {
       ids: [],
       member_id: r.member_id || null,
       nama: r.nama || "-",
       periode_orderanke: r.periode_orderanke || null,
+      jenis: r.jenis || "",
+      jumlah: 0,
       uang_merah: 0,
       upah_putih: 0,
       uang_rage: 0,
       waktu: null,
     };
     prev.ids.push(r.id);
+    prev.jumlah += parseFloat(r.jumlah) || 0;
     prev.uang_merah += parseFloat(r.uang_merah) || 0;
     prev.upah_putih += parseFloat(r.upah_putih) || 0;
     prev.uang_rage += parseFloat(r.uang_rage) || 0;
@@ -4280,6 +4376,8 @@ async function loadDrugsTable() {
           ${r.nama}
           ${periodeStr}
         </td>
+        <td class="px-4 py-3">${r.jenis || "-"}</td>
+        <td class="px-4 py-3">${r.jumlah ? fmtNumber(r.jumlah) : "-"}</td>
         <td class="px-4 py-3">${fmt(r.uang_merah)}</td>
         <td class="px-4 py-3 text-green-600 dark:text-green-400 font-semibold">${fmt(r.upah_putih)}</td>
         <td class="px-4 py-3 text-blue-600 dark:text-blue-400">${fmt(r.uang_rage)}</td>
