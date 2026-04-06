@@ -12,18 +12,6 @@ const CATALOG = {
     { name: "MINI SMG", price: 30000 },
     { name: "MICRO SMG", price: 30000 },
     { name: "SMG", price: 40000 },
-    {
-      name: "SMG Full Attachment",
-      price: 65000,
-    },
-    {
-      name: "MICRO SMG Full Attachment",
-      price: 50000,
-    },
-    {
-      name: "CERAMIC PISTOL Full Attachment",
-      price: 43000,
-    },
     { name: "SHOTGUN", price: 65000 }, // to BOA
     { name: "NAVY REVOLVER", price: 72000 }, // to BOA
     { name: "PISTOL X17", price: 33000 }, // to BOA
@@ -103,9 +91,6 @@ const ITEM_MAX_LIMITS = {
   "Rifle Drum": 20,
   "Macro Scope": 20,
   "Medium Scope": 20,
-  "SMG Full Attachment": 20,
-  "MICRO SMG Full Attachment": 30,
-  "CERAMIC PISTOL Full Attachment": 30,
 };
 
 function getItemMax(name) {
@@ -441,16 +426,13 @@ function getRolePermissions(role) {
     "PISTOL .50",
     "CERAMIC PISTOL",
     "TECH 9",
-    "CERAMIC PISTOL Full Attachment",
   ];
   const BASE_AMMO = ["AMMO .50", "AMMO 9MM"];
   const BASE_ATTACHMENTS = CATALOG.Attachment.map(i => i.name);
   const HANGAROUND_ADDITIONS = [
     "MINI SMG",
     "MICRO SMG",
-    "MICRO SMG Full Attachment",
     "SMG",
-    "SMG Full Attachment",
     "PISTOL X17",
   ];
   const HANGAROUND_AMMO = ["AMMO .45"];
@@ -1823,7 +1805,6 @@ const GROUP_ORDER = [
   "ORDER KE ALLSTAR",
   "ORDER KE BOA",
   "ORDER KE BURGENK",
-  "ORDER KE GHO GANG",
   "ORDER KE PP",
   "LAINNYA",
 ];
@@ -1870,16 +1851,6 @@ const GROUP_ITEMS = {
     "Medium Scope",
   ],
 
-  "ORDER KE GHO GANG": [
-    "SMG",
-    "SMG Full Attachment",
-    "MICRO SMG Full Attachment",
-    "CERAMIC PISTOL Full Attachment",
-    "SMG & ATTACHMENT (SUPPRESOR + SMG DRUM)",
-    "MICRO SMG & ATTACHMENT (TACTICAL SUPRESSOR + EXTENDED SMG CLIP)",
-    "CERAMIC PISTOL & ATTACHMENT (TACTICAL SUPRESSOR + EXTENDED PISTOL CLIP)",
-  ],
-
   "ORDER KE PP": [
     "PISTOL KACANG",
     "PISTOL .50",
@@ -1887,6 +1858,7 @@ const GROUP_ITEMS = {
     "TECH 9",
     "MINI SMG",
     "MICRO SMG",
+    "SMG",
     "AMMO 9MM",
     "AMMO .50",
     "VEST MEDIUM",
@@ -3116,7 +3088,6 @@ async function shareDashboardToDiscord() {
     "ORDER KE ALLSTAR": 0,
     "ORDER KE BOA": 0,
     "ORDER KE BURGENK": 0,
-    "ORDER KE GHO GANG": 0,
     "ORDER KE PP": 0,
     "LAINNYA": 0,
   };
@@ -3212,7 +3183,6 @@ async function shareDashboardToDiscord() {
     "ORDER KE ALLSTAR",
     "ORDER KE BOA",
     "ORDER KE BURGENK",
-    "ORDER KE GHO GANG",
     "ORDER KE PP",
     "LAINNYA",
   ];
