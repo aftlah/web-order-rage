@@ -67,7 +67,7 @@ const ITEM_MAX_LIMITS = {
   "PISTOL X17": 25,
   "SMG": 20,
   "SHOTGUN": 15,
-  "NAVY REVOLVER": 25,
+  "NAVY REVOLVER": 25,      
   "KVR": 25,
   "BLACK REVOLVER": 15,
   "AMMO .45": 300,
@@ -465,12 +465,7 @@ function getRolePermissions(role) {
   
   if (R === "Hoodlum") {
     return {
-      allowed: new Set(norm([
-        ...BASE_GUNS, ...BASE_AMMO, ...BASE_ATTACHMENTS,
-        ...HANGAROUND_ADDITIONS, ...HANGAROUND_AMMO,
-        ...HOODLUM_ADDITIONS, ...HOODLUM_AMMO,
-        "VEST MEDIUM", "VEST", "LOCKPICK"
-      ])),
+      allowed: "ALL",
       vestType: "BOTH",
       vestLimit: 5
     };
