@@ -3435,54 +3435,59 @@ window.updateMemberRole = async function(id, newRole) {
 }
 
 window.deleteMember = async function(id, name) {
-  // 0. Check session
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    showAlert("Harus login untuk menghapus member", "error");
-    return;
-  }
+  try {
+    // 0. Check session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      showAlert("Harus login untuk menghapus member", "error");
+      return;
+    }
 
-  const memberId = parseInt(String(id || ""), 10);
-  if (Number.isNaN(memberId) || !memberId) {
-    showAlert("ID member tidak valid", "error");
-    return;
-  }
+    const memberId = parseInt(String(id || ""), 10);
+    if (Number.isNaN(memberId) || !memberId) {
+      showAlert("ID member tidak valid", "error");
+      return;
+    }
 
-  const [
-    { count: orderCount, error: orderCountErr },
-    { count: storanCount, error: storanCountErr },
-    { count: drugsCount, error: drugsCountErr },
-  ] = await Promise.all([
-    supabase
-      .from("orders")
-      .select("*", { count: "exact", head: true })
-      .eq("member_id", memberId),
-    supabase
-      .from("storan_logs")
-      .select("*", { count: "exact", head: true })
-      .eq("member_id", memberId),
-    supabase
-      .from("drugs_sales")
-      .select("*", { count: "exact", head: true })
-      .eq("member_id", memberId),
-  ]);
+    const [
+      { count: orderCount, error: orderCountErr },
+      { count: storanCount, error: storanCountErr },
+      { count: drugsCount, error: drugsCountErr },
+    ] = await Promise.all([
+      supabase
+        .from("orders")
+        .select("*", { count: "exact", head: true })
+        .eq("member_id", memberId),
+      supabase
+        .from("storan_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("member_id", memberId),
+      supabase
+        .from("drugs_sales")
+        .select("*", { count: "exact", head: true })
+        .eq("member_id", memberId),
+    ]);
 
-  if (orderCountErr || storanCountErr || drugsCountErr) {
-    showAlert("Gagal cek data member (permission/RLS)", "error");
-    return;
-  }
-    
-  let confirmMsg = `Yakin ingin menghapus member "${name}"?`;
-  const parts = [];
-  if (count > 0) parts.push(`${count} history order`);
-  if ((storanCount || 0) > 0) parts.push(`${storanCount} log storan`);
-  if ((drugsCount || 0) > 0) parts.push(`${drugsCount} data drugs`);
-  if (parts.length) {
-    confirmMsg =
-      `Member "${name}" memiliki:\n` +
-      parts.map((p) => `- ${p}`).join("\n") +
-      `\n\nMenghapus member ini akan MENGHAPUS SEMUA data tersebut.\n\nApakah Anda yakin ingin melanjutkan?`;
-  }
+    if (orderCountErr || storanCountErr || drugsCountErr) {
+      showAlert("Gagal cek data member (permission/RLS)", "error");
+      return;
+    }
+
+    const orderCountSafe = orderCount || 0;
+    const storanCountSafe = storanCount || 0;
+    const drugsCountSafe = drugsCount || 0;
+      
+    let confirmMsg = `Yakin ingin menghapus member "${name}"?`;
+    const parts = [];
+    if (orderCountSafe > 0) parts.push(`${orderCountSafe} history order`);
+    if (storanCountSafe > 0) parts.push(`${storanCountSafe} log storan`);
+    if (drugsCountSafe > 0) parts.push(`${drugsCountSafe} data drugs`);
+    if (parts.length) {
+      confirmMsg =
+        `Member "${name}" memiliki:\n` +
+        parts.map((p) => `- ${p}`).join("\n") +
+        `\n\nMenghapus member ini akan MENGHAPUS SEMUA data tersebut.\n\nApakah Anda yakin ingin melanjutkan?`;
+    }
 
   const result = await Swal.fire({
       title: 'Konfirmasi Hapus',
@@ -3499,60 +3504,80 @@ window.deleteMember = async function(id, name) {
   
   if (!result.isConfirmed) return;
   
-  const deletions = [
-    { table: "orders", label: "history order" },
-    { table: "storan_logs", label: "log storan" },
-    { table: "drugs_sales", label: "data drugs" },
-  ];
-  for (const d of deletions) {
-    const { error: delErr } = await supabase
-      .from(d.table)
-      .delete()
-      .eq("member_id", memberId);
-    if (delErr) {
-      showAlert(`Gagal menghapus ${d.label}: ` + delErr.message, "error");
-      return;
+    const deletions = [
+      { table: "orders", label: "history order" },
+      { table: "storan_logs", label: "log storan" },
+      { table: "drugs_sales", label: "data drugs" },
+    ];
+    for (const d of deletions) {
+      const { error: delErr } = await supabase
+        .from(d.table)
+        .delete()
+        .eq("member_id", memberId);
+      if (delErr) {
+        showAlert(`Gagal menghapus ${d.label}: ` + delErr.message, "error");
+        return;
+      }
+      const { count: remain, error: remainErr } = await supabase
+        .from(d.table)
+        .select("*", { count: "exact", head: true })
+        .eq("member_id", memberId);
+      if (remainErr) {
+        showAlert(`Gagal verifikasi hapus ${d.label} (permission/RLS)`, "error");
+        return;
+      }
+      if ((remain || 0) > 0) {
+        let extra = "";
+        try {
+          const { data: sample } = await supabase
+            .from(d.table)
+            .select("id,waktu,nama,penerima")
+            .eq("member_id", memberId)
+            .order("waktu", { ascending: false })
+            .limit(1);
+          const s = (sample || [])[0] || null;
+          if (s && s.id) {
+            const w = s.waktu ? fmtDateTime(s.waktu) : "";
+            const n = s.nama ? String(s.nama) : "";
+            extra = ` (contoh row id: ${s.id}${n ? `, nama: ${n}` : ""}${
+              w ? `, waktu: ${w}` : ""
+            })`;
+          }
+        } catch (e) {}
+        showAlert(
+          `Tidak bisa menghapus ${d.label} (sisa ${remain}). Cek RLS/policy atau hapus manual di Supabase${extra}.`,
+          "error"
+        );
+        return;
+      }
     }
-    const { count: remain, error: remainErr } = await supabase
-      .from(d.table)
-      .select("*", { count: "exact", head: true })
-      .eq("member_id", memberId);
-    if (remainErr) {
-      showAlert(`Gagal verifikasi hapus ${d.label} (permission/RLS)`, "error");
-      return;
-    }
-    if ((remain || 0) > 0) {
-      showAlert(
-        `Tidak bisa menghapus ${d.label} (sisa ${remain}). Cek RLS/policy atau hapus manual di Supabase.`,
-        "error"
-      );
-      return;
-    }
-  }
-  
-  // 3. Delete member
-  const { error } = await supabase
-    .from("members")
-    .delete()
-    .eq("id", memberId);
-
-  if (error) {
-    showAlert("Gagal menghapus member dari database: " + error.message, "error");
-  } else {
-    // 4. Double check deletion
-    const { count: checkCount } = await supabase
+    
+    // 3. Delete member
+    const { error } = await supabase
       .from("members")
-      .select("*", { count: 'exact', head: true })
-      .eq("id", id);
-      
-    if (checkCount === 0) {
-        showAlert("Member dan datanya berhasil dihapus permanen.", "success");
-        loadMemberListInModal();
-        updateDashNameSuggestions();
-        loadDashboard(true);
+      .delete()
+      .eq("id", memberId);
+
+    if (error) {
+      showAlert("Gagal menghapus member dari database: " + error.message, "error");
     } else {
-        showAlert("Gagal: Member masih ada di database. Cek permission/RLS.", "error");
+      // 4. Double check deletion
+      const { count: checkCount } = await supabase
+        .from("members")
+        .select("*", { count: 'exact', head: true })
+        .eq("id", memberId);
+        
+      if (checkCount === 0) {
+          showAlert("Member dan datanya berhasil dihapus permanen.", "success");
+          loadMemberListInModal();
+          updateDashNameSuggestions();
+          loadDashboard(true);
+      } else {
+          showAlert("Gagal: Member masih ada di database. Cek permission/RLS.", "error");
+      }
     }
+  } catch (e) {
+    showAlert("Gagal menjalankan hapus member (runtime error)", "error");
   }
 }
 
