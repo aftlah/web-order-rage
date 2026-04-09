@@ -3442,15 +3442,36 @@ window.deleteMember = async function(id, name) {
     return;
   }
 
-  // 1. Check for existing orders
-  const { count, error: countErr } = await supabase
-    .from("orders")
-    .select("*", { count: 'exact', head: true })
-    .eq("member_id", id);
+  const [{ count: orderCount }, { count: storanCount }, { count: drugsCount }] =
+    await Promise.all([
+      supabase
+        .from("orders")
+        .select("*", { count: "exact", head: true })
+        .eq("member_id", id),
+      supabase
+        .from("storan_logs")
+        .select("*", { count: "exact", head: true })
+        .eq("member_id", id),
+      supabase
+        .from("drugs_sales")
+        .select("*", { count: "exact", head: true })
+        .eq("member_id", id),
+    ]);
+
+  const count = orderCount || 0;
+
+  const countErr = null;
     
   let confirmMsg = `Yakin ingin menghapus member "${name}"?`;
-  if (count && count > 0) {
-    confirmMsg = `Member "${name}" memiliki ${count} history order.\n\nMenghapus member ini akan MENGHAPUS SEMUA history ordernya.\n\nApakah Anda yakin ingin melanjutkan?`;
+  const parts = [];
+  if (count > 0) parts.push(`${count} history order`);
+  if ((storanCount || 0) > 0) parts.push(`${storanCount} log storan`);
+  if ((drugsCount || 0) > 0) parts.push(`${drugsCount} data drugs`);
+  if (parts.length) {
+    confirmMsg =
+      `Member "${name}" memiliki:\n` +
+      parts.map((p) => `- ${p}`).join("\n") +
+      `\n\nMenghapus member ini akan MENGHAPUS SEMUA data tersebut.\n\nApakah Anda yakin ingin melanjutkan?`;
   }
 
   const result = await Swal.fire({
@@ -3468,15 +3489,18 @@ window.deleteMember = async function(id, name) {
   
   if (!result.isConfirmed) return;
   
-  // 2. Delete orders if any
-  if (count && count > 0) {
-    const { error: delOrderErr } = await supabase
-      .from("orders")
+  const deletions = [
+    { table: "orders", label: "history order" },
+    { table: "storan_logs", label: "log storan" },
+    { table: "drugs_sales", label: "data drugs" },
+  ];
+  for (const d of deletions) {
+    const { error: delErr } = await supabase
+      .from(d.table)
       .delete()
       .eq("member_id", id);
-      
-    if (delOrderErr) {
-      showAlert("Gagal menghapus history order: " + delOrderErr.message, "error");
+    if (delErr) {
+      showAlert(`Gagal menghapus ${d.label}: ` + delErr.message, "error");
       return;
     }
   }
