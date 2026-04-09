@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>R.A.G.E - Kas</title>
+    <link rel="icon" href="images/LOGO_RAGE.png" type="image/png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="antialiased">
+    <header class="shadow-xl sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-6 py-2">
+        <div class="flex items-center justify-between">
+          <div class="logo-container">
+            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-12" />
+            <div class="brand-title">
+              <h1 class="text-xl font-black">R.A.G.E</h1>
+              <p class="brand-subtitle text-[10px] uppercase font-bold tracking-wider">Order System</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-8">
+            <nav id="mainNav" class="hidden md:flex items-center gap-1">
+              <a href="index.html" class="nav-link">Order</a>
+              <a href="dashboard.html" class="nav-link">Dashboard</a>
+              <a href="storan.html" class="nav-link">Storan</a>
+              <a href="drugs.html" class="nav-link">Drugs</a>
+              <a href="kas.html" class="nav-link nav-active">Kas</a>
+            </nav>
+            <button id="logoutBtn" class="btn-logout hidden md:block">Logout</button>
+            <div class="text-right hidden sm:block border-l border-[#2d1b14] pl-6">
+              <p class="today-label">Today</p>
+              <p class="today-date" id="current-date"></p>
+            </div>
+            <button id="mobileMenuBtn" class="md:hidden" onclick="toggleMobileMenu()">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="mobileMenu" class="mobile-menu absolute top-full left-0 w-full hidden flex flex-col z-50">
+        <div class="flex flex-col p-4 gap-1">
+          <a href="index.html" class="mobile-nav-link">Order</a>
+          <a href="dashboard.html" class="mobile-nav-link">Dashboard</a>
+          <a href="storan.html" class="mobile-nav-link">Storan</a>
+          <a href="drugs.html" class="mobile-nav-link">Drugs</a>
+          <a href="kas.html" class="mobile-nav-link mobile-nav-active">Kas</a>
+          <hr class="border-[#2d1b14] my-2" />
+          <button id="mobileLogoutBtn" class="mobile-nav-link text-red-500">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto p-4 sm:p-6 flex flex-col gap-6 relative z-10">
+      <div class="rounded-2xl bg-white/90 dark:bg-[#1f1410]/90 backdrop-blur-md border border-amber-100 dark:border-[#3d342d] shadow-2xl p-6 sm:p-8">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-1.5 h-6 bg-amber-500 rounded-full"></div>
+          <h2 class="text-xl sm:text-2xl font-black text-amber-700 dark:text-yellow-400">Kas R.A.G.E</h2>
+        </div>
+        <p class="text-sm text-slate-600 dark:text-amber-200/70 ml-[18px]">
+          Catat pemasukan dan pengeluaran kas. Setiap transaksi akan dikirim ke Discord.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="rounded-2xl bg-white/90 dark:bg-[#1f1410]/90 backdrop-blur-md border border-amber-100 dark:border-[#3d342d] shadow-2xl p-6">
+          <div class="flex items-center justify-between mb-5">
+            <h3 class="text-lg font-extrabold text-amber-900 dark:text-amber-100">Tambah Transaksi</h3>
+            <div class="text-right">
+              <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-amber-200/60">Saldo (Dari Riwayat)</div>
+              <div id="rageCashBalance" class="text-xl font-black text-amber-700 dark:text-yellow-400 font-mono">$ 0</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-semibold text-slate-700 dark:text-amber-100">Tipe</label>
+              <select id="rageCashType" class="w-full px-4 py-2.5 rounded-xl border border-amber-200/70 dark:border-[#3d342d] bg-white dark:bg-[#0a0805] text-slate-800 dark:text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-all">
+                <option value="IN">Pemasukan</option>
+                <option value="OUT">Pengeluaran</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-sm font-semibold text-slate-700 dark:text-amber-100">Nominal</label>
+              <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                <input id="rageCashAmount" type="number" min="0" placeholder="0" class="w-full pl-8 pr-4 py-2.5 rounded-xl border border-amber-200/70 dark:border-[#3d342d] bg-white dark:bg-[#0a0805] text-slate-800 dark:text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-all font-mono" />
+              </div>
+            </div>
+            <div class="flex flex-col gap-1.5 md:col-span-2">
+              <label class="text-sm font-semibold text-slate-700 dark:text-amber-100">Kategori</label>
+              <select id="rageCashCategory" class="w-full px-4 py-2.5 rounded-xl border border-amber-200/70 dark:border-[#3d342d] bg-white dark:bg-[#0a0805] text-slate-800 dark:text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-all">
+                <option value="">Pilih kategori</option>
+                <option value="Operasional">Operasional</option>
+                <option value="Event">Event</option>
+                <option value="Senjata">Senjata</option>
+                <option value="Drugs">Drugs</option>
+                <option value="Storan">Storan</option>
+                <option value="Lainnya">Lainnya</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1.5 md:col-span-2">
+              <label class="text-sm font-semibold text-slate-700 dark:text-amber-100">Catatan</label>
+              <textarea id="rageCashNote" rows="3" placeholder="Keterangan tambahan..." class="w-full px-4 py-2.5 rounded-xl border border-amber-200/70 dark:border-[#3d342d] bg-white dark:bg-[#0a0805] text-slate-800 dark:text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-all"></textarea>
+            </div>
+            <div class="flex flex-col gap-1.5 md:col-span-2">
+              <label class="text-sm font-semibold text-slate-700 dark:text-amber-100">Waktu</label>
+              <input id="rageCashTime" type="datetime-local" class="w-full px-4 py-2.5 rounded-xl border border-amber-200/70 dark:border-[#3d342d] bg-white dark:bg-[#0a0805] text-slate-800 dark:text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40 transition-all font-mono" />
+            </div>
+          </div>
+
+          <button id="rageCashSubmit" class="w-full mt-5 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40 hover:-translate-y-0.5 transition active:translate-y-0">
+            Simpan & Kirim
+          </button>
+        </div>
+
+        <div class="rounded-2xl bg-white/90 dark:bg-[#1f1410]/90 backdrop-blur-md border border-amber-100 dark:border-[#3d342d] shadow-2xl p-6">
+          <div class="flex items-center justify-between mb-5">
+            <h3 class="text-lg font-extrabold text-amber-900 dark:text-amber-100">Riwayat Transaksi</h3>
+            <button id="rageCashRefresh" class="px-4 py-2 rounded-lg border border-amber-200 dark:border-yellow-900/50 text-xs font-bold text-amber-800 dark:text-yellow-200 hover:bg-amber-50 dark:hover:bg-yellow-900/20 transition-all">
+              Refresh
+            </button>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-amber-100 dark:border-[#3d342d] shadow-sm">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-amber-50 dark:bg-[#24140c] text-amber-900 dark:text-amber-100 border-b border-amber-100 dark:border-[#3d342d]">
+                <tr>
+                  <th class="px-4 py-4 font-bold uppercase text-[10px] tracking-wider">Waktu</th>
+                  <th class="px-4 py-4 font-bold uppercase text-[10px] tracking-wider">Tipe</th>
+                  <th class="px-4 py-4 font-bold uppercase text-[10px] tracking-wider">Kategori</th>
+                  <th class="px-4 py-4 font-bold uppercase text-[10px] tracking-wider text-right">Nominal</th>
+                  <th class="px-4 py-4 font-bold uppercase text-[10px] tracking-wider text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="rageCashTableBody" class="divide-y divide-amber-100 dark:divide-[#3d342d] text-slate-700 dark:text-amber-50/80"></tbody>
+            </table>
+          </div>
+          <div id="rageCashEmpty" class="py-10 text-center text-slate-500 dark:text-amber-200/50 hidden">
+            Belum ada transaksi.
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="config.js"></script>
+    <script type="module" src="script.js"></script>
+  </body>
+</html>

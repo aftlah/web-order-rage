@@ -314,6 +314,7 @@ async function init() {
     !!document.getElementById("dashMonth");
   const isStoran = !!document.getElementById("storanSection");
   const isDrugs = !!document.getElementById("drugsNama");
+  const isKas = !!document.getElementById("rageCashSubmit");
   if (isDashboard) {
     const ok = await guardDashboard();
     if (!ok) return;
@@ -349,6 +350,9 @@ async function init() {
   }
   if (isDrugs) {
     initDrugs();
+  }
+  if (isKas) {
+    initRageCash();
   }
 
   // Global Logout & Mobile Menu
@@ -4466,5 +4470,260 @@ async function loadDrugsTable() {
       }
     });
   });
+}
+
+let rageCashTableOk = null;
+
+async function initRageCash() {
+  const timeEl = document.getElementById("rageCashTime");
+  if (timeEl && !timeEl.value) {
+    timeEl.value = toLocalInput(new Date().toISOString());
+  }
+
+  const submitBtn = document.getElementById("rageCashSubmit");
+  const refreshBtn = document.getElementById("rageCashRefresh");
+
+  if (submitBtn) submitBtn.addEventListener("click", submitRageCash);
+  if (refreshBtn) refreshBtn.addEventListener("click", () => loadRageCashTable());
+
+  await ensureRageCashTable();
+  loadRageCashTable();
+}
+
+async function ensureRageCashTable() {
+  if (rageCashTableOk !== null) return rageCashTableOk;
+  if (!supabase) {
+    rageCashTableOk = false;
+    return rageCashTableOk;
+  }
+  const { error } = await supabase
+    .from("rage_cash_logs")
+    .select("id")
+    .limit(1);
+  if (error && String(error.message || "").toLowerCase().includes("relation")) {
+    rageCashTableOk = false;
+    showAlert("Tabel 'rage_cash_logs' belum ada di Supabase", "error");
+    return rageCashTableOk;
+  }
+  rageCashTableOk = !error;
+  return rageCashTableOk;
+}
+
+async function submitRageCash() {
+  if (!supabase) {
+    showAlert("Supabase tidak terhubung", "error");
+    return;
+  }
+  const ok = await ensureRageCashTable();
+  if (!ok) return;
+
+  const type = (document.getElementById("rageCashType") || {}).value || "";
+  const amount = parseFloat((document.getElementById("rageCashAmount") || {}).value) || 0;
+  const category = String((document.getElementById("rageCashCategory") || {}).value || "").trim();
+  const note = String((document.getElementById("rageCashNote") || {}).value || "").trim();
+  const timeVal = String((document.getElementById("rageCashTime") || {}).value || "").trim();
+
+  if (!type || (type !== "IN" && type !== "OUT")) {
+    showAlert("Pilih tipe transaksi", "error");
+    return;
+  }
+  if (amount <= 0) {
+    showAlert("Nominal harus lebih dari 0", "error");
+    return;
+  }
+  if (!category) {
+    showAlert("Kategori wajib diisi", "error");
+    return;
+  }
+
+  const waktu = timeVal ? new Date(timeVal).toISOString() : new Date().toISOString();
+  const row = { type, amount, category, note, waktu };
+  const { error } = await supabase.from("rage_cash_logs").insert(row);
+  if (error) {
+    showAlert("Gagal menyimpan: " + error.message, "error");
+    return;
+  }
+
+  await sendRageCashToDiscord(row);
+  showAlert("Tersimpan & terkirim", "success");
+
+  const amtEl = document.getElementById("rageCashAmount");
+  const catEl = document.getElementById("rageCashCategory");
+  const noteEl = document.getElementById("rageCashNote");
+  if (amtEl) amtEl.value = "";
+  if (catEl) catEl.value = "";
+  if (noteEl) noteEl.value = "";
+  const timeEl = document.getElementById("rageCashTime");
+  if (timeEl) timeEl.value = toLocalInput(new Date().toISOString());
+  loadRageCashTable();
+}
+
+async function sendRageCashToDiscord(payload) {
+  const hook = (window && window.DISCORD_RAGE_CASH_WEBHOOK_URL) || "";
+  if (!hook) return;
+
+  const typeLabel = payload.type === "IN" ? "PEMASUKAN" : "PENGELUARAN";
+  const ts = fmtDateTime(payload.waktu || new Date().toISOString());
+  let msg = "```";
+  msg += `\nKAS R.A.G.E`;
+  msg += `\nTipe    : ${typeLabel}`;
+  msg += `\nNominal : ${fmt(payload.amount || 0)}`;
+  msg += `\nKategori: ${payload.category || "-"}`;
+  if (payload.note) msg += `\nCatatan : ${payload.note}`;
+  msg += `\nWaktu   : ${ts}`;
+  msg += "\n```";
+
+  await postToDiscord(msg, hook);
+}
+
+async function loadRageCashTable() {
+  if (!supabase) return;
+  const ok = await ensureRageCashTable();
+  if (!ok) return;
+
+  const body = document.getElementById("rageCashTableBody");
+  const empty = document.getElementById("rageCashEmpty");
+  const balEl = document.getElementById("rageCashBalance");
+  if (!body || !empty) return;
+
+  body.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
+
+  const { data, error } = await supabase
+    .from("rage_cash_logs")
+    .select("id,type,amount,category,note,waktu")
+    .order("waktu", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    body.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
+    return;
+  }
+
+  const rows = data || [];
+  if (!rows.length) {
+    body.innerHTML = "";
+    empty.classList.remove("hidden");
+  } else {
+    empty.classList.add("hidden");
+    body.innerHTML = rows
+      .map((r) => {
+        const t = r.type === "IN" ? "IN" : "OUT";
+        const color =
+          t === "IN"
+            ? "text-green-600 dark:text-green-400"
+            : "text-red-600 dark:text-red-400";
+        return `
+        <tr class="hover:bg-white/5 transition-colors">
+          <td class="px-4 py-3 text-xs text-slate-500 dark:text-amber-200/60">${fmtDateTime(r.waktu)}</td>
+          <td class="px-4 py-3 font-bold ${color}">${t}</td>
+          <td class="px-4 py-3">${r.category || "-"}</td>
+          <td class="px-4 py-3 text-right font-mono font-bold">${fmt(r.amount || 0)}</td>
+          <td class="px-4 py-3 text-center">
+            <button class="px-3 py-1 rounded bg-red-700/20 text-red-400 border border-red-700/30 text-[10px] font-bold uppercase hover:bg-red-700/40 transition" data-del-cash-id="${r.id}">
+              Hapus
+            </button>
+          </td>
+        </tr>
+      `;
+      })
+      .join("");
+  }
+
+  body.querySelectorAll("[data-del-cash-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-del-cash-id");
+      if (!id) return;
+      await deleteRageCashEntry(id);
+    });
+  });
+
+  const { data: balData, error: balErr } = await supabase
+    .from("rage_cash_logs")
+    .select("type,amount")
+    .order("waktu", { ascending: false })
+    .limit(500);
+  if (!balErr && balEl) {
+    const bal = (balData || []).reduce((acc, r) => {
+      const a = parseFloat(r.amount) || 0;
+      if (r.type === "IN") return acc + a;
+      return acc - a;
+    }, 0);
+    balEl.textContent = fmt(bal);
+  }
+}
+
+async function deleteRageCashEntry(id) {
+  if (!supabase) {
+    showAlert("Supabase tidak terhubung", "error");
+    return;
+  }
+  const ok = await ensureRageCashTable();
+  if (!ok) return;
+
+  const proceed = await Swal.fire({
+    title: "Hapus catatan ini?",
+    text: "Tindakan tidak dapat dibatalkan.",
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Ya, hapus",
+    cancelButtonText: "Batal",
+    customClass: {
+      popup: "rage-modal-popup",
+      title: "rage-modal-title",
+      confirmButton: "rage-modal-confirm !bg-red-600",
+      cancelButton: "rage-modal-cancel",
+    },
+  });
+  if (!proceed.isConfirmed) return;
+
+  const pin = (window && window.ADMIN_DELETE_PIN) || "";
+  let pinOk = true;
+  if (pin) {
+    const { value: typed } = await Swal.fire({
+      title: "Masukkan PIN delete",
+      input: "password",
+      inputPlaceholder: "Masukkan PIN",
+      showCancelButton: true,
+      confirmButtonText: "Konfirmasi",
+      cancelButtonText: "Batal",
+      customClass: {
+        popup: "rage-modal-popup",
+        title: "rage-modal-title",
+        confirmButton: "rage-modal-confirm !bg-red-600",
+        cancelButton: "rage-modal-cancel",
+        input: "rage-modal-input",
+      },
+    });
+    pinOk = !!typed && typed === pin;
+  } else {
+    const { value: typed } = await Swal.fire({
+      title: "Ketik DELETE untuk konfirmasi",
+      input: "text",
+      inputPlaceholder: "DELETE",
+      showCancelButton: true,
+      confirmButtonText: "Konfirmasi",
+      cancelButtonText: "Batal",
+      customClass: {
+        popup: "rage-modal-popup",
+        title: "rage-modal-title",
+        confirmButton: "rage-modal-confirm !bg-red-600",
+        cancelButton: "rage-modal-cancel",
+        input: "rage-modal-input",
+      },
+    });
+    pinOk = (typed || "").toUpperCase() === "DELETE";
+  }
+  if (!pinOk) {
+    showAlert("Konfirmasi hapus tidak valid", "error");
+    return;
+  }
+
+  const { error } = await supabase.from("rage_cash_logs").delete().eq("id", id);
+  if (error) {
+    showAlert("Gagal menghapus: " + error.message, "error");
+    return;
+  }
+  showAlert("Catatan berhasil dihapus", "success");
+  loadRageCashTable();
 }
 
