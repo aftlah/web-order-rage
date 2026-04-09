@@ -178,6 +178,36 @@ async function postToDiscord(message, overrideUrl) {
     }
   } catch (e) {}
 }
+
+async function postToDiscordEmbed(embed, overrideUrl, contentOverride) {
+  try {
+    const url = overrideUrl || ((window && window.DISCORD_WEBHOOK_URL) || "");
+    const enabled = window.DISCORD_ENABLED !== false;
+    if (!url || !enabled || !embed || typeof embed !== "object") return;
+
+    let content = typeof contentOverride === "string" ? contentOverride : "";
+    const isStoranHook =
+      !!overrideUrl &&
+      typeof window !== "undefined" &&
+      window.DISCORD_STORAN_WEBHOOK_URL &&
+      overrideUrl === window.DISCORD_STORAN_WEBHOOK_URL;
+    if (window && window.MAINTENANCE_MODE === true && !isStoranHook) {
+      content = `@everyone\n## **MAINTENANCE DULUU**\n${content || ""}`.trim();
+    }
+
+    const now = Date.now();
+    const last = window.__discordLastSent || 0;
+    const wait = Math.max(0, 4200 - (now - last));
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    window.__discordLastSent = Date.now();
+
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, embeds: [embed] }),
+    });
+  } catch (e) {}
+}
 function saveStoredDashboard(data) {
   try {
     localStorage.setItem(
@@ -4562,18 +4592,59 @@ async function sendRageCashToDiscord(payload) {
   const hook = (window && window.DISCORD_RAGE_CASH_WEBHOOK_URL) || "";
   if (!hook) return;
 
-  const typeLabel = payload.type === "IN" ? "PEMASUKAN" : "PENGELUARAN";
-  const ts = fmtDateTime(payload.waktu || new Date().toISOString());
-  let msg = "```";
-  msg += `\nKAS R.A.G.E`;
-  msg += `\nTipe    : ${typeLabel}`;
-  msg += `\nNominal : ${fmt(payload.amount || 0)}`;
-  msg += `\nKategori: ${payload.category || "-"}`;
-  if (payload.note) msg += `\nCatatan : ${payload.note}`;
-  msg += `\nWaktu   : ${ts}`;
-  msg += "\n```";
+  const isIn = payload.type === "IN";
+  const typeLabel = isIn ? "PEMASUKAN" : "PENGELUARAN";
+  const tsIso = payload.waktu || new Date().toISOString();
+  const amount = parseFloat(payload.amount) || 0;
+  const sign = isIn ? "+" : "-";
+  const color = isIn ? 0x57f287 : 0xed4245;
+  const when = fmtDateTime(tsIso);
+  const category = payload.category || "-";
+  const note = payload.note ? String(payload.note).trim() : "";
+  const amountText = `${sign}${fmt(amount)}`;
+  const dot = isIn ? "🟢" : "🔴";
+  const balance = await getRageCashBalance();
+  const balanceField =
+    balance == null
+      ? null
+      : { name: "SALDO TOTAL", value: `\`${fmt(balance)}\``, inline: false };
 
-  await postToDiscord(msg, hook);
+  const embed = {
+    title: `${dot}  ${typeLabel}`,
+    color,
+    description:
+      "```" +
+      `\nNOMINAL  : ${amountText}` +
+      `\nKATEGORI : ${category}` +
+      (note ? `\nCATATAN  : ${note}` : "") +
+      `\nWAKTU    : ${when}` +
+      "\n```",
+    ...(balanceField ? { fields: [balanceField] } : {}),
+    timestamp: tsIso,
+  };
+
+  await postToDiscordEmbed(embed, hook);
+}
+
+async function getRageCashBalance() {
+  try {
+    if (!supabase) return null;
+    const ok = await ensureRageCashTable();
+    if (!ok) return null;
+    const { data, error } = await supabase
+      .from("rage_cash_logs")
+      .select("type,amount")
+      .order("waktu", { ascending: false })
+      .limit(2000);
+    if (error) return null;
+    return (data || []).reduce((acc, r) => {
+      const a = parseFloat(r.amount) || 0;
+      if (r.type === "IN") return acc + a;
+      return acc - a;
+    }, 0);
+  } catch (e) {
+    return null;
+  }
 }
 
 async function loadRageCashTable() {
@@ -4637,19 +4708,8 @@ async function loadRageCashTable() {
     });
   });
 
-  const { data: balData, error: balErr } = await supabase
-    .from("rage_cash_logs")
-    .select("type,amount")
-    .order("waktu", { ascending: false })
-    .limit(500);
-  if (!balErr && balEl) {
-    const bal = (balData || []).reduce((acc, r) => {
-      const a = parseFloat(r.amount) || 0;
-      if (r.type === "IN") return acc + a;
-      return acc - a;
-    }, 0);
-    balEl.textContent = fmt(bal);
-  }
+  const bal = await getRageCashBalance();
+  if (balEl && bal != null) balEl.textContent = fmt(bal);
 }
 
 async function deleteRageCashEntry(id) {
@@ -4718,9 +4778,17 @@ async function deleteRageCashEntry(id) {
     return;
   }
 
-  const { error } = await supabase.from("rage_cash_logs").delete().eq("id", id);
+  const { data, error } = await supabase
+    .from("rage_cash_logs")
+    .delete()
+    .eq("id", id)
+    .select("id");
   if (error) {
     showAlert("Gagal menghapus: " + error.message, "error");
+    return;
+  }
+  if (!data || !data.length) {
+    showAlert("Tidak bisa menghapus catatan (RLS/policy menolak)", "error");
     return;
   }
   showAlert("Catatan berhasil dihapus", "success");
