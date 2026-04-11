@@ -255,6 +255,14 @@ async function postWeaponPaymentLog(payload) {
     await postToDiscordEmbed(embed, hook);
   } catch (e) {}
 }
+
+function getOrderPaymentWebhookUrl() {
+  return (
+    (window && window.DISCORD_ORDER_PAYMENT_WEBHOOK_URL) ||
+    (window && window.DISCORD_WEBHOOK_URL) ||
+    ""
+  );
+}
 function saveStoredDashboard(data) {
   try {
     localStorage.setItem(
@@ -3508,6 +3516,9 @@ function initDashboard() {
   if (btn) btn.addEventListener("click", () => loadDashboard(true));
   const shareBtn = document.getElementById("dashShareDiscord");
   if (shareBtn) shareBtn.addEventListener("click", shareDashboardToDiscord);
+  const sharePaymentBtn = document.getElementById("dashSharePaymentDiscord");
+  if (sharePaymentBtn)
+    sharePaymentBtn.addEventListener("click", sharePaymentStatusToDiscord);
   if (mSel) mSel.addEventListener("change", () => loadDashboard(false));
   if (wSel) wSel.addEventListener("change", () => loadDashboard(false));
   
@@ -3870,6 +3881,159 @@ async function shareDashboardToDiscord() {
   const msg = "```\n" + lines.join("\n") + "\n```";
   await postToDiscord(msg);
   showAlert("Ringkasan dikirim ke Discord", "success");
+}
+
+async function sharePaymentStatusToDiscord() {
+  if (!supabase) return;
+  const hook = getOrderPaymentWebhookUrl();
+  if (!hook) {
+    showAlert("Webhook status bayar belum diisi", "error");
+    return;
+  }
+
+  const mSel = document.getElementById("dashMonth");
+  const wSel = document.getElementById("dashWeek");
+  const nameInput = document.getElementById("dashNameInput");
+  const month = mSel ? parseInt(mSel.value, 10) : NaN;
+  const weekVal = wSel ? wSel.value : "";
+  const nameVal = nameInput ? nameInput.value.trim() : "";
+  const nameIsAll = nameVal.toLowerCase() === "semua";
+
+  let data = dashboardCache.orders;
+  if (!data) {
+    const { data: fetched, error } = await fetchOrdersSafe(5000);
+    if (error) {
+      showAlert("Gagal memuat data", "error");
+      return;
+    }
+    data = fetched || [];
+    dashboardCache.orders = data;
+  }
+
+  const filtered = (data || []).filter((r) => {
+    const m = Math.floor((r.orderanke || 0) / 10);
+    const w = (r.orderanke || 0) % 10;
+    if (month && m !== month) return false;
+    if (weekVal && String(w) !== String(weekVal)) return false;
+    if (
+      nameVal &&
+      !nameIsAll &&
+      String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  if (!filtered.length) {
+    showAlert("Tidak ada data pembayaran untuk dikirim", "error");
+    return;
+  }
+
+  const paidPeople = getPaidPersonSet();
+  const grouped = {};
+  filtered.forEach((r) => {
+    const batch = r.orderanke || 0;
+    const name = String(r.nama || "Unknown");
+    const key = makePersonStatusKey(batch, name);
+    if (!grouped[key]) {
+      grouped[key] = {
+        batch,
+        name,
+        qty: 0,
+        total: 0,
+        rows: [],
+      };
+    }
+    grouped[key].qty += r.qty || 0;
+    grouped[key].total += r.subtotal || 0;
+    grouped[key].rows.push(r);
+  });
+
+  const entries = Object.values(grouped)
+    .map((g) => {
+      const paidDb = g.rows.length ? g.rows.every((x) => !!x.paid) : false;
+      const paid = paidDb || paidPeople.has(makePersonStatusKey(g.batch, g.name));
+      return { ...g, paid };
+    })
+    .sort((a, b) => {
+      if ((b.batch || 0) !== (a.batch || 0)) return (b.batch || 0) - (a.batch || 0);
+      if (a.paid !== b.paid) return a.paid ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+  const paidEntries = entries.filter((x) => x.paid);
+  const unpaidEntries = entries.filter((x) => !x.paid);
+
+  const fmtBatch = (batch) => {
+    if (!batch) return "-";
+    const { m, w, raw } = decodeOrderanke(parseInt(batch, 10));
+    return `M${m}-W${w} (#${raw})`;
+  };
+  const makeSection = (title, rows) => {
+    const totalQty = rows.reduce((sum, r) => sum + (r.qty || 0), 0);
+    const totalMoney = rows.reduce((sum, r) => sum + (r.total || 0), 0);
+    if (!rows.length) {
+      return [`### ${title}`, `> Orang: 0 • Item: 0 • Total: ${fmt(0)}`, "", "_Tidak ada data_"].join("\n");
+    }
+    const entriesText = rows.map((r) => {
+      const periodText = singleBatchLabel ? "" : ` • ${fmtBatch(r.batch)}`;
+      return {
+        label: `${r.name}${periodText}`,
+        total: fmt(r.total),
+      };
+    });
+    const maxLabel = entriesText.reduce(
+      (max, r) => Math.max(max, r.label.length),
+      4
+    );
+    const maxTotal = entriesText.reduce(
+      (max, r) => Math.max(max, r.total.length),
+      5
+    );
+    const allNames = [
+      "```yaml",
+      ...entriesText.map(
+        (r) =>
+          `${r.label.padEnd(maxLabel)} : ${r.total.padStart(maxTotal)}`
+      ),
+      "```",
+    ].join("\n");
+    return [
+      `### ${title}`,
+      `> Orang: ${rows.length} • Item: ${fmtNumber(totalQty)} • Total: ${fmt(totalMoney)}`,
+      "",
+      allNames,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  };
+
+  const batchLabels = Array.from(new Set(entries.map((x) => fmtBatch(x.batch))));
+  const singleBatchLabel = batchLabels.length === 1 ? batchLabels[0] : "";
+  const periodText = singleBatchLabel
+    ? singleBatchLabel
+    : batchLabels.length > 1
+    ? batchLabels.join(", ")
+    : month
+    ? weekVal
+      ? `M${month}-W${weekVal}`
+      : `M${month}`
+    : "-";
+  const message = [
+    "## Status Pembayaran Order Senjata",
+    `> 🗓️ Periode: ${periodText}`,
+    nameVal && !nameIsAll ? `> 👤 Nama: ${nameVal}` : "",
+    "",
+    makeSection("✅ Sudah Bayar", paidEntries),
+    "",
+    makeSection("❌ Belum Bayar", unpaidEntries),
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  await postToDiscord(message, hook);
+  showAlert("Status bayar dikirim ke Discord", "success");
 }
 function showAlert(message, type = "info") {
   // SweetAlert2 Implementation
