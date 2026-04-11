@@ -228,20 +228,27 @@ async function postWeaponPaymentLog(payload) {
       (window.__currentMember && window.__currentMember.nama) || "Unknown";
     const totalValue = Number(payload && payload.total ? payload.total : 0);
     const totalQty = Number(payload && payload.qty ? payload.qty : 0);
+    const statusText = payload && payload.paid ? "LUNAS ✅" : "BELUM LUNAS ❌";
     const embed = {
-      title: "Status Order Senjata",
+      title: "Status Pembayaran Senjata",
       color: payload && payload.paid ? 5763719 : 15548997,
+      description:
+        "```" +
+        `\nNAMA        : ${String((payload && payload.name) || "-")}` +
+        `\nPERIODE     : ${batchText}` +
+        `\nSTATUS      : ${statusText}` +
+        `\nTOTAL ITEM  : ${totalQty || 0}` +
+        `\nTOTAL UANG  : ${fmt(totalValue || 0)}` +
+        `\nDIUBAH OLEH : ${actor}` +
+        "\n```",
       fields: [
-        { name: "Nama", value: String((payload && payload.name) || "-"), inline: true },
-        { name: "Periode", value: batchText, inline: true },
         {
-          name: "Status Bayar",
-          value: payload && payload.paid ? "Lunas" : "Belum",
-          inline: true,
+          name: "Ringkasan",
+          value: payload && payload.paid
+            ? "Pembayaran order senjata sudah dikonfirmasi lunas."
+            : "Status pembayaran order senjata diubah menjadi belum lunas.",
+          inline: false,
         },
-        { name: "Total Item", value: String(totalQty || 0), inline: true },
-        { name: "Total Uang", value: fmt(totalValue || 0), inline: true },
-        { name: "Diubah Oleh", value: actor, inline: true },
       ],
       timestamp: new Date().toISOString(),
     };
