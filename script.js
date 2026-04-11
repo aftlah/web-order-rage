@@ -319,6 +319,385 @@ async function guardDashboard() {
   return true;
 }
 
+async function guardApp() {
+  const s = await getSession();
+  if (!s) {
+    location.href = "login.html";
+    return false;
+  }
+  await ensureUserPasswordUpdated();
+  return true;
+}
+
+async function ensureUserPasswordUpdated() {
+  if (!supabase) return;
+  try {
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = (userRes || {}).user || null;
+    if (!user) return;
+    const meta = (user.user_metadata || {});
+    if (!meta.must_change_password) return;
+    if (window.__passwordChangeInProgress) return;
+    window.__passwordChangeInProgress = true;
+    const res = await Swal.fire({
+      title: "Ganti Password",
+      html:
+        '<div class="flex flex-col gap-3 text-left">' +
+        '<label class="text-sm">Password baru</label>' +
+        '<input id="pw1" type="password" class="swal2-input" placeholder="Min 6 karakter" />' +
+        '<label class="text-sm">Ulangi password</label>' +
+        '<input id="pw2" type="password" class="swal2-input" placeholder="Ulangi password" />' +
+        "</div>",
+      focusConfirm: false,
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      confirmButtonText: "Simpan",
+      customClass: {
+        popup: "rage-modal-popup",
+        title: "rage-modal-title",
+        confirmButton: "rage-modal-confirm",
+      },
+      preConfirm: () => {
+        const pw1 = (document.getElementById("pw1") || {}).value || "";
+        const pw2 = (document.getElementById("pw2") || {}).value || "";
+        if (pw1.length < 6) return Swal.showValidationMessage("Password minimal 6 karakter");
+        if (pw1 !== pw2) return Swal.showValidationMessage("Password tidak sama");
+        return pw1;
+      },
+    });
+    const newPw = res.value;
+    if (!newPw) return;
+    const { error } = await supabase.auth.updateUser({
+      password: newPw,
+      data: { ...meta, must_change_password: false },
+    });
+    if (error) {
+      showAlert("Gagal update password: " + error.message, "error");
+      return;
+    }
+    showAlert("Password berhasil diubah", "success");
+  } catch (e) {}
+}
+
+async function resolveCurrentMember() {
+  if (!supabase) return null;
+  window.__currentMemberResolveError = null;
+  try {
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = (userRes || {}).user || null;
+    if (!user || !user.id) return null;
+    const uid = user.id;
+    const email = user.email || "";
+
+    let row = null;
+    const q1 = await supabase
+      .from("members")
+      .select("id,nama,role,auth_user_id")
+      .eq("auth_user_id", uid)
+      .limit(1);
+    if (q1 && q1.error) {
+      const msg = String(q1.error.message || "").toLowerCase();
+      if (!msg.includes("column")) {
+        window.__currentMemberResolveError = q1.error.message || "Gagal membaca tabel members";
+        return null;
+      }
+    } else {
+      row = (q1.data || [])[0] || null;
+    }
+    if (row && row.id) return row;
+
+    if (email) {
+      const q2 = await supabase
+        .from("members")
+        .select("id,nama,role,email")
+        .eq("email", email)
+        .limit(1);
+      if (q2 && q2.error) {
+        const msg = String(q2.error.message || "").toLowerCase();
+        if (!msg.includes("column")) {
+          window.__currentMemberResolveError = q2.error.message || "Gagal membaca tabel members";
+          return null;
+        }
+      }
+      if (q2 && !q2.error) {
+        row = (q2.data || [])[0] || null;
+      }
+      if (row && row.id) return row;
+    }
+
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function isAdminMember(member) {
+  const role = member && member.role ? String(member.role) : "";
+  return role.trim().toLowerCase() === "admin";
+}
+
+function requireAdminOrRedirect() {
+  const m = window.__currentMember || null;
+  if (isAdminMember(m)) return true;
+  showAlert("Hanya Admin yang bisa mengakses menu ini", "error");
+  location.href = "index.html";
+  return false;
+}
+
+function applyAdminNav(member) {
+  const isAdmin = isAdminMember(member);
+  const adminOnlyHrefs = ["dashboard.html", "storan.html", "drugs.html", "kas.html"];
+  adminOnlyHrefs.forEach((href) => {
+    document.querySelectorAll(`a[href="${href}"]`).forEach((a) => {
+      if (!isAdmin) a.classList.add("hidden");
+    });
+  });
+}
+
+async function showLinkMemberHelpModal() {
+  if (!supabase) return;
+  if (window.__shownLinkMemberHelp) return;
+  window.__shownLinkMemberHelp = true;
+  try {
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = (userRes || {}).user || null;
+    const uid = user && user.id ? String(user.id) : "";
+    const email = user && user.email ? String(user.email) : "";
+    const err = window.__currentMemberResolveError ? String(window.__currentMemberResolveError) : "";
+
+    const lines = [];
+    if (email) lines.push(`<div class="text-xs text-slate-500 dark:text-slate-400">Email</div><div class="font-mono text-sm break-all">${email}</div>`);
+    if (uid) lines.push(`<div class="mt-3 text-xs text-slate-500 dark:text-slate-400">User ID</div><div class="font-mono text-sm break-all">${uid}</div>`);
+    if (err) lines.push(`<div class="mt-3 text-xs text-red-500">Info: ${err}</div>`);
+
+    const html =
+      `<div class="text-left">` +
+      `<div class="text-sm">Akun login belum terhubung ke data member, jadi sistem tidak bisa mengisi nama otomatis.</div>` +
+      `<div class="mt-4 p-3 rounded-xl border border-amber-200/40 dark:border-yellow-900/30 bg-amber-50/40 dark:bg-yellow-900/10">` +
+      lines.join("") +
+      `</div>` +
+      `<div class="mt-4 text-sm">Solusi: di tabel <b>members</b> isi <b>auth_user_id</b> = User ID di atas (atau isi <b>email</b> = Email di atas).</div>` +
+      `</div>`;
+
+    const res = await Swal.fire({
+      title: "Hubungkan Akun ke Member",
+      html,
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: "Hubungkan Sekarang",
+      denyButtonText: "Copy User ID",
+      cancelButtonText: "Tutup",
+      customClass: {
+        popup: "rage-modal-popup",
+        title: "rage-modal-title",
+        confirmButton: "rage-modal-confirm",
+        denyButton: "rage-modal-confirm",
+        cancelButton: "rage-modal-cancel",
+      },
+    });
+
+    if (res.isDenied && uid) {
+      try {
+        await navigator.clipboard.writeText(uid);
+        showAlert("User ID disalin", "success");
+      } catch (e) {
+        showAlert("Gagal copy User ID", "error");
+      }
+    }
+
+    if (res.isConfirmed) {
+      const { value: typedName } = await Swal.fire({
+        title: "Nama Member",
+        input: "text",
+        inputPlaceholder: "Ketik nama member (harus sama persis)",
+        showCancelButton: true,
+        confirmButtonText: "Cari",
+        cancelButtonText: "Batal",
+        customClass: {
+          popup: "rage-modal-popup",
+          title: "rage-modal-title",
+          confirmButton: "rage-modal-confirm",
+          cancelButton: "rage-modal-cancel",
+          input: "rage-modal-input",
+        },
+        inputValidator: (v) => (!v ? "Nama wajib diisi" : undefined),
+      });
+      if (!typedName) return;
+
+      let matches = [];
+      try {
+        const { data: found, error: findErr } = await supabase
+          .from("members")
+          .select("id,nama,auth_user_id")
+          .ilike("nama", typedName.trim())
+          .limit(5);
+        if (findErr) {
+          showAlert("Gagal mencari member: " + findErr.message, "error");
+          return;
+        }
+        matches = found || [];
+      } catch (e) {
+        showAlert("Gagal mencari member", "error");
+        return;
+      }
+
+      if (!matches.length) {
+        showAlert("Member tidak ditemukan. Pastikan nama sama persis di database.", "error");
+        return;
+      }
+
+      let pickedId = matches[0].id;
+      if (matches.length > 1) {
+        const opts = {};
+        matches.forEach((m) => {
+          const used = m.auth_user_id ? " (sudah terhubung)" : "";
+          opts[String(m.id)] = `${m.nama || "-"}${used}`;
+        });
+        const { value } = await Swal.fire({
+          title: "Pilih Member",
+          input: "select",
+          inputOptions: opts,
+          inputValue: String(matches[0].id),
+          showCancelButton: true,
+          confirmButtonText: "Pilih",
+          cancelButtonText: "Batal",
+          customClass: {
+            popup: "rage-modal-popup",
+            title: "rage-modal-title",
+            confirmButton: "rage-modal-confirm",
+            cancelButton: "rage-modal-cancel",
+            input: "rage-modal-input",
+          },
+        });
+        if (!value) return;
+        pickedId = parseInt(String(value), 10);
+      }
+
+      const pin = (window && window.ADMIN_DELETE_PIN) || "";
+      let ok = true;
+      if (pin) {
+        const { value: typed } = await Swal.fire({
+          title: "Masukkan PIN",
+          input: "password",
+          inputPlaceholder: "PIN",
+          showCancelButton: true,
+          confirmButtonText: "Konfirmasi",
+          cancelButtonText: "Batal",
+          customClass: {
+            popup: "rage-modal-popup",
+            title: "rage-modal-title",
+            confirmButton: "rage-modal-confirm",
+            cancelButton: "rage-modal-cancel",
+            input: "rage-modal-input",
+          },
+        });
+        ok = !!typed && typed === pin;
+      } else {
+        const { value: typed } = await Swal.fire({
+          title: "Ketik LINK untuk konfirmasi",
+          input: "text",
+          inputPlaceholder: "LINK",
+          showCancelButton: true,
+          confirmButtonText: "Konfirmasi",
+          cancelButtonText: "Batal",
+          customClass: {
+            popup: "rage-modal-popup",
+            title: "rage-modal-title",
+            confirmButton: "rage-modal-confirm",
+            cancelButton: "rage-modal-cancel",
+            input: "rage-modal-input",
+          },
+        });
+        ok = (typed || "").toUpperCase() === "LINK";
+      }
+      if (!ok) {
+        showAlert("Konfirmasi tidak valid", "error");
+        return;
+      }
+
+      try {
+        let q = supabase
+          .from("members")
+          .update({ auth_user_id: uid, email: email || null })
+          .eq("id", pickedId);
+        const { error: upErr } = await q;
+        if (upErr) {
+          showAlert("Gagal menghubungkan: " + upErr.message, "error");
+          return;
+        }
+        showAlert("Akun berhasil dihubungkan. Reload...", "success");
+        setTimeout(() => location.reload(), 600);
+      } catch (e) {
+        showAlert("Gagal menghubungkan", "error");
+      }
+    }
+  } catch (e) {}
+}
+
+function applyCurrentMemberToOrderUI(member) {
+  const nameInput = document.getElementById("nama");
+  const hidden = document.getElementById("memberId");
+  const status = document.getElementById("namaStatus");
+  const dd = document.getElementById("namaDropdown");
+  const group = document.getElementById("customerNameGroup");
+  const identity = document.getElementById("customerIdentity");
+  const identityName = document.getElementById("customerIdentityName");
+  if (nameInput && member && member.nama) {
+    nameInput.value = member.nama;
+    nameInput.disabled = true;
+  }
+  if (hidden && member && member.id) hidden.value = String(member.id);
+  if (dd) dd.classList.add("hidden");
+  if (member && member.id) {
+    if (group) group.classList.add("hidden");
+    if (identity) identity.classList.remove("hidden");
+    if (identityName) identityName.textContent = String(member.nama || "");
+  }
+  if (status) {
+    status.textContent = member && member.id ? "Login: Nama valid" : "Akun belum terhubung ke member";
+    status.classList.toggle("text-green-500", !!(member && member.id));
+    status.classList.toggle("text-red-500", !(member && member.id));
+  }
+  updateNameValidity();
+}
+
+function applyCurrentMemberToStoranUI(member) {
+  const nameInput = document.getElementById("storanNama");
+  const hidden = document.getElementById("storanMemberId");
+  const status = document.getElementById("storanNamaStatus");
+  const dd = document.getElementById("storanNamaDropdown");
+  if (nameInput && member && member.nama) {
+    nameInput.value = member.nama;
+    nameInput.disabled = true;
+  }
+  if (hidden && member && member.id) hidden.value = String(member.id);
+  if (dd) dd.classList.add("hidden");
+  if (status) {
+    status.textContent = member && member.id ? "Login: Nama valid" : "Akun belum terhubung ke member";
+    status.classList.toggle("text-green-500", !!(member && member.id));
+    status.classList.toggle("text-red-500", !(member && member.id));
+  }
+}
+
+function applyCurrentMemberToDrugsUI(member) {
+  const nameInput = document.getElementById("drugsNama");
+  const hidden = document.getElementById("drugsMemberId");
+  const status = document.getElementById("drugsNamaStatus");
+  const dd = document.getElementById("drugsNamaDropdown");
+  if (nameInput && member && member.nama) {
+    nameInput.value = member.nama;
+    nameInput.disabled = true;
+  }
+  if (hidden && member && member.id) hidden.value = String(member.id);
+  if (dd) dd.classList.add("hidden");
+  if (typeof updateDrugsNameValidity === "function") updateDrugsNameValidity();
+  if (status) {
+    status.textContent = member && member.id ? "Login: Nama valid" : "Akun belum terhubung ke member";
+    status.classList.toggle("text-green-500", !!(member && member.id));
+    status.classList.toggle("text-red-500", !(member && member.id));
+  }
+}
+
 async function init() {
   console.log("R.A.G.E script initializing...");
   // document.documentElement.classList.add("dark"); // Allow system/user preference
@@ -345,9 +724,36 @@ async function init() {
   const isStoran = !!document.getElementById("storanSection");
   const isDrugs = !!document.getElementById("drugsNama");
   const isKas = !!document.getElementById("rageCashSubmit");
+  const isRekap = !!document.getElementById("rekapSection");
+  const needsAuth = isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap;
+  if (needsAuth) {
+    const ok = await guardApp();
+    if (!ok) return;
+  }
+
+  let currentMember = null;
+  if (isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap) {
+    currentMember = await resolveCurrentMember();
+    window.__currentMember = currentMember;
+    if (!currentMember || !currentMember.id) {
+      await showLinkMemberHelpModal();
+    }
+  }
+  applyAdminNav(currentMember);
+
+  if (!isAdminMember(currentMember) && (isDashboard || isStoran || isDrugs || isKas)) {
+    showAlert("Menu ini hanya untuk Admin", "error");
+    location.href = "index.html";
+    return;
+  }
+
   if (isDashboard) {
     const ok = await guardDashboard();
     if (!ok) return;
+    if (!isAdminMember(currentMember)) {
+      requireAdminOrRedirect();
+      return;
+    }
   }
   if (isOrder) {
     const kategoriEl = document.getElementById("kategori");
@@ -366,23 +772,35 @@ async function init() {
     const submitBtn = document.getElementById("submitBtn");
     if (addBtn) addBtn.addEventListener("click", addToCart);
     if (submitBtn) submitBtn.addEventListener("click", submitOrder);
-    setupCustomerSearch();
+    if (currentMember && currentMember.id) {
+      applyCurrentMemberToOrderUI(currentMember);
+    } else {
+      setupCustomerSearch();
+      updateNameValidity();
+      const addBtn2 = document.getElementById("addBtn");
+      const submitBtn2 = document.getElementById("submitBtn");
+      if (addBtn2) addBtn2.disabled = true;
+      if (submitBtn2) submitBtn2.disabled = true;
+      showAlert("Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.", "error");
+    }
     setOrderNoUI();
     updateOrderWindowUI();
-    updateNameValidity();
     setInterval(updateOrderWindowUI, 60000);
   }
   if (isDashboard) {
     initDashboard();
   }
   if (isStoran) {
-    initStoran();
+    initStoran(currentMember);
   }
   if (isDrugs) {
-    initDrugs();
+    initDrugs(currentMember);
   }
   if (isKas) {
     initRageCash();
+  }
+  if (isRekap) {
+    initRekap();
   }
 
   // Global Logout & Mobile Menu
@@ -456,6 +874,13 @@ function populateItems() {
 
 function getRolePermissions(role) {
   const R = role || "Hoodlum";
+  if (String(R).trim().toLowerCase() === "admin") {
+    return {
+      allowed: "ALL",
+      vestType: "BOTH",
+      vestLimit: 9999,
+    };
+  }
   const BASE_GUNS = [
     "PISTOL .50",
     "CERAMIC PISTOL",
@@ -806,10 +1231,16 @@ function renderMyOrders(rows, useOrderanke) {
   });
 }
 
-function initStoran() {
+function initStoran(member) {
   const btn = document.getElementById("storanSubmit");
   if (btn) btn.addEventListener("click", submitStoran);
-  setupStoranNameSearch();
+  if (member && member.id) {
+    applyCurrentMemberToStoranUI(member);
+  } else {
+    setupStoranNameSearch();
+    if (btn) btn.disabled = true;
+    showAlert("Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.", "error");
+  }
   const reload = document.getElementById("storanReloadBtn");
   if (reload) reload.addEventListener("click", () => loadStoranTable());
   loadStoranTable();
@@ -823,16 +1254,22 @@ async function submitStoran() {
   const memberIdEl = document.getElementById("storanMemberId");
   if (!nameEl || !statusEl || !receiverEl) return;
 
-  const nama = nameEl.value.trim();
+  const currentMember = window.__currentMember || null;
+  const nama =
+    currentMember && currentMember.nama
+      ? String(currentMember.nama)
+      : nameEl.value.trim();
   const statusVal = statusEl.value;
   const penerima = receiverEl.value.trim();
   const catatan = (noteEl && noteEl.value.trim()) || "";
 
-  const memberId = memberIdEl ? parseInt(memberIdEl.value || "", 10) : NaN;
+  const memberId = currentMember && currentMember.id ? parseInt(String(currentMember.id), 10) : (memberIdEl ? parseInt(memberIdEl.value || "", 10) : NaN);
   if (Number.isNaN(memberId) || !memberId) {
-    showAlert("Pilih nama dari database", "error");
+    showAlert("Akun belum terhubung ke member", "error");
     return;
   }
+  if (memberIdEl && currentMember && currentMember.id) memberIdEl.value = String(memberId);
+  if (currentMember && currentMember.nama) nameEl.value = String(currentMember.nama);
 
   if (!nama) {
     showAlert("Nama wajib diisi", "error");
@@ -1147,7 +1584,8 @@ function startEditMyOrders() {
 
 async function submitOrder() {
   const statusEl = document.getElementById("status");
-  const nama = document.getElementById("nama").value.trim();
+  const currentMember = window.__currentMember || null;
+  const nama = (currentMember && currentMember.nama) ? String(currentMember.nama) : document.getElementById("nama").value.trim();
   const winCurrent = supabase ? await fetchActiveOrderWindow(null) : null;
   const effectiveOrderanke =
     winCurrent && winCurrent.orderanke
@@ -1194,16 +1632,15 @@ async function submitOrder() {
       submitBtn.innerHTML = originalBtnHtml;
     }
   };
-  const memberIdFromHidden = parseInt(
-    (document.getElementById("memberId") || {}).value || "",
-    10
-  );
-  if (Number.isNaN(memberIdFromHidden) || !memberIdFromHidden) {
-    showAlert("Pilih nama dari database", "error");
+  const member_id =
+    currentMember && currentMember.id
+      ? parseInt(String(currentMember.id), 10)
+      : parseInt((document.getElementById("memberId") || {}).value || "", 10);
+  if (Number.isNaN(member_id) || !member_id) {
+    showAlert("Akun belum terhubung ke member", "error");
     endLoading();
     return;
   }
-  const member_id = memberIdFromHidden;
   const open = await ensureOrderingOpen();
   if (!open) {
     showAlert("Order belum dibuka atau sudah ditutup", "error");
@@ -2978,6 +3415,10 @@ function hideMemberModal() {
 }
 
 async function insertNewMember(name, role) {
+  if (!isAdminMember(window.__currentMember || null)) {
+    showAlert("Hanya Admin yang bisa menambah member", "error");
+    return;
+  }
   if (!supabase) return;
   const { data: exists } = await supabase
     .from("members")
@@ -2988,7 +3429,7 @@ async function insertNewMember(name, role) {
     showAlert("Member sudah ada", "error");
     return;
   }
-  const { error } = await supabase
+  const { data: inserted, error } = await supabase
     .from("members")
     .insert([{ nama: name, role: role }])
     .select("id");
@@ -2996,6 +3437,7 @@ async function insertNewMember(name, role) {
     showAlert("Gagal menambah member", "error");
     return;
   }
+  const memberId = (inserted || [])[0] ? (inserted || [])[0].id : null;
   // hideMemberModal();
   document.getElementById("memberNameInput").value = "";
   loadMemberListInModal();
@@ -3319,14 +3761,17 @@ async function loadMemberListInModal() {
 
   list.innerHTML = data.map(m => {
     // Role logic
-    const roles = ['Internship', 'Hangaround', 'Hoodlum', 'Highrank'];
+    const roles = ['Internship', 'Hangaround', 'Hoodlum', 'Highrank', 'Admin'];
     const currentRole = m.role || 'Hoodlum';
     
     // Style logic
     let btnClass = "";
     let dotClass = "";
     
-    if (currentRole === 'Highrank') {
+    if (currentRole === 'Admin') {
+      btnClass = "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/20 dark:hover:bg-purple-500/20";
+      dotClass = "bg-purple-500";
+    } else if (currentRole === 'Highrank') {
       btnClass = "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20 dark:hover:bg-red-500/20";
       dotClass = "bg-red-500";
     } else if (currentRole === 'Hoodlum') {
@@ -3362,6 +3807,7 @@ async function loadMemberListInModal() {
                 <div class="py-1">
                     ${roles.map(r => {
                         let dot = "bg-slate-400";
+                        if (r === 'Admin') dot = "bg-purple-500";
                         if (r === 'Highrank') dot = "bg-red-500";
                         if (r === 'Hoodlum') dot = "bg-amber-500";
                         if (r === 'Hangaround') dot = "bg-blue-500";
@@ -3446,6 +3892,11 @@ window.filterMembers = function() {
 }
 
 window.updateMemberRole = async function(id, newRole) {
+  if (!isAdminMember(window.__currentMember || null)) {
+    showAlert("Hanya Admin yang bisa mengubah role", "error");
+    loadMemberListInModal();
+    return;
+  }
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {
     showAlert("Harus login untuk mengubah role", "error");
@@ -3469,6 +3920,10 @@ window.updateMemberRole = async function(id, newRole) {
 }
 
 window.deleteMember = async function(id, name) {
+  if (!isAdminMember(window.__currentMember || null)) {
+    showAlert("Hanya Admin yang bisa menghapus member", "error");
+    return;
+  }
   try {
     // 0. Check session
     const { data: { session } } = await supabase.auth.getSession();
@@ -3619,7 +4074,7 @@ window.deleteMember = async function(id, name) {
 let currentDrugsBatch = null;
 let drugsSalesHasJenisJumlah = null;
 
-async function initDrugs() {
+async function initDrugs(member) {
   console.log("Initializing Drugs section...");
   
   try {
@@ -3639,8 +4094,15 @@ async function initDrugs() {
     console.error("Gagal ambil periode drugs:", e);
   }
 
-  setupDrugsNameSearch();
-  updateDrugsNameValidity();
+  if (member && member.id) {
+    applyCurrentMemberToDrugsUI(member);
+  } else {
+    setupDrugsNameSearch();
+    updateDrugsNameValidity();
+    const submitBtn0 = document.getElementById("submitDrugs");
+    if (submitBtn0) submitBtn0.disabled = true;
+    showAlert("Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.", "error");
+  }
   await checkDrugsSalesJenisJumlahSchema();
   loadDrugsTable();
 
@@ -3652,6 +4114,7 @@ async function initDrugs() {
   const addBatchBtn = document.getElementById("addBatchBtn");
   const sendTotalsBtn = document.getElementById("sendDrugsTotals");
   const setActiveBatchBtn = document.getElementById("setActiveBatchBtn");
+  const isAdmin = isAdminMember(window.__currentMember || null);
 
   if (duitMerahInput && estimasiGajiEl) {
     duitMerahInput.addEventListener("input", () => {
@@ -3674,13 +4137,16 @@ async function initDrugs() {
   }
 
   if (addBatchBtn) {
-    addBatchBtn.addEventListener("click", openCreateBatchModal);
+    if (isAdmin) addBatchBtn.addEventListener("click", openCreateBatchModal);
+    else addBatchBtn.classList.add("hidden");
   }
   if (sendTotalsBtn) {
-    sendTotalsBtn.addEventListener("click", sendDrugsTotalsToDiscord);
+    if (isAdmin) sendTotalsBtn.addEventListener("click", sendDrugsTotalsToDiscord);
+    else sendTotalsBtn.classList.add("hidden");
   }
   if (setActiveBatchBtn) {
-    setActiveBatchBtn.addEventListener("click", openSelectActiveDrugsBatchModal);
+    if (isAdmin) setActiveBatchBtn.addEventListener("click", openSelectActiveDrugsBatchModal);
+    else setActiveBatchBtn.classList.add("hidden");
   }
 }
 
@@ -3704,6 +4170,10 @@ async function checkDrugsSalesJenisJumlahSchema() {
 }
 
 async function openSelectActiveDrugsBatchModal() {
+  if (!isAdminMember(window.__currentMember || null)) {
+    showAlert("Hanya Admin yang bisa mengatur periode drugs", "error");
+    return;
+  }
   if (!supabase) {
     showAlert("Supabase tidak terhubung", "error");
     return;
@@ -3907,6 +4377,10 @@ async function openSelectActiveDrugsBatchModal() {
 }
 
 async function openCreateBatchModal() {
+  if (!isAdminMember(window.__currentMember || null)) {
+    showAlert("Hanya Admin yang bisa membuat batch drugs", "error");
+    return;
+  }
   const currentVal = currentDrugsBatch ? currentDrugsBatch - 1000 : null;
   const { value: formValues } = await Swal.fire({
     title: 'Tambah Batch Drugs Baru',
@@ -4077,9 +4551,16 @@ function updateDrugsNameValidity() {
 }
 
 async function submitDrugsData() {
+  const currentMember = window.__currentMember || null;
   const memberIdRaw = document.getElementById("drugsMemberId").value;
-  const memberId = parseInt(memberIdRaw || "", 10);
-  const nama = document.getElementById("drugsNama").value.trim();
+  const memberId =
+    currentMember && currentMember.id
+      ? parseInt(String(currentMember.id), 10)
+      : parseInt(memberIdRaw || "", 10);
+  const nama =
+    currentMember && currentMember.nama
+      ? String(currentMember.nama)
+      : document.getElementById("drugsNama").value.trim();
   const duitMerah = parseFloat(document.getElementById("duitMerah").value) || 0;
   const jenis = (document.getElementById("drugsJenis") || {}).value || "";
   const jumlah = parseInt((document.getElementById("drugsJumlah") || {}).value || "0", 10) || 0;
@@ -4089,9 +4570,13 @@ async function submitDrugsData() {
     return;
   }
   if (Number.isNaN(memberId) || !memberId) {
-    showAlert("Pilih nama dari database terlebih dahulu", "error");
+    showAlert("Akun belum terhubung ke member", "error");
     return;
   }
+  const memberIdEl = document.getElementById("drugsMemberId");
+  if (memberIdEl && currentMember && currentMember.id) memberIdEl.value = String(memberId);
+  const nameEl = document.getElementById("drugsNama");
+  if (nameEl && currentMember && currentMember.nama) nameEl.value = String(currentMember.nama);
   if (!jenis) {
     showAlert("Pilih jenis jualan (Weed/Meth)", "error");
     return;
@@ -4592,6 +5077,7 @@ async function sendRageCashToDiscord(payload) {
   const hook = (window && window.DISCORD_RAGE_CASH_WEBHOOK_URL) || "";
   if (!hook) return;
 
+  const currentMember = window.__currentMember || null;
   const isIn = payload.type === "IN";
   const typeLabel = isIn ? "PEMASUKAN" : "PENGELUARAN";
   const tsIso = payload.waktu || new Date().toISOString();
@@ -4608,6 +5094,7 @@ async function sendRageCashToDiscord(payload) {
     balance == null
       ? null
       : { name: "SALDO TOTAL", value: `\`${fmt(balance)}\``, inline: false };
+  const actor = currentMember && currentMember.nama ? String(currentMember.nama) : "";
 
   const embed = {
     title: `${dot}  ${typeLabel}`,
@@ -4617,6 +5104,7 @@ async function sendRageCashToDiscord(payload) {
       `\nNOMINAL  : ${amountText}` +
       `\nKATEGORI : ${category}` +
       (note ? `\nCATATAN  : ${note}` : "") +
+      (actor ? `\nOLEH    : ${actor}` : "") +
       `\nWAKTU    : ${when}` +
       "\n```",
     ...(balanceField ? { fields: [balanceField] } : {}),
@@ -4712,9 +5200,231 @@ async function loadRageCashTable() {
   if (balEl && bal != null) balEl.textContent = fmt(bal);
 }
 
+function getCatalogScrap(itemName) {
+  for (const cat in CATALOG) {
+    const found = (CATALOG[cat] || []).find((i) => i && i.name === itemName);
+    if (found) return found.scrap || 0;
+  }
+  return 0;
+}
+
+async function initRekap() {
+  const btn = document.getElementById("rekapRefresh");
+  if (btn) btn.addEventListener("click", () => loadRekapData());
+  loadRekapData();
+}
+
+async function loadRekapData() {
+  if (!supabase) return;
+  const currentMember = window.__currentMember || null;
+  const memberId = currentMember && currentMember.id ? parseInt(String(currentMember.id), 10) : NaN;
+
+  const periodeEl = document.getElementById("rekapPeriodeLabel");
+  const orderLabel = document.getElementById("rekapOrderLabel");
+  const orderCount = document.getElementById("rekapOrderCount");
+  const orderItems = document.getElementById("rekapOrderItems");
+  const orderTotal = document.getElementById("rekapOrderTotal");
+  const orderScrap = document.getElementById("rekapOrderScrap");
+  const topItemsEl = document.getElementById("rekapTopItems");
+
+  const drugsLabel = document.getElementById("rekapDrugsLabel");
+  const drugsMerah = document.getElementById("rekapDrugsMerah");
+  const drugsGaji = document.getElementById("rekapDrugsGaji");
+  const drugsRage = document.getElementById("rekapDrugsRage");
+  const drugsCount = document.getElementById("rekapDrugsCount");
+
+  const storanLabel = document.getElementById("rekapStoranLabel");
+  const storanDone = document.getElementById("rekapStoranDone");
+  const storanPending = document.getElementById("rekapStoranPending");
+  const storanCash = document.getElementById("rekapStoranCash");
+  const storanScrap = document.getElementById("rekapStoranScrap");
+
+  const kasSaldo = document.getElementById("rekapKasSaldo");
+  const needsStoran =
+    !!(storanLabel || storanDone || storanPending || storanCash || storanScrap);
+  const needsKas = !!kasSaldo;
+
+  const [orderWin, drugsWin] = await Promise.all([
+    fetchActiveOrderWindow(null, "order"),
+    fetchActiveOrderWindow(null, "drugs"),
+  ]);
+
+  if (periodeEl) {
+    const orderLabelText = orderWin && orderWin.orderanke
+      ? (() => {
+          const { m, w, raw } = decodeOrderanke(parseInt(orderWin.orderanke, 10));
+          return `Periode Order: M${m}-W${w} (#${raw})`;
+        })()
+      : "Tidak ada periode order aktif";
+    const drugsLabelText = drugsWin && drugsWin.orderanke
+      ? (() => {
+          const { m, w, raw } = decodeOrderanke(parseInt(drugsWin.orderanke, 10));
+          return `Batch Drugs: M${m}-W${w} (#${raw})`;
+        })()
+      : "Tidak ada batch drugs aktif";
+    periodeEl.textContent = `${orderLabelText} • ${drugsLabelText}`;
+  }
+
+  if (orderWin && orderWin.orderanke) {
+    const v = parseInt(orderWin.orderanke, 10);
+    const { m, w, raw } = decodeOrderanke(v);
+    if (orderLabel) orderLabel.textContent = `M${m}-W${w} (#${raw})`;
+    if (Number.isNaN(memberId) || !memberId) {
+      if (orderCount) orderCount.textContent = "0";
+      if (orderItems) orderItems.textContent = "0";
+      if (orderTotal) orderTotal.textContent = "$ 0";
+      if (orderScrap) orderScrap.textContent = "0";
+      if (topItemsEl) topItemsEl.innerHTML = '<div class="text-slate-500 dark:text-amber-200/60">Akun belum terhubung ke member</div>';
+    } else {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("order_id,qty,subtotal,item")
+      .eq("orderanke", v)
+      .eq("member_id", memberId)
+      .order("waktu", { ascending: false })
+      .limit(5000);
+
+    if (error) {
+      if (orderCount) orderCount.textContent = "0";
+      if (orderItems) orderItems.textContent = "0";
+      if (orderTotal) orderTotal.textContent = "$ 0";
+      if (orderScrap) orderScrap.textContent = "0";
+      if (topItemsEl) topItemsEl.textContent = "Gagal memuat order: " + error.message;
+    } else {
+      const rows = data || [];
+      const orderIds = new Set(rows.map((r) => r.order_id).filter(Boolean));
+      const totalQty = rows.reduce((a, r) => a + (r.qty || 0), 0);
+      const totalMoney = rows.reduce((a, r) => a + (r.subtotal || 0), 0);
+      const totalScr = rows.reduce((a, r) => a + getCatalogScrap(r.item) * (r.qty || 0), 0);
+      if (orderCount) orderCount.textContent = String(orderIds.size);
+      if (orderItems) orderItems.textContent = String(totalQty);
+      if (orderTotal) orderTotal.textContent = fmt(totalMoney);
+      if (orderScrap) orderScrap.textContent = String(totalScr);
+
+      const byItem = {};
+      rows.forEach((r) => {
+        const k = r.item || "-";
+        byItem[k] = (byItem[k] || 0) + (r.qty || 0);
+      });
+      const top = Object.entries(byItem)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6);
+      if (topItemsEl) {
+        topItemsEl.innerHTML = top.length
+          ? top
+              .map(([name, qty]) => `<div class="flex justify-between gap-4"><span class="truncate">${name}</span><span class="font-mono font-bold">${fmtNumber(qty)}</span></div>`)
+              .join("")
+          : '<div class="text-slate-500 dark:text-amber-200/60">Belum ada order</div>';
+      }
+    }
+    }
+  } else {
+    if (orderLabel) orderLabel.textContent = "Tidak aktif";
+    if (orderCount) orderCount.textContent = "0";
+    if (orderItems) orderItems.textContent = "0";
+    if (orderTotal) orderTotal.textContent = "$ 0";
+    if (orderScrap) orderScrap.textContent = "0";
+    if (topItemsEl) topItemsEl.innerHTML = '<div class="text-slate-500 dark:text-amber-200/60">Tidak ada periode aktif</div>';
+  }
+
+  if (drugsWin && drugsWin.orderanke) {
+    const v = parseInt(drugsWin.orderanke, 10);
+    const { m, w, raw } = decodeOrderanke(v);
+    if (drugsLabel) drugsLabel.textContent = `M${m}-W${w} (#${raw})`;
+    const { data, error } = await supabase
+      .from("drugs_sales")
+      .select("uang_merah,upah_putih,uang_rage,periode_orderanke")
+      .eq("periode_orderanke", v)
+      .order("waktu", { ascending: false })
+      .limit(5000);
+    if (error) {
+      if (drugsMerah) drugsMerah.textContent = "$ 0";
+      if (drugsGaji) drugsGaji.textContent = "$ 0";
+      if (drugsRage) drugsRage.textContent = "$ 0";
+      if (drugsCount) drugsCount.textContent = "0";
+    } else {
+      const rows = data || [];
+      const totalMerah = rows.reduce((a, r) => a + (parseFloat(r.uang_merah) || 0), 0);
+      const totalGaji = rows.reduce((a, r) => a + (parseFloat(r.upah_putih) || 0), 0);
+      const totalRage = rows.reduce((a, r) => a + (parseFloat(r.uang_rage) || 0), 0);
+      if (drugsMerah) drugsMerah.textContent = fmt(totalMerah);
+      if (drugsGaji) drugsGaji.textContent = fmt(totalGaji);
+      if (drugsRage) drugsRage.textContent = fmt(totalRage);
+      if (drugsCount) drugsCount.textContent = String(rows.length);
+    }
+  } else {
+    if (drugsLabel) drugsLabel.textContent = "Tidak aktif";
+    if (drugsMerah) drugsMerah.textContent = "$ 0";
+    if (drugsGaji) drugsGaji.textContent = "$ 0";
+    if (drugsRage) drugsRage.textContent = "$ 0";
+    if (drugsCount) drugsCount.textContent = "0";
+  }
+
+  if (needsStoran && orderWin && orderWin.orderanke) {
+    const v = parseInt(orderWin.orderanke, 10);
+    const { m, w, raw } = decodeOrderanke(v);
+    if (storanLabel) storanLabel.textContent = `M${m}-W${w} (#${raw})`;
+
+    const [{ data: logs, error: logErr }, { count: memberCount, error: memErr }] =
+      await Promise.all([
+        supabase
+          .from("storan_logs")
+          .select("member_id,status,waktu,periode_orderanke")
+          .eq("periode_orderanke", v)
+          .order("waktu", { ascending: true })
+          .limit(5000),
+        supabase
+          .from("members")
+          .select("*", { count: "exact", head: true }),
+      ]);
+    if (logErr || memErr) {
+      if (storanDone) storanDone.textContent = "0";
+      if (storanPending) storanPending.textContent = "0";
+      if (storanCash) storanCash.textContent = "$ 0";
+      if (storanScrap) storanScrap.textContent = "0";
+    } else {
+      const latestByMember = {};
+      (logs || []).forEach((r) => {
+        const key = r.member_id || null;
+        if (!key) return;
+        const prev = latestByMember[key];
+        if (!prev) {
+          latestByMember[key] = r;
+          return;
+        }
+        const tPrev = new Date(prev.waktu || 0).getTime();
+        const tCur = new Date(r.waktu || 0).getTime();
+        if (tCur >= tPrev) latestByMember[key] = r;
+      });
+      const done = Object.values(latestByMember).filter((r) => String(r.status || "") === "SUDAH").length;
+      const totalMembers = memberCount || 0;
+      const pending = Math.max(0, totalMembers - done);
+      if (storanDone) storanDone.textContent = String(done);
+      if (storanPending) storanPending.textContent = String(pending);
+      if (storanCash) storanCash.textContent = fmt(done * 50000);
+      if (storanScrap) storanScrap.textContent = String(done * 50);
+    }
+  } else if (needsStoran) {
+    if (storanLabel) storanLabel.textContent = "Tidak aktif";
+    if (storanDone) storanDone.textContent = "0";
+    if (storanPending) storanPending.textContent = "0";
+    if (storanCash) storanCash.textContent = "$ 0";
+    if (storanScrap) storanScrap.textContent = "0";
+  }
+
+  if (needsKas) {
+    const saldo = await getRageCashBalance();
+    if (kasSaldo) kasSaldo.textContent = saldo == null ? "$ 0" : fmt(saldo);
+  }
+}
+
 async function deleteRageCashEntry(id) {
   if (!supabase) {
     showAlert("Supabase tidak terhubung", "error");
+    return;
+  }
+  if (!isAdminMember(window.__currentMember || null)) {
+    showAlert("Hanya Admin yang bisa menghapus catatan", "error");
     return;
   }
   const ok = await ensureRageCashTable();

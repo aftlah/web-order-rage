@@ -55,35 +55,24 @@
           <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-12" />
           <div>
             <h1 class="text-lg font-bold text-yellow-300">R.A.G.E</h1>
-            <p class="text-xs text-yellow-200/80">Admin Login</p>
+            <p class="text-xs text-yellow-200/80">Login</p>
           </div>
         </div>
-        <nav id="mainNav" class="flex gap-2">
-          <a
-            href="index.html"
-            class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200"
-            >Order</a
-          >
-          <a
-            href="dashboard.html"
-            class="px-3 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200"
-            >Dashboard</a
-          >
-        </nav>
       </div>
     </header>
 
     <main class="max-w-md mx-auto px-6 py-10 relative z-10">
       <div class="card rounded-2xl shadow-lg p-8">
-        <h2 class="text-xl font-bold mb-6">Masuk Admin</h2>
+        <h2 class="text-xl font-bold mb-6">Masuk</h2>
         <form id="loginForm" class="space-y-4">
           <div class="flex flex-col gap-2">
-            <label for="loginEmail" class="text-sm font-semibold">Email</label>
+            <label for="loginEmail" class="text-sm font-semibold">Username</label>
             <input
               id="loginEmail"
-              type="email"
+              type="text"
               required
               autocomplete="username"
+              placeholder="contoh: leo"
               class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]"
             />
           </div>
@@ -189,7 +178,7 @@
           if (typeof obj.expires_at === 'number') expSec = obj.expires_at;
           else if (obj.currentSession && typeof obj.currentSession.expires_at === 'number') expSec = obj.currentSession.expires_at;
           var hasToken = !!(obj.access_token || (obj.currentSession && obj.currentSession.access_token));
-          if (hasToken && (expSec*1000) > Date.now()) location.href = 'dashboard.html';
+          if (hasToken && (expSec*1000) > Date.now()) location.href = 'rekap.html';
         } catch (e) {}
       }
 
@@ -199,7 +188,10 @@
           show("Konfigurasi Supabase belum ada", "error");
           return;
         }
-        const email = document.getElementById("loginEmail").value.trim();
+        const usernameOrEmail = document.getElementById("loginEmail").value.trim();
+        const email = usernameOrEmail.includes("@")
+          ? usernameOrEmail
+          : `${usernameOrEmail}@rage.local`;
         const password = document.getElementById("loginPassword").value;
         const btn = document.getElementById("loginBtn");
         btn.disabled = true;
@@ -213,7 +205,7 @@
             btn.disabled = false;
             return;
           }
-          location.href = "dashboard.html";
+          location.href = "rekap.html";
         } catch (err) {
           show("Gagal login (network error)", "error");
           btn.disabled = false;

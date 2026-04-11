@@ -32,6 +32,7 @@
               <a href="storan.html" class="nav-link">Storan</a>
               <a href="drugs.html" class="nav-link">Drugs</a>
               <a href="kas.html" class="nav-link">Kas</a>
+              <a href="rekap.html" class="nav-link">Rekap</a>
             </nav>
             
             <button id="logoutBtn" class="btn-logout hidden md:block">
@@ -71,6 +72,9 @@
           <a href="kas.html" class="mobile-nav-link">
             Kas
           </a>
+          <a href="rekap.html" class="mobile-nav-link">
+            Rekap
+          </a>
           <hr class="border-[#2d1b14] my-2" />
           <button id="mobileLogoutBtn" class="mobile-nav-link text-red-500">
             Logout
@@ -95,11 +99,17 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div class="flex flex-col gap-2 relative">
-            <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Customer Name</label>
-            <input type="text" id="nama" placeholder="Enter name" autocomplete="off" class="w-full px-4 py-3 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] focus:outline-none focus:border-yellow-600 transition" />
-            <p id="namaStatus" class="text-[10px] text-red-500 font-bold uppercase mt-1">Pilih nama dari database</p>
-            <div id="namaDropdown" class="absolute left-0 right-0 top-full mt-2 bg-[#1f1410] border border-[#3d342d] rounded-xl shadow-2xl z-50 hidden max-h-60 overflow-y-auto custom-scrollbar"></div>
+          <div class="flex flex-col gap-2">
+            <div id="customerIdentity" class="hidden flex flex-col gap-2">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Customer</label>
+              <div id="customerIdentityName" class="w-full px-4 py-3 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] font-black text-yellow-500"></div>
+            </div>
+            <div id="customerNameGroup" class="flex flex-col gap-2 relative">
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-widest">Customer Name</label>
+              <input type="text" id="nama" placeholder="Enter name" autocomplete="off" class="w-full px-4 py-3 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] focus:outline-none focus:border-yellow-600 transition" />
+              <p id="namaStatus" class="text-[10px] text-red-500 font-bold uppercase mt-1">Pilih nama dari database</p>
+              <div id="namaDropdown" class="absolute left-0 right-0 top-full mt-2 bg-[#1f1410] border border-[#3d342d] rounded-xl shadow-2xl z-50 hidden max-h-60 overflow-y-auto custom-scrollbar"></div>
+            </div>
             <input type="hidden" id="memberId" />
           </div>
           <div class="flex flex-col gap-2">
