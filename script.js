@@ -208,6 +208,46 @@ async function postToDiscordEmbed(embed, overrideUrl, contentOverride) {
     });
   } catch (e) {}
 }
+
+async function postWeaponPaymentLog(payload) {
+  try {
+    const hook =
+      (window && window.DISCORD_ORDER_PAYMENT_WEBHOOK_URL) ||
+      (window && window.DISCORD_WEBHOOK_URL) ||
+      "";
+    if (!hook) return;
+    const batchNum = parseInt(payload && payload.batch, 10);
+    const batchText =
+      !Number.isNaN(batchNum) && batchNum
+        ? (() => {
+            const { m, w, raw } = decodeOrderanke(batchNum);
+            return `M${m}-W${w} (#${raw})`;
+          })()
+        : "-";
+    const actor =
+      (window.__currentMember && window.__currentMember.nama) || "Unknown";
+    const totalValue = Number(payload && payload.total ? payload.total : 0);
+    const totalQty = Number(payload && payload.qty ? payload.qty : 0);
+    const embed = {
+      title: "Log Bayar Order Senjata",
+      color: payload && payload.paid ? 5763719 : 15548997,
+      fields: [
+        { name: "Nama", value: String((payload && payload.name) || "-"), inline: true },
+        { name: "Periode", value: batchText, inline: true },
+        {
+          name: "Status Bayar",
+          value: payload && payload.paid ? "Lunas" : "Belum",
+          inline: true,
+        },
+        { name: "Total Item", value: String(totalQty || 0), inline: true },
+        { name: "Total Uang", value: fmt(totalValue || 0), inline: true },
+        { name: "Diubah Oleh", value: actor, inline: true },
+      ],
+      timestamp: new Date().toISOString(),
+    };
+    await postToDiscordEmbed(embed, hook);
+  } catch (e) {}
+}
 function saveStoredDashboard(data) {
   try {
     localStorage.setItem(
@@ -2525,9 +2565,11 @@ function renderDashboard(groups) {
                 idx === 0
                   ? `<td class=\"px-2 py-2 align-top\" rowspan=\"${byName[name].length}\">${name}</td>`
                   : "";
+              const personTotal = arr.reduce((sum, x) => sum + (x.subtotal || 0), 0);
+              const personQty = arr.reduce((sum, x) => sum + (x.qty || 0), 0);
               const paidCell =
                 idx === 0
-                  ? `<td class=\"px-2 py-2 text-center align-top\" rowspan=\"${byName[name].length}\"><button data-paid-person-key=\"${personKey}\" data-paid-batch=\"${k}\" data-paid-name=\"${String(name).replace(/"/g, "&quot;")}\" class="px-2 py-1 rounded ${
+                  ? `<td class=\"px-2 py-2 text-center align-top\" rowspan=\"${byName[name].length}\"><button data-paid-person-key=\"${personKey}\" data-paid-batch=\"${k}\" data-paid-name=\"${String(name).replace(/"/g, "&quot;")}\" data-paid-total=\"${personTotal}\" data-paid-qty=\"${personQty}\" class="px-2 py-1 rounded ${
                       paidOn ? "bg-emerald-700" : "bg-slate-700"
                     } text-white">${
                       paidOn ? "Lunas" : "Belum"
@@ -2614,6 +2656,8 @@ function renderDashboard(groups) {
     const personKey = String(btn.getAttribute("data-paid-person-key") || "");
     const batch = parseInt(btn.getAttribute("data-paid-batch") || "", 10);
     const name = String(btn.getAttribute("data-paid-name") || "");
+    const total = parseFloat(btn.getAttribute("data-paid-total") || "0");
+    const qty = parseInt(btn.getAttribute("data-paid-qty") || "0", 10);
     if (paidPeople.has(String(personKey))) {
       btn.textContent = "Lunas";
       btn.className = "px-2 py-1 rounded bg-emerald-700 text-white";
@@ -2631,6 +2675,7 @@ function renderDashboard(groups) {
         btn.className = nowPaid
           ? "px-2 py-1 rounded bg-emerald-700 text-white"
           : "px-2 py-1 rounded bg-slate-700 text-white";
+        await postWeaponPaymentLog({ batch, name, paid: nowPaid, total, qty });
         showAlert("Status bayar diperbarui", "success");
       } catch (e) {
         const set = getPaidPersonSet();
