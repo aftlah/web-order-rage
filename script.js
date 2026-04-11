@@ -229,7 +229,7 @@ async function postWeaponPaymentLog(payload) {
     const totalValue = Number(payload && payload.total ? payload.total : 0);
     const totalQty = Number(payload && payload.qty ? payload.qty : 0);
     const embed = {
-      title: "Log Bayar Order Senjata",
+      title: "Status Order Senjata",
       color: payload && payload.paid ? 5763719 : 15548997,
       fields: [
         { name: "Nama", value: String((payload && payload.name) || "-"), inline: true },
@@ -1987,6 +1987,26 @@ async function fetchActiveOrderWindow(orderanke, type = "order") {
 
   if (orderanke) q = q.eq("orderanke", orderanke);
   const { data, error } = await q;
+  if (error) return null;
+  return (data || [])[0] || null;
+}
+
+async function fetchLatestOrderWindow(type = "order") {
+  let q = supabase
+    .from("order_windows")
+    .select("id,orderanke,start_time,end_time,is_active")
+    .not("orderanke", "is", null);
+
+  if (type === "drugs") {
+    q = q.gte("orderanke", 1000);
+  } else {
+    q = q.lt("orderanke", 1000);
+  }
+
+  const { data, error } = await q
+    .order("end_time", { ascending: false })
+    .order("orderanke", { ascending: false })
+    .limit(1);
   if (error) return null;
   return (data || [])[0] || null;
 }
@@ -5421,31 +5441,41 @@ async function loadRekapData() {
     !!(storanLabel || storanDone || storanPending || storanCash || storanScrap);
   const needsKas = !!kasSaldo;
 
-  const [orderWin, drugsWin] = await Promise.all([
+  const [activeOrderWin, activeDrugsWin] = await Promise.all([
     fetchActiveOrderWindow(null, "order"),
     fetchActiveOrderWindow(null, "drugs"),
   ]);
+  const [latestOrderWin, latestDrugsWin] = await Promise.all([
+    activeOrderWin ? Promise.resolve(activeOrderWin) : fetchLatestOrderWindow("order"),
+    activeDrugsWin ? Promise.resolve(activeDrugsWin) : fetchLatestOrderWindow("drugs"),
+  ]);
+  const orderWin = activeOrderWin || latestOrderWin || null;
+  const drugsWin = activeDrugsWin || latestDrugsWin || null;
+  const isOrderFallback = !activeOrderWin && !!orderWin;
+  const isDrugsFallback = !activeDrugsWin && !!drugsWin;
 
   if (periodeEl) {
     const orderLabelText = orderWin && orderWin.orderanke
       ? (() => {
           const { m, w, raw } = decodeOrderanke(parseInt(orderWin.orderanke, 10));
-          return `Periode Order: M${m}-W${w} (#${raw})`;
+          return `${isOrderFallback ? "Periode Order Terakhir" : "Periode Order"}: M${m}-W${w} (#${raw})`;
         })()
-      : "Tidak ada periode order aktif";
+      : "Tidak ada periode order";
     const drugsLabelText = drugsWin && drugsWin.orderanke
       ? (() => {
           const { m, w, raw } = decodeOrderanke(parseInt(drugsWin.orderanke, 10));
-          return `Batch Drugs: M${m}-W${w} (#${raw})`;
+          return `${isDrugsFallback ? "Batch Drugs Terakhir" : "Batch Drugs"}: M${m}-W${w} (#${raw})`;
         })()
-      : "Tidak ada batch drugs aktif";
+      : "Tidak ada batch drugs";
     periodeEl.textContent = `${orderLabelText} • ${drugsLabelText}`;
   }
 
   if (orderWin && orderWin.orderanke) {
     const v = parseInt(orderWin.orderanke, 10);
     const { m, w, raw } = decodeOrderanke(v);
-    if (orderLabel) orderLabel.textContent = `M${m}-W${w} (#${raw})`;
+    if (orderLabel) {
+      orderLabel.textContent = `${isOrderFallback ? "Terakhir • " : ""}M${m}-W${w} (#${raw})`;
+    }
     if (Number.isNaN(memberId) || !memberId) {
       if (orderCount) orderCount.textContent = "0";
       if (orderItems) orderItems.textContent = "0";
@@ -5496,18 +5526,20 @@ async function loadRekapData() {
     }
     }
   } else {
-    if (orderLabel) orderLabel.textContent = "Tidak aktif";
+    if (orderLabel) orderLabel.textContent = "Tidak ada data";
     if (orderCount) orderCount.textContent = "0";
     if (orderItems) orderItems.textContent = "0";
     if (orderTotal) orderTotal.textContent = "$ 0";
     if (orderScrap) orderScrap.textContent = "0";
-    if (topItemsEl) topItemsEl.innerHTML = '<div class="text-slate-500 dark:text-amber-200/60">Tidak ada periode aktif</div>';
+    if (topItemsEl) topItemsEl.innerHTML = '<div class="text-slate-500 dark:text-amber-200/60">Tidak ada periode</div>';
   }
 
   if (drugsWin && drugsWin.orderanke) {
     const v = parseInt(drugsWin.orderanke, 10);
     const { m, w, raw } = decodeOrderanke(v);
-    if (drugsLabel) drugsLabel.textContent = `M${m}-W${w} (#${raw})`;
+    if (drugsLabel) {
+      drugsLabel.textContent = `${isDrugsFallback ? "Terakhir • " : ""}M${m}-W${w} (#${raw})`;
+    }
     const { data, error } = await supabase
       .from("drugs_sales")
       .select("uang_merah,upah_putih,uang_rage,periode_orderanke")
@@ -5530,7 +5562,7 @@ async function loadRekapData() {
       if (drugsCount) drugsCount.textContent = String(rows.length);
     }
   } else {
-    if (drugsLabel) drugsLabel.textContent = "Tidak aktif";
+    if (drugsLabel) drugsLabel.textContent = "Tidak ada data";
     if (drugsMerah) drugsMerah.textContent = "$ 0";
     if (drugsGaji) drugsGaji.textContent = "$ 0";
     if (drugsRage) drugsRage.textContent = "$ 0";
