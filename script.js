@@ -2080,7 +2080,7 @@ async function fetchOrders(limit = 500) {
   return await supabase
     .from("orders")
     .select(
-      "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered"
+      "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered,paid,scrap_given"
     )
     .order("waktu", { ascending: false })
     .limit(limit);
@@ -2089,12 +2089,17 @@ async function fetchOrdersSafe(limit = 500) {
   let { data, error } = await supabase
     .from("orders")
     .select(
-      "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered"
+      "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered,paid,scrap_given"
     )
     .lt("orderanke", 1000) // Hanya ambil orderan reguler
     .order("waktu", { ascending: false })
     .limit(limit);
-  if (error && String(error.message || "").includes("delivered")) {
+  if (
+    error &&
+    (String(error.message || "").includes("delivered") ||
+      String(error.message || "").includes("paid") ||
+      String(error.message || "").includes("scrap_given"))
+  ) {
     const res = await supabase
       .from("orders")
       .select(
@@ -2235,6 +2240,8 @@ function saveDeliveredSet(set) {
   } catch (e) {}
 }
 const DELIVERED_ROW_KEY = "ordersDeliveredRowV1";
+const PAID_PERSON_KEY = "ordersPaidPersonV1";
+const SCRAP_PERSON_KEY = "ordersScrapPersonV1";
 function getDeliveredRowSet() {
   try {
     const raw = localStorage.getItem(DELIVERED_ROW_KEY) || "[]";
@@ -2247,6 +2254,40 @@ function getDeliveredRowSet() {
 function saveDeliveredRowSet(set) {
   try {
     localStorage.setItem(DELIVERED_ROW_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {}
+}
+function normalizePersonStatusName(name) {
+  return String(name || "").trim().toLowerCase();
+}
+function makePersonStatusKey(batch, name) {
+  return `${String(batch || "")}::${normalizePersonStatusName(name)}`;
+}
+function getPaidPersonSet() {
+  try {
+    const raw = localStorage.getItem(PAID_PERSON_KEY) || "[]";
+    const arr = JSON.parse(raw);
+    return new Set((arr || []).map(String));
+  } catch (e) {
+    return new Set();
+  }
+}
+function savePaidPersonSet(set) {
+  try {
+    localStorage.setItem(PAID_PERSON_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {}
+}
+function getScrapPersonSet() {
+  try {
+    const raw = localStorage.getItem(SCRAP_PERSON_KEY) || "[]";
+    const arr = JSON.parse(raw);
+    return new Set((arr || []).map(String));
+  } catch (e) {
+    return new Set();
+  }
+}
+function saveScrapPersonSet(set) {
+  try {
+    localStorage.setItem(SCRAP_PERSON_KEY, JSON.stringify(Array.from(set)));
   } catch (e) {}
 }
 function getCatalogPrice(name) {
@@ -2476,10 +2517,29 @@ function renderDashboard(groups) {
       const rowsHtml = nameKeys
         .map((name, gIdx) =>
           byName[name]
-            .map((r, idx) => {
+            .map((r, idx, arr) => {
+              const personKey = makePersonStatusKey(k, name);
+              const paidOn = arr.every((x) => !!x.paid);
+              const scrapOn = arr.every((x) => !!x.scrap_given);
               const nameCell =
                 idx === 0
                   ? `<td class=\"px-2 py-2 align-top\" rowspan=\"${byName[name].length}\">${name}</td>`
+                  : "";
+              const paidCell =
+                idx === 0
+                  ? `<td class=\"px-2 py-2 text-center align-top\" rowspan=\"${byName[name].length}\"><button data-paid-person-key=\"${personKey}\" data-paid-batch=\"${k}\" data-paid-name=\"${String(name).replace(/"/g, "&quot;")}\" class="px-2 py-1 rounded ${
+                      paidOn ? "bg-emerald-700" : "bg-slate-700"
+                    } text-white">${
+                      paidOn ? "Lunas" : "Belum"
+                    }</button></td>`
+                  : "";
+              const scrapCell =
+                idx === 0
+                  ? `<td class=\"px-2 py-2 text-center align-top\" rowspan=\"${byName[name].length}\"><button data-scrap-person-key=\"${personKey}\" data-scrap-batch=\"${k}\" data-scrap-name=\"${String(name).replace(/"/g, "&quot;")}\" class="px-2 py-1 rounded ${
+                      scrapOn ? "bg-cyan-700" : "bg-slate-700"
+                    } text-white">${
+                      scrapOn ? "Sudah" : "Belum"
+                    }</button></td>`
                   : "";
               const rowCls =
                 idx === 0 && gIdx > 0
@@ -2501,7 +2561,7 @@ function renderDashboard(groups) {
                 r.delivered ? "bg-green-700" : "bg-yellow-700"
               } text-white">${
                 r.delivered ? "Sudah" : "Belum"
-              }</button></td><td class=\"px-2 py-2 text-right\"><button data-del-id=\"${
+              }</button></td>${paidCell}${scrapCell}<td class=\"px-2 py-2 text-right\"><button data-del-id=\"${
                 r.id
               }\" class=\"px-2 py-1 rounded bg-red-700 text-white\">Hapus</button></td></tr>`;
             })
@@ -2509,7 +2569,7 @@ function renderDashboard(groups) {
         )
         .join("");
       const orderDetails =
-        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order No.</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th><th class=\"text-center px-2 py-2\">Status</th><th class=\"text-right px-2 py-2\">Actions</th></tr></thead><tbody>` +
+        `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order No.</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th><th class=\"text-center px-2 py-2\">Status</th><th class=\"text-center px-2 py-2\">Bayar</th><th class=\"text-center px-2 py-2\">Metal</th><th class=\"text-right px-2 py-2\">Actions</th></tr></thead><tbody>` +
         rowsHtml +
         `</tbody></table></div></div>`;
       return `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-4\">${header}</div>${summary}${orderDetails}`;
@@ -2517,6 +2577,8 @@ function renderDashboard(groups) {
     .join("");
   container.innerHTML = totalsHtml + batchesHtml;
   const deliveredRows = getDeliveredRowSet();
+  const paidPeople = getPaidPersonSet();
+  const scrapPeople = getScrapPersonSet();
   container.querySelectorAll("[data-row-id]").forEach((btn) => {
     const id = parseInt(btn.getAttribute("data-row-id") || "", 10);
     if (deliveredRows.has(String(id))) {
@@ -2545,6 +2607,76 @@ function renderDashboard(groups) {
           ? "px-2 py-1 rounded bg-green-700 text-white"
           : "px-2 py-1 rounded bg-yellow-700 text-white";
         showAlert("Status diperbarui (lokal)", "success");
+      }
+    });
+  });
+  container.querySelectorAll("[data-paid-person-key]").forEach((btn) => {
+    const personKey = String(btn.getAttribute("data-paid-person-key") || "");
+    const batch = parseInt(btn.getAttribute("data-paid-batch") || "", 10);
+    const name = String(btn.getAttribute("data-paid-name") || "");
+    if (paidPeople.has(String(personKey))) {
+      btn.textContent = "Lunas";
+      btn.className = "px-2 py-1 rounded bg-emerald-700 text-white";
+    }
+    btn.addEventListener("click", async () => {
+      const nowPaid = btn.textContent !== "Lunas";
+      try {
+        const { error } = await supabase
+          .from("orders")
+          .update({ paid: nowPaid })
+          .eq("orderanke", batch)
+          .eq("nama", name);
+        if (error) throw error;
+        btn.textContent = nowPaid ? "Lunas" : "Belum";
+        btn.className = nowPaid
+          ? "px-2 py-1 rounded bg-emerald-700 text-white"
+          : "px-2 py-1 rounded bg-slate-700 text-white";
+        showAlert("Status bayar diperbarui", "success");
+      } catch (e) {
+        const set = getPaidPersonSet();
+        if (nowPaid) set.add(String(personKey));
+        else set.delete(String(personKey));
+        savePaidPersonSet(set);
+        btn.textContent = nowPaid ? "Lunas" : "Belum";
+        btn.className = nowPaid
+          ? "px-2 py-1 rounded bg-emerald-700 text-white"
+          : "px-2 py-1 rounded bg-slate-700 text-white";
+        showAlert("Status bayar diperbarui (lokal)", "success");
+      }
+    });
+  });
+  container.querySelectorAll("[data-scrap-person-key]").forEach((btn) => {
+    const personKey = String(btn.getAttribute("data-scrap-person-key") || "");
+    const batch = parseInt(btn.getAttribute("data-scrap-batch") || "", 10);
+    const name = String(btn.getAttribute("data-scrap-name") || "");
+    if (scrapPeople.has(String(personKey))) {
+      btn.textContent = "Sudah";
+      btn.className = "px-2 py-1 rounded bg-cyan-700 text-white";
+    }
+    btn.addEventListener("click", async () => {
+      const nowGiven = btn.textContent !== "Sudah";
+      try {
+        const { error } = await supabase
+          .from("orders")
+          .update({ scrap_given: nowGiven })
+          .eq("orderanke", batch)
+          .eq("nama", name);
+        if (error) throw error;
+        btn.textContent = nowGiven ? "Sudah" : "Belum";
+        btn.className = nowGiven
+          ? "px-2 py-1 rounded bg-cyan-700 text-white"
+          : "px-2 py-1 rounded bg-slate-700 text-white";
+        showAlert("Status metal scrap diperbarui", "success");
+      } catch (e) {
+        const set = getScrapPersonSet();
+        if (nowGiven) set.add(String(personKey));
+        else set.delete(String(personKey));
+        saveScrapPersonSet(set);
+        btn.textContent = nowGiven ? "Sudah" : "Belum";
+        btn.className = nowGiven
+          ? "px-2 py-1 rounded bg-cyan-700 text-white"
+          : "px-2 py-1 rounded bg-slate-700 text-white";
+        showAlert("Status metal scrap diperbarui (lokal)", "success");
       }
     });
   });
