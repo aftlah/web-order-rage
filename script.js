@@ -1289,7 +1289,25 @@ function renderMyOrders(rows, useOrderanke) {
 function initStoran(member) {
   const btn = document.getElementById("storanSubmit");
   if (btn) btn.addEventListener("click", submitStoran);
-  if (member && member.id) {
+  const cancelEditBtn = document.getElementById("storanCancelEdit");
+  if (cancelEditBtn) cancelEditBtn.addEventListener("click", resetStoranForm);
+  const adminMode = isAdminMember(member);
+  if (adminMode) {
+    setupStoranNameSearch();
+    const nameInput = document.getElementById("storanNama");
+    const hidden = document.getElementById("storanMemberId");
+    const status = document.getElementById("storanNamaStatus");
+    if (nameInput) {
+      nameInput.disabled = false;
+      nameInput.value = "";
+    }
+    if (hidden) hidden.value = "";
+    if (status) {
+      status.textContent = "Pilih nama anggota dari database";
+      status.classList.remove("text-green-500");
+      status.classList.add("text-red-500");
+    }
+  } else if (member && member.id) {
     applyCurrentMemberToStoranUI(member);
   } else {
     setupStoranNameSearch();
@@ -1301,30 +1319,98 @@ function initStoran(member) {
   loadStoranTable();
 }
 
+function setStoranFormMode(isEditing) {
+  const submitLabel = document.getElementById("storanSubmitLabel");
+  const cancelBtn = document.getElementById("storanCancelEdit");
+  if (submitLabel) submitLabel.textContent = isEditing ? "Update Storan" : "Kirim Storan";
+  if (cancelBtn) cancelBtn.classList.toggle("hidden", !isEditing);
+}
+
+function resetStoranForm() {
+  const currentMember = window.__currentMember || null;
+  const adminMode = isAdminMember(currentMember);
+  const editIdEl = document.getElementById("storanEditId");
+  const nameEl = document.getElementById("storanNama");
+  const memberIdEl = document.getElementById("storanMemberId");
+  const statusEl = document.getElementById("storanStatus");
+  const receiverEl = document.getElementById("storanPenerima");
+  const noteEl = document.getElementById("storanCatatan");
+  const statusText = document.getElementById("storanNamaStatus");
+  if (editIdEl) editIdEl.value = "";
+  if (statusEl) statusEl.value = "SUDAH";
+  if (receiverEl) receiverEl.value = "";
+  if (noteEl) noteEl.value = "";
+  if (adminMode) {
+    if (nameEl) {
+      nameEl.disabled = false;
+      nameEl.value = "";
+    }
+    if (memberIdEl) memberIdEl.value = "";
+    if (statusText) {
+      statusText.textContent = "Pilih nama anggota dari database";
+      statusText.classList.remove("text-green-500");
+      statusText.classList.add("text-red-500");
+    }
+  } else {
+    applyCurrentMemberToStoranUI(currentMember);
+  }
+  setStoranFormMode(false);
+}
+
+function startEditStoran(row) {
+  const editIdEl = document.getElementById("storanEditId");
+  const nameEl = document.getElementById("storanNama");
+  const memberIdEl = document.getElementById("storanMemberId");
+  const statusEl = document.getElementById("storanStatus");
+  const receiverEl = document.getElementById("storanPenerima");
+  const noteEl = document.getElementById("storanCatatan");
+  const statusText = document.getElementById("storanNamaStatus");
+  if (editIdEl) editIdEl.value = row && row.id ? String(row.id) : "";
+  if (nameEl) nameEl.value = row && row.nama ? String(row.nama) : "";
+  if (memberIdEl) memberIdEl.value = row && row.memberId ? String(row.memberId) : "";
+  if (statusEl) statusEl.value = row && row.statusRaw ? String(row.statusRaw) : "SUDAH";
+  if (receiverEl) receiverEl.value = row && row.penerima ? String(row.penerima) : "";
+  if (noteEl) noteEl.value = row && row.catatan ? String(row.catatan) : "";
+  if (statusText) {
+    statusText.textContent = "Mode edit storan";
+    statusText.classList.remove("text-red-500");
+    statusText.classList.add("text-green-500");
+  }
+  setStoranFormMode(true);
+}
+
 async function submitStoran() {
   const nameEl = document.getElementById("storanNama");
   const statusEl = document.getElementById("storanStatus");
   const receiverEl = document.getElementById("storanPenerima");
   const noteEl = document.getElementById("storanCatatan");
   const memberIdEl = document.getElementById("storanMemberId");
+  const editIdEl = document.getElementById("storanEditId");
   if (!nameEl || !statusEl || !receiverEl) return;
 
   const currentMember = window.__currentMember || null;
+  const adminMode = isAdminMember(currentMember);
   const nama =
-    currentMember && currentMember.nama
+    !adminMode && currentMember && currentMember.nama
       ? String(currentMember.nama)
       : nameEl.value.trim();
   const statusVal = statusEl.value;
   const penerima = receiverEl.value.trim();
   const catatan = (noteEl && noteEl.value.trim()) || "";
 
-  const memberId = currentMember && currentMember.id ? parseInt(String(currentMember.id), 10) : (memberIdEl ? parseInt(memberIdEl.value || "", 10) : NaN);
+  const memberId =
+    !adminMode && currentMember && currentMember.id
+      ? parseInt(String(currentMember.id), 10)
+      : memberIdEl
+      ? parseInt(memberIdEl.value || "", 10)
+      : NaN;
+  const editingId = editIdEl ? parseInt(editIdEl.value || "", 10) : NaN;
   if (Number.isNaN(memberId) || !memberId) {
     showAlert("Akun belum terhubung ke member", "error");
     return;
   }
-  if (memberIdEl && currentMember && currentMember.id) memberIdEl.value = String(memberId);
-  if (currentMember && currentMember.nama) nameEl.value = String(currentMember.nama);
+  if (memberIdEl && !Number.isNaN(memberId) && memberId) memberIdEl.value = String(memberId);
+  if (!adminMode && currentMember && currentMember.nama) nameEl.value = String(currentMember.nama);
 
   if (!nama) {
     showAlert("Nama wajib diisi", "error");
@@ -1348,8 +1434,9 @@ async function submitStoran() {
   if (supabase) {
     try {
       const win = await fetchActiveOrderWindow(null);
-      if (win && win.orderanke) {
-        const v = parseInt(win.orderanke, 10);
+      const fallbackWin = win || (await fetchLatestOrderWindow("order"));
+      if (fallbackWin && fallbackWin.orderanke) {
+        const v = parseInt(fallbackWin.orderanke, 10);
         if (!Number.isNaN(v) && v > 0) {
           periodeValue = v;
           const m = Math.floor(v / 10);
@@ -1372,7 +1459,7 @@ async function submitStoran() {
 
   try {
     if (supabase) {
-      const { error: logErr } = await supabase.from("storan_logs").insert({
+      const payload = {
         member_id: memberId,
         nama,
         status: statusVal,
@@ -1381,7 +1468,11 @@ async function submitStoran() {
         penerima,
         catatan,
         waktu: now.toISOString(),
-      });
+      };
+      const { error: logErr } =
+        !Number.isNaN(editingId) && editingId
+          ? await supabase.from("storan_logs").update(payload).eq("id", editingId)
+          : await supabase.from("storan_logs").insert(payload);
       if (logErr) {
         console.error("Gagal menyimpan storan_logs:", logErr);
         showAlert("Gagal menyimpan log storan ke database", "error");
@@ -1389,9 +1480,8 @@ async function submitStoran() {
     }
     const hook = (window && window.DISCORD_STORAN_WEBHOOK_URL) || "";
     await postToDiscord(msg, hook);
-    showAlert("Storan terkirim ke Discord", "success");
-    statusEl.value = "SUDAH";
-    if (noteEl) noteEl.value = "";
+    showAlert(!Number.isNaN(editingId) && editingId ? "Storan berhasil diupdate" : "Storan terkirim ke Discord", "success");
+    resetStoranForm();
     if (typeof loadStoranTable === "function") {
       try {
         await loadStoranTable();
@@ -1415,22 +1505,25 @@ async function loadStoranTable() {
 
   let periodeLabel = "";
   let periodeValue = null;
+  let isFallbackPeriod = false;
   try {
     const win = await fetchActiveOrderWindow(null);
-    if (win && win.orderanke) {
-      const v = parseInt(win.orderanke, 10);
+    const fallbackWin = win || (await fetchLatestOrderWindow("order"));
+    if (fallbackWin && fallbackWin.orderanke) {
+      const v = parseInt(fallbackWin.orderanke, 10);
       if (!Number.isNaN(v) && v > 0) {
         periodeValue = v;
         const m = Math.floor(v / 10);
         const w = v % 10;
-        periodeLabel = `M${m}-W${w} (#${v})`;
+        isFallbackPeriod = !win;
+        periodeLabel = `${isFallbackPeriod ? "TERAKHIR • " : ""}M${m}-W${w} (#${v})`;
       }
     }
   } catch (e) {}
 
-  labelEl.textContent = periodeLabel || "Periode tidak aktif";
+  labelEl.textContent = periodeLabel || "Periode tidak tersedia";
   if (!periodeValue) {
-    empty.textContent = "Belum ada periode storan aktif";
+    empty.textContent = "Belum ada data periode storan";
     return;
   }
 
@@ -1483,9 +1576,12 @@ async function loadStoranTable() {
     const note = (log && log.catatan) || "";
     const penerima = (log && log.penerima) || "";
     return {
+      id: (log && log.id) || "",
+      memberId: m.id,
       nama: m.nama || "",
       penerima,
       status: statusLabel,
+      statusRaw: (log && log.status) || "BELUM",
       catatan: note,
       waktu: t,
       isBelum: !log,
@@ -1494,8 +1590,8 @@ async function loadStoranTable() {
 
   const html = rows
     .map(
-      (r, idx) => `<tr class="table-row-hover ${
-        r.isBelum ? "bg-red-50/60 dark:bg-red-900/10" : idx % 2 === 0 ? "bg-transparent" : "bg-amber-50/40 dark:bg-[#1b120d]"
+      (r, idx) => `<tr class="transition-colors hover:bg-amber-900/15 ${
+        r.isBelum ? "bg-red-50/60 dark:bg-red-900/10 dark:hover:bg-red-900/20" : idx % 2 === 0 ? "bg-transparent dark:hover:bg-[#241913]" : "bg-amber-50/40 dark:bg-[#1b120d] dark:hover:bg-[#241913]"
       }">
   <td class="px-3 py-2 whitespace-nowrap">${r.nama}</td>
   <td class="px-3 py-2 whitespace-nowrap">${r.penerima}</td>
@@ -1510,11 +1606,26 @@ async function loadStoranTable() {
   </td>
   <td class="px-3 py-2 text-xs sm:text-sm">${r.catatan}</td>
   <td class="px-3 py-2 whitespace-nowrap text-xs sm:text-sm">${r.waktu}</td>
+  <td class="px-3 py-2 text-center">
+    <button class="px-3 py-1 rounded-lg bg-yellow-600/20 text-yellow-300 border border-yellow-600/30 text-[10px] font-bold uppercase hover:bg-yellow-600/30 transition" data-edit-storan-idx="${idx}">
+      Edit
+    </button>
+  </td>
 </tr>`
     )
     .join("");
   body.innerHTML = html;
   empty.classList.add("hidden");
+  body.querySelectorAll("[data-edit-storan-idx]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.getAttribute("data-edit-storan-idx") || "", 10);
+      const row = rows[idx];
+      if (!row) return;
+      startEditStoran(row);
+      const formName = document.getElementById("storanNama");
+      if (formName) formName.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
 }
 
 function setupStoranNameSearch() {
