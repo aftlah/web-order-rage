@@ -4627,7 +4627,24 @@ async function initDrugs(member) {
     console.error("Gagal ambil periode drugs:", e);
   }
 
-  if (member && member.id) {
+  const adminMode = isAdminMember(member);
+  if (adminMode) {
+    setupDrugsNameSearch();
+    updateDrugsNameValidity();
+    const nameInput = document.getElementById("drugsNama");
+    const hidden = document.getElementById("drugsMemberId");
+    const status = document.getElementById("drugsNamaStatus");
+    if (nameInput) {
+      nameInput.disabled = false;
+      nameInput.value = "";
+    }
+    if (hidden) hidden.value = "";
+    if (status) {
+      status.textContent = "Pilih nama anggota dari database";
+      status.classList.remove("text-green-500");
+      status.classList.add("text-red-500");
+    }
+  } else if (member && member.id) {
     applyCurrentMemberToDrugsUI(member);
   } else {
     setupDrugsNameSearch();
@@ -4983,7 +5000,7 @@ async function openCreateBatchModal() {
         showAlert("Gagal membuat batch: " + error.message, "error");
       } else {
         showAlert(`Batch Drugs M${m}-W${w} berhasil dimulai!`, "success");
-        initDrugs(); // Refresh current display
+        initDrugs(window.__currentMember || null); // Refresh current display
       }
     }
   }
@@ -5085,13 +5102,14 @@ function updateDrugsNameValidity() {
 
 async function submitDrugsData() {
   const currentMember = window.__currentMember || null;
+  const adminMode = isAdminMember(currentMember);
   const memberIdRaw = document.getElementById("drugsMemberId").value;
   const memberId =
-    currentMember && currentMember.id
+    !adminMode && currentMember && currentMember.id
       ? parseInt(String(currentMember.id), 10)
       : parseInt(memberIdRaw || "", 10);
   const nama =
-    currentMember && currentMember.nama
+    !adminMode && currentMember && currentMember.nama
       ? String(currentMember.nama)
       : document.getElementById("drugsNama").value.trim();
   const duitMerah = parseFloat(document.getElementById("duitMerah").value) || 0;
@@ -5107,9 +5125,9 @@ async function submitDrugsData() {
     return;
   }
   const memberIdEl = document.getElementById("drugsMemberId");
-  if (memberIdEl && currentMember && currentMember.id) memberIdEl.value = String(memberId);
+  if (memberIdEl && !Number.isNaN(memberId) && memberId) memberIdEl.value = String(memberId);
   const nameEl = document.getElementById("drugsNama");
-  if (nameEl && currentMember && currentMember.nama) nameEl.value = String(currentMember.nama);
+  if (!adminMode && nameEl && currentMember && currentMember.nama) nameEl.value = String(currentMember.nama);
   if (!jenis) {
     showAlert("Pilih jenis jualan (Weed/Meth)", "error");
     return;
@@ -5263,8 +5281,21 @@ async function submitDrugsData() {
     });
   }
 
-  document.getElementById("drugsNama").value = "";
-  document.getElementById("drugsMemberId").value = "";
+  if (adminMode) {
+    document.getElementById("drugsNama").value = "";
+    document.getElementById("drugsMemberId").value = "";
+    const statusEl = document.getElementById("drugsNamaStatus");
+    if (statusEl) {
+      statusEl.textContent = "Pilih nama anggota dari database";
+      statusEl.classList.remove("text-green-500");
+      statusEl.classList.add("text-red-500");
+    }
+  } else {
+    const currentNameEl = document.getElementById("drugsNama");
+    const currentIdEl = document.getElementById("drugsMemberId");
+    if (currentNameEl && currentMember && currentMember.nama) currentNameEl.value = String(currentMember.nama);
+    if (currentIdEl && currentMember && currentMember.id) currentIdEl.value = String(currentMember.id);
+  }
   const jenisEl = document.getElementById("drugsJenis");
   if (jenisEl) jenisEl.value = "Weed";
   document.getElementById("drugsJumlah").value = "";
