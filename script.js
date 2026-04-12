@@ -2481,14 +2481,27 @@ function renderDashboard(groups) {
   const keys = Object.keys(groups).sort(
     (a, b) => parseInt(b, 10) - parseInt(a, 10)
   );
+  const paidPeople = getPaidPersonSet();
+  const scrapPeopleLocal = getScrapPersonSet();
   const totalsByUser = {};
   keys.forEach((k) => {
     const g = groups[k];
     (g.items || []).forEach((r) => {
       const name = r.nama || "Unknown";
-      totalsByUser[name] ||= { count: 0, total: 0, scrap: 0 };
+      totalsByUser[name] ||= {
+        count: 0,
+        total: 0,
+        scrap: 0,
+        paidGroups: new Map(),
+        scrapGroups: new Map(),
+      };
       totalsByUser[name].count += 1;
       totalsByUser[name].total += r.subtotal || 0;
+      const personKey = makePersonStatusKey(r.orderanke || 0, name);
+      const paidFlag = !!r.paid || paidPeople.has(personKey);
+      const scrapFlag = !!r.scrap_given || scrapPeopleLocal.has(personKey);
+      totalsByUser[name].paidGroups.set(String(r.orderanke || 0), paidFlag);
+      totalsByUser[name].scrapGroups.set(String(r.orderanke || 0), scrapFlag);
       let itemScrap = 0;
       for (const cat in CATALOG) {
         const found = CATALOG[cat].find((i) => i.name === r.item);
@@ -2504,11 +2517,46 @@ function renderDashboard(groups) {
     (a, b) =>
       totalsByUser[b].total - totalsByUser[a].total || a.localeCompare(b)
   );
+  const getStatusSummary = (statusMap, labels) => {
+    const statuses = Array.from((statusMap || new Map()).values());
+    if (!statuses.length) {
+      return {
+        text: labels.none,
+        cls: "bg-slate-700/20 text-slate-300 border border-slate-600/30",
+      };
+    }
+    const doneCount = statuses.filter(Boolean).length;
+    if (doneCount === statuses.length) {
+      return {
+        text: labels.done,
+        cls: "bg-emerald-600/20 text-emerald-300 border border-emerald-500/30",
+      };
+    }
+    if (doneCount === 0) {
+      return {
+        text: labels.none,
+        cls: "bg-rose-600/20 text-rose-300 border border-rose-500/30",
+      };
+    }
+    return {
+      text: `${doneCount}/${statuses.length} ${labels.done}`,
+      cls: "bg-amber-500/20 text-amber-200 border border-amber-400/30",
+    };
+  };
   const totalsHtml =
-    `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Orders per User</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-center px-2 py-2\">Orders</th><th class=\"text-right px-2 py-2\">Total</th><th class=\"text-center px-2 py-2\">Scrap</th></tr></thead><tbody>` +
+    `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Orders per User</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-center px-2 py-2\">Orders</th><th class=\"text-right px-2 py-2\">Total</th><th class=\"text-center px-2 py-2\">Scrap</th><th class=\"text-center px-2 py-2\">Duit</th><th class=\"text-center px-2 py-2\">Metal</th></tr></thead><tbody>` +
     userKeys
       .map(
-        (n) =>
+        (n) => {
+          const money = getStatusSummary(totalsByUser[n].paidGroups, {
+            done: "Lunas",
+            none: "Belum",
+          });
+          const metal = getStatusSummary(totalsByUser[n].scrapGroups, {
+            done: "Sudah",
+            none: "Belum",
+          });
+          return (
           `<tr class=\"table-row-hover border-b border-yellow-900/20\"><td class=\"px-2 py-2\">${n}</td><td class=\"px-2 py-2 text-center\">${
             totalsByUser[n].count
           }</td><td class=\"px-2 py-2 text-right\">${fmt(
@@ -2517,7 +2565,13 @@ function renderDashboard(groups) {
             totalsByUser[n].scrap > 0
               ? parseFloat(totalsByUser[n].scrap.toFixed(2))
               : "-"
-          }</td></tr>`
+          }</td><td class=\"px-2 py-2 text-center\"><span class=\"inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${money.cls}\">${
+            money.text
+          }</span></td><td class=\"px-2 py-2 text-center\"><span class=\"inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${metal.cls}\">${
+            metal.text
+          }</span></td></tr>`
+          );
+        }
       )
       .join("") +
     `</tbody></table></div></div>`;
@@ -2654,7 +2708,7 @@ function renderDashboard(groups) {
     .join("");
   container.innerHTML = totalsHtml + batchesHtml;
   const deliveredRows = getDeliveredRowSet();
-  const paidPeople = getPaidPersonSet();
+  const paidPeopleLocal = getPaidPersonSet();
   const scrapPeople = getScrapPersonSet();
   container.querySelectorAll("[data-row-id]").forEach((btn) => {
     const id = parseInt(btn.getAttribute("data-row-id") || "", 10);
