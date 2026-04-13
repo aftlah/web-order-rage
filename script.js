@@ -4798,6 +4798,7 @@ async function initDrugs(member) {
   const duitMerahInput = document.getElementById("duitMerah");
   const estimasiGajiEl = document.getElementById("estimasiGaji");
   const submitBtn = document.getElementById("submitDrugs");
+  const cancelEditBtn = document.getElementById("cancelDrugsEdit");
   const refreshBtn = document.getElementById("refreshDrugs");
   const batchFilter = document.getElementById("drugsBatchFilter");
   const addBatchBtn = document.getElementById("addBatchBtn");
@@ -4815,6 +4816,9 @@ async function initDrugs(member) {
 
   if (submitBtn) {
     submitBtn.addEventListener("click", submitDrugsData);
+  }
+  if (cancelEditBtn) {
+    cancelEditBtn.addEventListener("click", () => resetDrugsForm(window.__currentMember || null));
   }
 
   if (refreshBtn) {
@@ -4837,6 +4841,71 @@ async function initDrugs(member) {
     if (isAdmin) setActiveBatchBtn.addEventListener("click", openSelectActiveDrugsBatchModal);
     else setActiveBatchBtn.classList.add("hidden");
   }
+}
+
+function setDrugsFormMode(isEditing) {
+  const label = document.getElementById("submitDrugsLabel");
+  const cancelBtn = document.getElementById("cancelDrugsEdit");
+  if (label) label.textContent = isEditing ? "Update Data" : "Simpan Data";
+  if (cancelBtn) cancelBtn.classList.toggle("hidden", !isEditing);
+}
+
+function resetDrugsForm(member) {
+  const currentMember = member || window.__currentMember || null;
+  const adminMode = isAdminMember(currentMember);
+  const nameEl = document.getElementById("drugsNama");
+  const memberIdEl = document.getElementById("drugsMemberId");
+  const editIdEl = document.getElementById("drugsEditId");
+  const editBatchEl = document.getElementById("drugsEditBatch");
+  const statusEl = document.getElementById("drugsNamaStatus");
+  const jenisEl = document.getElementById("drugsJenis");
+  const jumlahEl = document.getElementById("drugsJumlah");
+  const duitEl = document.getElementById("duitMerah");
+  const estimasiEl = document.getElementById("estimasiGaji");
+  if (editIdEl) editIdEl.value = "";
+  if (editBatchEl) editBatchEl.value = "";
+  if (jenisEl) jenisEl.value = "Weed";
+  if (jumlahEl) jumlahEl.value = "";
+  if (duitEl) duitEl.value = "";
+  if (estimasiEl) estimasiEl.textContent = "$ 0";
+  if (adminMode) {
+    if (nameEl) nameEl.value = "";
+    if (memberIdEl) memberIdEl.value = "";
+    if (statusEl) {
+      statusEl.textContent = "Pilih nama anggota dari database";
+      statusEl.classList.remove("text-green-500");
+      statusEl.classList.add("text-red-500");
+    }
+  } else {
+    applyCurrentMemberToDrugsUI(currentMember);
+  }
+  setDrugsFormMode(false);
+}
+
+function startEditDrugsRow(row) {
+  const nameEl = document.getElementById("drugsNama");
+  const memberIdEl = document.getElementById("drugsMemberId");
+  const editIdEl = document.getElementById("drugsEditId");
+  const editBatchEl = document.getElementById("drugsEditBatch");
+  const jenisEl = document.getElementById("drugsJenis");
+  const jumlahEl = document.getElementById("drugsJumlah");
+  const duitEl = document.getElementById("duitMerah");
+  const estimasiEl = document.getElementById("estimasiGaji");
+  const statusEl = document.getElementById("drugsNamaStatus");
+  if (nameEl) nameEl.value = String(row.nama || "");
+  if (memberIdEl) memberIdEl.value = row.member_id ? String(row.member_id) : "";
+  if (editIdEl) editIdEl.value = row.primaryId ? String(row.primaryId) : "";
+  if (editBatchEl) editBatchEl.value = row.periode_orderanke ? String(row.periode_orderanke) : "";
+  if (jenisEl) jenisEl.value = String(row.jenis || "Weed");
+  if (jumlahEl) jumlahEl.value = String(parseFloat(row.jumlah) || 0);
+  if (duitEl) duitEl.value = String(parseFloat(row.uang_merah) || 0);
+  if (estimasiEl) estimasiEl.textContent = fmt((parseFloat(row.uang_merah) || 0) * 0.35 * 0.65);
+  if (statusEl) {
+    statusEl.textContent = "Mode edit data drugs";
+    statusEl.classList.remove("text-red-500");
+    statusEl.classList.add("text-green-500");
+  }
+  setDrugsFormMode(true);
 }
 
 async function checkDrugsSalesJenisJumlahSchema() {
@@ -5243,6 +5312,9 @@ async function submitDrugsData() {
   const currentMember = window.__currentMember || null;
   const adminMode = isAdminMember(currentMember);
   const memberIdRaw = document.getElementById("drugsMemberId").value;
+  const editIdRaw = (document.getElementById("drugsEditId") || {}).value || "";
+  const editBatchRaw = (document.getElementById("drugsEditBatch") || {}).value || "";
+  const editingId = String(editIdRaw || "").trim();
   const memberId =
     !adminMode && currentMember && currentMember.id
       ? parseInt(String(currentMember.id), 10)
@@ -5275,11 +5347,8 @@ async function submitDrugsData() {
     showAlert("Masukkan jumlah terjual yang valid", "error");
     return;
   }
-  if (duitMerah <= 0) {
-    showAlert("Masukkan jumlah uang merah yang valid", "error");
-    return;
-  }
-  if (!currentDrugsBatch) {
+  const targetBatch = parseInt(editBatchRaw || "", 10) || currentDrugsBatch || 0;
+  if (!targetBatch) {
     showAlert("Tidak ada batch drugs aktif", "error");
     return;
   }
@@ -5294,16 +5363,65 @@ async function submitDrugsData() {
   // Rumus:
   // Gaji Putih = (duit merah * 35%) * 65%
   // Uang RAGE = (duit merah * 65%) * 65%
-  const upahPutih = (duitMerah * 0.35) * 0.65;
-  const uangRage = (duitMerah * 0.65) * 0.65;
+  const upahPutih = duitMerah > 0 ? (duitMerah * 0.35) * 0.65 : 0;
+  const uangRage = duitMerah > 0 ? (duitMerah * 0.65) * 0.65 : 0;
 
   const nowIso = new Date().toISOString();
+  if (editingId) {
+    let updatePayload = {
+      member_id: memberId,
+      nama,
+      uang_merah: duitMerah,
+      upah_putih: upahPutih,
+      uang_rage: uangRage,
+      periode_orderanke: targetBatch,
+      waktu: nowIso,
+      jenis,
+      jumlah,
+    };
+    let { error } = await supabase.from("drugs_sales").update(updatePayload).eq("id", editingId);
+    if (error && String(error.message || "").toLowerCase().includes("column")) {
+      updatePayload = {
+        member_id: memberId,
+        nama,
+        uang_merah: duitMerah,
+        upah_putih: upahPutih,
+        uang_rage: uangRage,
+        periode_orderanke: targetBatch,
+        waktu: nowIso,
+      };
+      const res2 = await supabase.from("drugs_sales").update(updatePayload).eq("id", editingId);
+      error = res2.error || null;
+    }
+    if (error) {
+      showAlert("Gagal update data: " + error.message, "error");
+      return;
+    }
+    showAlert("Data drugs berhasil diupdate", "success");
+    await sendDrugsEntryToDiscord({
+      nama,
+      periode_orderanke: targetBatch,
+      jenis,
+      jumlahTotal: jumlah,
+      duitMerahDelta: duitMerah,
+      upahPutihDelta: upahPutih,
+      uangRageDelta: uangRage,
+      duitMerahTotal: duitMerah,
+      upahPutihTotal: upahPutih,
+      uangRageTotal: uangRage,
+      waktu: nowIso,
+      mode: "edit",
+    });
+    resetDrugsForm(currentMember);
+    loadDrugsTable();
+    return;
+  }
   let existing = null;
   try {
     const { data: exData, error: exErr } = await supabase
       .from("drugs_sales")
       .select("id,uang_merah,upah_putih,uang_rage,waktu,jenis,jumlah")
-      .eq("periode_orderanke", currentDrugsBatch)
+      .eq("periode_orderanke", targetBatch)
       .eq("member_id", memberId)
       .eq("jenis", jenis)
       .order("waktu", { ascending: false })
@@ -5312,7 +5430,7 @@ async function submitDrugsData() {
       const { data: exData2 } = await supabase
         .from("drugs_sales")
         .select("id,uang_merah,upah_putih,uang_rage,waktu")
-        .eq("periode_orderanke", currentDrugsBatch)
+        .eq("periode_orderanke", targetBatch)
         .eq("member_id", memberId)
         .order("waktu", { ascending: false })
         .limit(1);
@@ -5360,7 +5478,7 @@ async function submitDrugsData() {
     showAlert("Data ditambahkan ke total batch (nama sama)", "success");
     await sendDrugsEntryToDiscord({
       nama,
-      periode_orderanke: currentDrugsBatch,
+      periode_orderanke: targetBatch,
       jenis,
       jumlahTotal: nextJumlah,
       duitMerahDelta: duitMerah,
@@ -5379,7 +5497,7 @@ async function submitDrugsData() {
       uang_merah: duitMerah,
       upah_putih: upahPutih,
       uang_rage: uangRage,
-      periode_orderanke: currentDrugsBatch,
+      periode_orderanke: targetBatch,
       waktu: nowIso,
       jenis,
       jumlah,
@@ -5392,7 +5510,7 @@ async function submitDrugsData() {
         uang_merah: duitMerah,
         upah_putih: upahPutih,
         uang_rage: uangRage,
-        periode_orderanke: currentDrugsBatch,
+        periode_orderanke: targetBatch,
         waktu: nowIso,
       };
       const res2 = await supabase.from("drugs_sales").insert(insertPayload);
@@ -5406,7 +5524,7 @@ async function submitDrugsData() {
     showAlert("Data penjualan drugs berhasil disimpan", "success");
     await sendDrugsEntryToDiscord({
       nama,
-      periode_orderanke: currentDrugsBatch,
+      periode_orderanke: targetBatch,
       jenis,
       jumlahTotal: jumlah,
       duitMerahDelta: duitMerah,
@@ -5421,25 +5539,10 @@ async function submitDrugsData() {
   }
 
   if (adminMode) {
-    document.getElementById("drugsNama").value = "";
-    document.getElementById("drugsMemberId").value = "";
-    const statusEl = document.getElementById("drugsNamaStatus");
-    if (statusEl) {
-      statusEl.textContent = "Pilih nama anggota dari database";
-      statusEl.classList.remove("text-green-500");
-      statusEl.classList.add("text-red-500");
-    }
+    resetDrugsForm(currentMember);
   } else {
-    const currentNameEl = document.getElementById("drugsNama");
-    const currentIdEl = document.getElementById("drugsMemberId");
-    if (currentNameEl && currentMember && currentMember.nama) currentNameEl.value = String(currentMember.nama);
-    if (currentIdEl && currentMember && currentMember.id) currentIdEl.value = String(currentMember.id);
+    resetDrugsForm(currentMember);
   }
-  const jenisEl = document.getElementById("drugsJenis");
-  if (jenisEl) jenisEl.value = "Weed";
-  document.getElementById("drugsJumlah").value = "";
-  document.getElementById("duitMerah").value = "";
-  document.getElementById("estimasiGaji").textContent = "$ 0";
   loadDrugsTable();
 }
 
@@ -5464,6 +5567,13 @@ async function sendDrugsEntryToDiscord(payload) {
 
     let msg = "```";
     msg += "\nGaji Penjualan Drugs";
+    const modeLabel =
+      payload && payload.mode === "edit"
+        ? "UPDATE DATA"
+        : payload && payload.mode === "update"
+        ? "TAMBAH KE TOTAL"
+        : "INPUT BARU";
+    msg += `\nMode      : ${modeLabel}`;
     msg += `\nPeriode   : ${periodeLabel}\n`;
     msg += `\nNama      : ${payload.nama || "-"}`;
     if (payload.jenis) msg += `\nJenis     : ${payload.jenis}`;
@@ -5598,6 +5708,7 @@ async function loadDrugsTable() {
     const key = `${r.member_id || r.nama || "-"}|${r.periode_orderanke || ""}|${r.jenis || ""}`;
     const prev = grouped.get(key) || {
       ids: [],
+      primaryId: r.id || null,
       member_id: r.member_id || null,
       nama: r.nama || "-",
       periode_orderanke: r.periode_orderanke || null,
@@ -5644,14 +5755,34 @@ async function loadDrugsTable() {
         <td class="px-4 py-3 text-blue-600 dark:text-blue-400">${fmt(r.uang_rage)}</td>
         <td class="px-4 py-3 text-xs text-slate-400">${fmtDateTime(r.waktu)}</td>
         <td class="px-4 py-3 text-center">
-          <button class="px-3 py-1 rounded bg-red-700/20 text-red-400 border border-red-700/30 text-[10px] font-bold uppercase hover:bg-red-700/40 transition" data-del-drugs-ids="${ids}">
-            Hapus
-          </button>
+          <div class="flex items-center justify-center gap-2">
+            <button class="px-3 py-1 rounded bg-amber-600/20 text-amber-300 border border-amber-600/30 text-[10px] font-bold uppercase hover:bg-amber-600/30 transition ${r.ids.length > 1 ? "opacity-50 cursor-not-allowed" : ""}" ${r.ids.length > 1 ? "disabled" : ""} data-edit-drugs-row="${r.primaryId || ""}">
+              Edit
+            </button>
+            <button class="px-3 py-1 rounded bg-red-700/20 text-red-400 border border-red-700/30 text-[10px] font-bold uppercase hover:bg-red-700/40 transition" data-del-drugs-ids="${ids}">
+              Hapus
+            </button>
+          </div>
         </td>
       </tr>
     `;
     })
     .join("");
+
+  body.querySelectorAll("[data-edit-drugs-row]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = String(btn.getAttribute("data-edit-drugs-row") || "").trim();
+      const row = rows.find((r) => String(r.primaryId || "").trim() === id);
+      if (!row) return;
+      if ((row.ids || []).length > 1) {
+        showAlert("Data gabungan lama belum bisa diedit langsung. Hapus lalu input ulang jika perlu.", "warning");
+        return;
+      }
+      startEditDrugsRow(row);
+      const nameInput = document.getElementById("drugsNama");
+      if (nameInput) nameInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
 
   body.querySelectorAll("[data-del-drugs-ids]").forEach((btn) => {
     btn.addEventListener("click", async () => {
