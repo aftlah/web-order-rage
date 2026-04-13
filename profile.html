@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>R.A.G.E - Profile</title>
+    <link rel="icon" href="images/LOGO_RAGE.png" type="image/png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="antialiased">
+    <header class="shadow-xl sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-6 py-2">
+        <div class="flex items-center justify-between">
+          <div class="logo-container">
+            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-12" />
+            <div class="brand-title">
+              <h1 class="text-xl font-black">R.A.G.E</h1>
+              <p class="brand-subtitle text-[10px] uppercase font-bold tracking-wider">Order System</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-8">
+            <nav id="mainNav" class="hidden md:flex items-center gap-1">
+              <a href="index.html" class="nav-link">Order</a>
+              <a href="dashboard.html" class="nav-link">Dashboard</a>
+              <a href="storan.html" class="nav-link">Storan</a>
+              <a href="drugs.html" class="nav-link">Drugs</a>
+              <a href="kas.html" class="nav-link">Kas</a>
+              <a href="rekap.html" class="nav-link">Rekap</a>
+            </nav>
+            <button id="logoutBtn" class="btn-logout hidden md:block">Logout</button>
+            <div class="text-right hidden sm:block border-l border-[#2d1b14] pl-6">
+              <p class="today-label">Today</p>
+              <p class="today-date" id="current-date"></p>
+            </div>
+            <button id="mobileMenuBtn" class="md:hidden" onclick="toggleMobileMenu()">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="mobileMenu" class="mobile-menu absolute top-full left-0 w-full hidden flex flex-col z-50">
+        <div class="flex flex-col p-4 gap-1">
+          <a href="index.html" class="mobile-nav-link">Order</a>
+          <a href="dashboard.html" class="mobile-nav-link">Dashboard</a>
+          <a href="storan.html" class="mobile-nav-link">Storan</a>
+          <a href="drugs.html" class="mobile-nav-link">Drugs</a>
+          <a href="kas.html" class="mobile-nav-link">Kas</a>
+          <a href="rekap.html" class="mobile-nav-link">Rekap</a>
+          <hr class="border-[#2d1b14] my-2" />
+          <button id="mobileLogoutBtn" class="mobile-nav-link text-red-500">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="profileSection" class="max-w-5xl mx-auto p-4 sm:p-6 flex flex-col gap-6 relative z-10">
+      <div class="rounded-2xl bg-white/90 dark:bg-[#1f1410]/90 backdrop-blur-md border border-amber-100 dark:border-[#3d342d] shadow-2xl p-6 sm:p-8">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-1.5 h-6 bg-amber-500 rounded-full"></div>
+          <h2 class="text-xl sm:text-2xl font-black text-amber-700 dark:text-yellow-400">Profile</h2>
+        </div>
+        <p class="text-sm text-slate-600 dark:text-amber-200/70 ml-[18px]">
+          Kelola informasi akun dan ubah password login di sini.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="rounded-2xl bg-white/90 dark:bg-[#1f1410]/90 backdrop-blur-md border border-amber-100 dark:border-[#3d342d] shadow-2xl p-6">
+          <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-amber-200/60 mb-2">Identitas</div>
+          <div class="space-y-4">
+            <div>
+              <div class="text-xs font-semibold text-slate-500 dark:text-amber-200/60">Nama Member</div>
+              <div id="profileMemberName" class="text-lg font-black text-amber-900 dark:text-amber-50">-</div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-slate-500 dark:text-amber-200/60">Role</div>
+              <div id="profileMemberRole" class="text-base font-bold text-slate-700 dark:text-amber-100">-</div>
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-slate-500 dark:text-amber-200/60">Username Sekarang</div>
+              <input id="profileCurrentUsername" type="text" readonly class="mt-1 w-full px-4 py-3 rounded-xl bg-black/20 border border-[#3d342d]/50 text-slate-800 dark:text-amber-50" />
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-slate-500 dark:text-amber-200/60">Email Login</div>
+              <input id="profileCurrentEmail" type="text" readonly class="mt-1 w-full px-4 py-3 rounded-xl bg-black/20 border border-[#3d342d]/50 text-slate-800 dark:text-amber-50" />
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-2 flex flex-col gap-6">
+          <div class="rounded-2xl bg-white/90 dark:bg-[#1f1410]/90 backdrop-blur-md border border-amber-100 dark:border-[#3d342d] shadow-2xl p-6">
+            <div class="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-amber-200/60 mb-4">Ganti Password</div>
+            <p class="text-sm text-slate-500 dark:text-amber-200/60 mb-4">
+              Username login tetap ditampilkan sebagai informasi. Yang bisa diubah dari halaman ini hanya password.
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label for="profileNewPassword" class="text-sm font-semibold text-slate-700 dark:text-amber-100">Password Baru</label>
+                <input id="profileNewPassword" type="password" placeholder="Minimal 6 karakter" class="mt-2 w-full px-4 py-3 rounded-xl bg-[#fffbf0] dark:bg-[#0a0805] border border-amber-200/70 dark:border-[#3d342d] text-slate-800 dark:text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40" />
+              </div>
+              <div>
+                <label for="profileConfirmPassword" class="text-sm font-semibold text-slate-700 dark:text-amber-100">Konfirmasi Password</label>
+                <input id="profileConfirmPassword" type="password" placeholder="Ulangi password baru" class="mt-2 w-full px-4 py-3 rounded-xl bg-[#fffbf0] dark:bg-[#0a0805] border border-amber-200/70 dark:border-[#3d342d] text-slate-800 dark:text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40" />
+              </div>
+            </div>
+            <div class="flex justify-end mt-4">
+              <button id="profileSavePassword" class="px-5 py-3 rounded-xl bg-yellow-600 text-[#1a1410] font-black uppercase tracking-widest text-sm hover:bg-yellow-500 transition">
+                Simpan Password
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="config.js?v=20260413b"></script>
+    <script type="module" src="script.js?v=20260413b"></script>
+  </body>
+  </html>

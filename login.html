@@ -109,7 +109,7 @@
       ></div>
     </div>
 
-    <script src="config.js"></script>
+    <script src="config.js?v=20260413b"></script>
     <script type="module">
       import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.2";
       const supabase =
@@ -189,23 +189,30 @@
           return;
         }
         const usernameOrEmail = document.getElementById("loginEmail").value.trim();
-        const email = usernameOrEmail.includes("@")
-          ? usernameOrEmail
-          : `${usernameOrEmail}@rage.local`;
         const password = document.getElementById("loginPassword").value;
         const btn = document.getElementById("loginBtn");
         btn.disabled = true;
         try {
-          const { error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-          if (error) {
-            show(`Gagal login: ${error.message || "unknown"}`, "error");
-            btn.disabled = false;
-            return;
+          const primaryDomain = (window.AUTH_EMAIL_DOMAIN || "rage.example.com").trim();
+          const legacyDomain = (window.LEGACY_AUTH_EMAIL_DOMAIN || "rage.local").trim();
+          const candidates = usernameOrEmail.includes("@")
+            ? [usernameOrEmail]
+            : [`${usernameOrEmail}@${primaryDomain}`, `${usernameOrEmail}@${legacyDomain}`];
+
+          let lastError = null;
+          for (const email of candidates) {
+            const { error } = await supabase.auth.signInWithPassword({
+              email,
+              password,
+            });
+            if (!error) {
+              location.href = "rekap.html";
+              return;
+            }
+            lastError = error;
           }
-          location.href = "rekap.html";
+          show(`Gagal login: ${(lastError && lastError.message) || "unknown"}`, "error");
+          btn.disabled = false;
         } catch (err) {
           show("Gagal login (network error)", "error");
           btn.disabled = false;

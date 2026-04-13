@@ -753,6 +753,140 @@ function applyCurrentMemberToDrugsUI(member) {
   }
 }
 
+function ensureProfileNavLinks() {
+  const isProfilePage = /\/profile\.html$/i.test(location.pathname || "");
+  const desktopNav = document.getElementById("mainNav");
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (desktopNav && !desktopNav.querySelector('a[href="profile.html"]')) {
+    const a = document.createElement("a");
+    a.href = "profile.html";
+    a.className = `nav-link nav-link-profile${isProfilePage ? " nav-active" : ""}`;
+    a.innerHTML = '<span class="nav-profile-icon">P</span><span>Profile</span>';
+    if (logoutBtn && logoutBtn.parentElement) {
+      logoutBtn.insertAdjacentElement("afterend", a);
+    } else {
+      desktopNav.appendChild(a);
+    }
+  }
+
+  const mobileMenu = document.getElementById("mobileMenu");
+  const mobileContainer = mobileMenu ? mobileMenu.querySelector("div.flex.flex-col") : null;
+  if (mobileContainer && !mobileContainer.querySelector('a[href="profile.html"]')) {
+    const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
+    const a = document.createElement("a");
+    a.href = "profile.html";
+    a.className = `mobile-nav-link mobile-nav-profile${isProfilePage ? " mobile-nav-active" : ""}`;
+    a.innerHTML = '<span class="nav-profile-icon">P</span><span>Profile</span>';
+    if (mobileLogoutBtn) mobileLogoutBtn.insertAdjacentElement("beforebegin", a);
+    else mobileContainer.appendChild(a);
+  }
+}
+
+function getUsernameFromEmail(email) {
+  const raw = String(email || "").trim();
+  if (!raw) return "";
+  return raw.split("@")[0] || "";
+}
+
+function getPrimaryAuthEmailDomain() {
+  return String((window && window.AUTH_EMAIL_DOMAIN) || "rage.example.com").trim();
+}
+
+function getLegacyAuthEmailDomain() {
+  return String((window && window.LEGACY_AUTH_EMAIL_DOMAIN) || "rage.local").trim();
+}
+
+function getPreferredAuthEmailDomain(currentEmail) {
+  const email = String(currentEmail || "").trim().toLowerCase();
+  const primary = getPrimaryAuthEmailDomain();
+  if (email && email.includes("@")) {
+    const domain = email.split("@")[1] || "";
+    if (domain && domain !== getLegacyAuthEmailDomain() && domain.includes(".")) return domain;
+  }
+  return primary;
+}
+
+function buildUsernameAuthEmail(username, currentEmail) {
+  const cleanUsername = normalizeUsernameInput(username);
+  const domain = getPreferredAuthEmailDomain(currentEmail);
+  return `${cleanUsername}@${domain}`;
+}
+
+function normalizeUsernameInput(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "");
+}
+
+async function changeCurrentUserPassword(newPassword) {
+  if (!supabase) return { error: { message: "Supabase tidak terhubung" } };
+  try {
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = (userRes || {}).user || null;
+    const meta = (user && user.user_metadata) || {};
+    return await supabase.auth.updateUser({
+      password: newPassword,
+      data: { ...meta, must_change_password: false },
+    });
+  } catch (e) {
+    return { error: { message: String((e && e.message) || e || "unknown") } };
+  }
+}
+
+async function initProfile() {
+  if (!supabase) return;
+  const nameEl = document.getElementById("profileMemberName");
+  const roleEl = document.getElementById("profileMemberRole");
+  const currentUsernameEl = document.getElementById("profileCurrentUsername");
+  const currentEmailEl = document.getElementById("profileCurrentEmail");
+  const savePasswordBtn = document.getElementById("profileSavePassword");
+  const newPasswordEl = document.getElementById("profileNewPassword");
+  const confirmPasswordEl = document.getElementById("profileConfirmPassword");
+
+  const currentMember = window.__currentMember || null;
+  if (nameEl) nameEl.textContent = currentMember && currentMember.nama ? String(currentMember.nama) : "-";
+  if (roleEl) roleEl.textContent = currentMember && currentMember.role ? String(currentMember.role) : "-";
+
+  try {
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = (userRes || {}).user || null;
+    const email = user && user.email ? String(user.email) : "";
+    const username = getUsernameFromEmail(email);
+    if (currentUsernameEl) currentUsernameEl.value = username;
+    if (currentEmailEl) currentEmailEl.value = email;
+  } catch (e) {}
+
+  if (savePasswordBtn) {
+    savePasswordBtn.addEventListener("click", async () => {
+      const pw1 = (newPasswordEl || {}).value || "";
+      const pw2 = (confirmPasswordEl || {}).value || "";
+      if (pw1.length < 6) {
+        showAlert("Password minimal 6 karakter", "error");
+        return;
+      }
+      if (pw1 !== pw2) {
+        showAlert("Konfirmasi password tidak sama", "error");
+        return;
+      }
+      const btn = savePasswordBtn;
+      btn.disabled = true;
+      try {
+        const { error } = await changeCurrentUserPassword(pw1);
+        if (error) {
+          showAlert("Gagal mengubah password: " + error.message, "error");
+          return;
+        }
+        if (newPasswordEl) newPasswordEl.value = "";
+        if (confirmPasswordEl) confirmPasswordEl.value = "";
+        showAlert("Password berhasil diubah", "success");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+}
+
 async function init() {
   console.log("R.A.G.E script initializing...");
   // document.documentElement.classList.add("dark"); // Allow system/user preference
@@ -780,20 +914,22 @@ async function init() {
   const isDrugs = !!document.getElementById("drugsNama");
   const isKas = !!document.getElementById("rageCashSubmit");
   const isRekap = !!document.getElementById("rekapSection");
-  const needsAuth = isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap;
+  const isProfile = !!document.getElementById("profileSection");
+  const needsAuth = isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile;
   if (needsAuth) {
     const ok = await guardApp();
     if (!ok) return;
   }
 
   let currentMember = null;
-  if (isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap) {
+  if (isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile) {
     currentMember = await resolveCurrentMember();
     window.__currentMember = currentMember;
     if (!currentMember || !currentMember.id) {
       await showLinkMemberHelpModal();
     }
   }
+  ensureProfileNavLinks();
   applyAdminNav(currentMember);
 
   if (!isAdminMember(currentMember) && (isDashboard || isStoran || isDrugs || isKas)) {
@@ -856,6 +992,9 @@ async function init() {
   }
   if (isRekap) {
     initRekap();
+  }
+  if (isProfile) {
+    initProfile();
   }
 
   // Global Logout & Mobile Menu
