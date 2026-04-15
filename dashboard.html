@@ -9,55 +9,39 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
     <script>
       (function () {
         try {
           var keys = Object.keys(localStorage || {});
-          var key = keys.find(function (k) {
-            return k.startsWith("sb-") && k.endsWith("-auth-token");
-          });
+          var key = keys.find(function (k) { return k.startsWith("sb-") && k.endsWith("-auth-token"); });
           var raw = key ? localStorage.getItem(key) : null;
-          if (!raw) {
-            window.location.href = "login.html";
-            return;
-          }
+          if (!raw) { window.location.href = "login.html"; return; }
           var obj = JSON.parse(raw);
           var expSec = 0;
           if (typeof obj.expires_at === "number") expSec = obj.expires_at;
-          else if (
-            obj.currentSession &&
-            typeof obj.currentSession.expires_at === "number"
-          )
-            expSec = obj.currentSession.expires_at;
-          var hasToken = !!(
-            obj.access_token ||
-            (obj.currentSession && obj.currentSession.access_token)
-          );
-          if (!hasToken || expSec * 1000 < Date.now()) {
-            window.location.href = "login.html";
-            return;
-          }
-        } catch (e) {
-          window.location.href = "login.html";
-        }
+          else if (obj.currentSession && typeof obj.currentSession.expires_at === "number") expSec = obj.currentSession.expires_at;
+          var hasToken = !!(obj.access_token || (obj.currentSession && obj.currentSession.access_token));
+          if (!hasToken || expSec * 1000 < Date.now()) { window.location.href = "login.html"; return; }
+        } catch (e) { window.location.href = "login.html"; }
       })();
     </script>
   </head>
   <body class="transition-colors duration-300">
+
+    <!-- Header -->
     <header class="shadow-xl sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto px-6 py-2">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2.5">
         <div class="flex items-center justify-between">
           <div class="logo-container">
-            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-12" />
+            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-11 sm:w-12" />
             <div class="brand-title">
-              <h1 class="text-xl font-black">R.A.G.E</h1>
-              <p class="brand-subtitle text-[10px] uppercase font-bold tracking-wider">Order System</p>
+              <h1>R.A.G.E</h1>
+              <p class="brand-subtitle">Order System</p>
             </div>
           </div>
-          <div class="flex items-center gap-4 lg:gap-8">
-            <!-- Desktop Nav -->
+          <div class="flex items-center gap-3 lg:gap-6">
             <nav id="mainNav" class="hidden md:flex items-center gap-1">
               <a href="index.html" class="nav-link">Order</a>
               <a href="dashboard.html" class="nav-link nav-active">Dashboard</a>
@@ -66,19 +50,13 @@
               <a href="kas.html" class="nav-link">Kas</a>
               <a href="rekap.html" class="nav-link">Rekap</a>
             </nav>
-            
-            <button id="logoutBtn" class="btn-logout hidden md:block">
-              Logout
-            </button>
-
-            <div class="text-right hidden sm:block border-l border-[#2d1b14] pl-6">
+            <button id="logoutBtn" class="btn-logout hidden md:block">Logout</button>
+            <div class="text-right hidden sm:block border-l border-[#2d1b14]/60 pl-5">
               <p class="today-label">Today</p>
               <p class="today-date" id="current-date"></p>
             </div>
-
-            <!-- Hamburger Button -->
             <button id="mobileMenuBtn" class="md:hidden" onclick="toggleMobileMenu()">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
               </svg>
             </button>
@@ -87,35 +65,35 @@
       </div>
 
       <!-- Mobile Menu -->
-      <div id="mobileMenu" class="mobile-menu absolute top-full left-0 w-full hidden flex flex-col z-50">
-        <div class="flex flex-col p-4 gap-1">
+      <div id="mobileMenu" class="mobile-menu absolute top-full left-0 w-full hidden z-50">
+        <div class="flex flex-col p-3 gap-0.5">
           <a href="index.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
             Order
           </a>
           <a href="dashboard.html" class="mobile-nav-link mobile-nav-active">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 0113.5 18v-2.25z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 01-2.25-2.25v-2.25z" /></svg>
             Dashboard
           </a>
           <a href="storan.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75V4.5m0 2.25a2.25 2.25 0 100 4.5m0-4.5a2.25 2.25 0 010 4.5m-6.75 6h13.5a2.25 2.25 0 002.25-2.25V8.25A2.25 2.25 0 0018.75 6h-13.5A2.25 2.25 0 003 8.25v6.75A2.25 2.25 0 005.25 18z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
             Storan
           </a>
           <a href="drugs.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75V4.5m0 2.25a2.25 2.25 0 100 4.5m0-4.5a2.25 2.25 0 010 4.5m-6.75 6h13.5a2.25 2.25 0 002.25-2.25V8.25A2.25 2.25 0 0018.75 6h-13.5A2.25 2.25 0 003 8.25v6.75A2.25 2.25 0 005.25 18z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>
             Drugs
           </a>
           <a href="kas.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             Kas
           </a>
           <a href="rekap.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18" /><path stroke-linecap="round" stroke-linejoin="round" d="M7 14l3-3 3 3 5-6" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18" /><path stroke-linecap="round" stroke-linejoin="round" d="M7 14l3-3 3 3 5-6" /></svg>
             Rekap
           </a>
-          <hr class="border-[#2d1b14] my-2" />
-          <button id="mobileLogoutBtn" class="mobile-nav-link text-red-500">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
+          <div class="my-1 mx-2" style="height:1px;background:linear-gradient(to right,transparent,#3d342d,transparent)"></div>
+          <button id="mobileLogoutBtn" class="mobile-nav-link" style="color:#f87171 !important;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
             Logout
           </button>
         </div>
@@ -123,300 +101,206 @@
     </header>
 
     <script>
-      function toggleMobileMenu() {
-        const menu = document.getElementById("mobileMenu");
-        menu.classList.toggle("hidden");
-      }
-
-      // Handle mobile logout button click
+      function toggleMobileMenu() { document.getElementById("mobileMenu").classList.toggle("hidden"); }
       document.addEventListener("DOMContentLoaded", () => {
         const mobileLogout = document.getElementById("mobileLogoutBtn");
-        if (mobileLogout) {
-          mobileLogout.addEventListener("click", () => {
-            const logoutBtn = document.getElementById("logoutBtn");
-            if (logoutBtn) logoutBtn.click();
-          });
-        }
+        if (mobileLogout) mobileLogout.addEventListener("click", () => { const b = document.getElementById("logoutBtn"); if (b) b.click(); });
       });
     </script>
 
-    <main class="max-w-6xl mx-auto px-6 py-8 relative z-10">
-      <div
-        class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8"
-      >
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="section-title text-xl font-bold flex items-center gap-3">
-            <span class="section-divider w-1 h-6 rounded-full"></span>
-            Dashboard
-          </h2>
+    <main class="max-w-6xl mx-auto px-3 sm:px-6 py-6 relative z-10 flex flex-col gap-6">
+
+      <!-- Dashboard Card -->
+      <div class="glass-card p-5 sm:p-7 page-enter-1">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div class="flex items-center gap-3">
-            <button
-              id="dashAddMember"
-              class="px-4 py-2.5 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200"
-            >Tambah Member</button>
+            <div class="section-divider h-6"></div>
+            <h2 class="text-xl font-black text-yellow-400">Dashboard</h2>
           </div>
+          <button id="dashAddMember"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl btn-secondary text-sm font-bold">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" /></svg>
+            Tambah Member
+          </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-6 items-end mb-6">
-          <div class="flex flex-col gap-2 md:col-span-1">
-            <label
-              class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >Bulan</label
-            >
-            <select
-              id="dashMonth"
-              class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"
-            ></select>
+        <!-- Filters -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end mb-6">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Bulan</label>
+            <select id="dashMonth" class="px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"></select>
           </div>
-          <div class="flex flex-col gap-2 md:col-span-1">
-            <label
-              class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >Minggu</label
-            >
-            <select
-              id="dashWeek"
-              class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] cursor-pointer"
-            ></select>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Minggu</label>
+            <select id="dashWeek" class="px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"></select>
           </div>
-          <div class="flex flex-col gap-2 md:col-span-2">
-            <label
-              class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >Nama</label
-            >
-            <div class="flex items-center gap-2">
-              <div class="relative flex-1">
-                <input
-                  id="dashNameInput"
-                  type="text"
-                  autocomplete="off"
-                  placeholder="Semua"
-                  class="w-full min-w-[220px] px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7] focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-                <div
-                  id="dashNameDropdown"
-                  class="absolute left-0 right-0 mt-1 bg-[#1f1410] border border-[#3d342d] rounded-lg shadow max-h-60 overflow-auto hidden z-50"
-                ></div>
-              </div>
+          <div class="flex flex-col gap-1.5 col-span-2 sm:col-span-1 lg:col-span-2">
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Nama</label>
+            <div class="relative">
+              <input id="dashNameInput" type="text" autocomplete="off" placeholder="Semua anggota"
+                class="w-full px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
+              <div id="dashNameDropdown" class="rage-dropdown absolute left-0 right-0 mt-1 hidden z-50 custom-scrollbar"></div>
             </div>
           </div>
-          <button
-            id="refreshDashboard"
-            class="px-6 py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow"
-          >
+          <button id="refreshDashboard" class="px-4 py-2.5 rounded-xl btn-primary text-sm font-bold">
             Refresh
           </button>
-          <button
-            id="dashShareDiscord"
-            class="px-6 py-3 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200"
-          >
-            Kirim ke Discord
-          </button>
-          <button
-            id="dashSharePaymentDiscord"
-            class="px-6 py-3 rounded-lg border-2 border-emerald-300 dark:border-emerald-600 text-emerald-900 dark:text-emerald-200"
-          >
-            Kirim Status Bayar
+          <button id="dashShareDiscord" class="px-4 py-2.5 rounded-xl btn-secondary text-sm font-bold">
+            → Discord
           </button>
         </div>
+        <button id="dashSharePaymentDiscord" class="mb-6 px-4 py-2.5 rounded-xl text-sm font-bold inline-flex items-center gap-2"
+          style="background:rgba(16,185,129,0.1);color:#34d399;border:1.5px solid rgba(16,185,129,0.25);">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+          Kirim Status Bayar
+        </button>
 
         <div id="dashboardBody"></div>
       </div>
 
-        <div id="memberModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start justify-center z-[100] hidden transition-opacity duration-300 p-4 sm:p-6 pt-24 sm:pt-32">
-          <div class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-2xl p-0 w-full max-w-2xl overflow-hidden flex flex-col max-h-[75vh] relative shadow-black/50">
-            <!-- Header -->
-            <div class="p-6 border-b border-[#f3e8d8] dark:border-[#3d342d] flex justify-between items-center bg-[#fffbf0] dark:bg-[#0a0805] sticky top-0 z-20">
-              <div>
-                <h3 class="text-xl font-bold text-[#1a1410] dark:text-[#fef3c7]">Kelola Member</h3>
-                <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Tambah, edit role, atau hapus member</p>
-              </div>
-              <button id="memberCancelBtn" class="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-slate-500 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+      <!-- Member Modal -->
+      <div id="memberModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-start justify-center z-[100] hidden p-4 sm:p-6 pt-20 sm:pt-28">
+        <div class="glass-card w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh] relative scale-in">
+          <!-- Modal Header -->
+          <div class="px-6 py-5 border-b border-[#3d342d]/60 flex justify-between items-center bg-[#0a0805]/60">
+            <div>
+              <h3 class="text-lg font-black text-yellow-400">Kelola Member</h3>
+              <p class="text-xs text-stone-500 mt-0.5">Tambah, edit role, atau hapus member</p>
             </div>
-
-            <!-- Content -->
-            <div class="flex flex-col flex-1 overflow-hidden bg-white dark:bg-[#1f1410]">
-              <!-- Toolbar Section (Add & Search) -->
-              <div class="p-6 pb-2 space-y-4">
-                <!-- Add Member Form -->
-                <div class="flex flex-col md:flex-row gap-3 bg-slate-50 dark:bg-white/5 p-3 rounded-xl border border-slate-200 dark:border-white/10">
-                  <div class="flex-1 relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-                      </svg>
-                    </div>
-                    <input id="memberNameInput" type="text" placeholder="Nama member baru..." class="w-full pl-10 pr-4 py-2 rounded-lg bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm transition-all placeholder:text-slate-400" />
+            <button id="memberCancelBtn" class="p-2 rounded-xl hover:bg-white/5 text-stone-500 hover:text-stone-300 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <!-- Modal Content -->
+          <div class="flex flex-col flex-1 overflow-hidden">
+            <div class="p-5 space-y-4">
+              <!-- Add Form -->
+              <div class="flex flex-col sm:flex-row gap-3 bg-white/3 p-3 rounded-xl border border-white/8">
+                <div class="flex-1 relative">
+                  <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-stone-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
                   </div>
-                  <div class="w-full md:w-40">
-                    <select id="memberRoleInput" class="w-full px-4 py-2 rounded-lg bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500 text-sm cursor-pointer appearance-none">
-                      <option value="Internship">Internship</option>
-                      <option value="Hangaround">Hangaround</option>
-                      <option value="Hoodlum" selected>Hoodlum</option>
-                      <option value="Highrank">Highrank</option>
-                      <option value="Admin">Admin</option>
-                    </select>
-                  </div>
-                  <button id="memberSaveBtn" class="px-6 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-medium shadow-lg shadow-amber-900/20 transition-all text-sm whitespace-nowrap flex items-center justify-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
-                    </svg>
-                    <span>Tambah</span>
-                  </button>
+                  <input id="memberNameInput" type="text" placeholder="Nama member baru..."
+                    class="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
                 </div>
-
-                <!-- Search & Filter -->
-                <div class="flex justify-between items-center pt-2">
-                  <div class="text-sm font-medium text-slate-500 dark:text-slate-400">
-                    Total: <span id="memberCountBadge" class="text-slate-800 dark:text-slate-200 font-bold">0</span> Member
-                  </div>
-                  <div class="relative w-full max-w-xs group">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-400 group-focus-within:text-amber-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                      </svg>
-                    </div>
-                    <input type="text" id="memberSearchInput" onkeyup="filterMembers()" placeholder="Cari member..." class="w-full pl-10 pr-4 py-1.5 rounded-lg bg-transparent border-b border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-amber-500 text-sm transition-colors placeholder:text-slate-500">
-                  </div>
+                <div class="w-full sm:w-36">
+                  <select id="memberRoleInput" class="w-full px-3 py-2.5 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+                    <option value="Internship">Internship</option>
+                    <option value="Hangaround">Hangaround</option>
+                    <option value="Hoodlum" selected>Hoodlum</option>
+                    <option value="Highrank">Highrank</option>
+                    <option value="Admin">Admin</option>
+                  </select>
+                </div>
+                <button id="memberSaveBtn" class="px-5 py-2.5 rounded-lg btn-primary text-sm font-bold flex items-center gap-2 justify-center whitespace-nowrap">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                  Tambah
+                </button>
+              </div>
+              <!-- Search -->
+              <div class="flex justify-between items-center">
+                <div class="text-xs text-stone-500">Total: <span id="memberCountBadge" class="text-[#fef3c7] font-bold">0</span> Member</div>
+                <div class="relative">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  <input type="text" id="memberSearchInput" onkeyup="filterMembers()" placeholder="Cari member..."
+                    class="pl-9 pr-4 py-2 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition w-48" />
                 </div>
               </div>
-              
-              <!-- Table Section -->
-              <div class="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
-                <div class="bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl shadow-sm min-h-[300px]">
-                  <table class="w-full text-sm text-left">
-                    <thead class="text-xs text-slate-500 dark:text-slate-400 uppercase bg-slate-50 dark:bg-black/20 border-b border-slate-200 dark:border-white/10 sticky top-0 backdrop-blur-md z-10 rounded-t-xl">
-                      <tr>
-                        <th class="px-5 py-3 font-semibold tracking-wider">Nama</th>
-                        <th class="px-5 py-3 font-semibold tracking-wider w-40">Role</th>
-                        <th class="px-5 py-3 font-semibold tracking-wider text-right w-20">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody id="memberList" class="divide-y divide-slate-100 dark:divide-white/5">
-                      <!-- Member items will be rendered here -->
-                    </tbody>
-                  </table>
-                </div>
+            </div>
+            <!-- Table -->
+            <div class="flex-1 overflow-y-auto min-h-0 px-5 pb-5 custom-scrollbar">
+              <div class="scroll-table">
+                <table class="w-full text-sm text-left">
+                  <thead class="bg-black/30 text-stone-400 uppercase text-[10px] tracking-widest border-b border-[#3d342d] sticky top-0">
+                    <tr>
+                      <th class="px-4 py-3 font-semibold">Nama</th>
+                      <th class="px-4 py-3 font-semibold w-36">Role</th>
+                      <th class="px-4 py-3 font-semibold text-right w-20">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="memberList" class="divide-y divide-[#3d342d]/50 text-[#fef3c7]"></tbody>
+                </table>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-      <div
-        class="rounded-2xl bg-white dark:bg-[#1f1410] border border-[#f3e8d8] dark:border-[#3d342d] shadow-lg hover:shadow-xl transition p-8 mt-8"
-      >
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="section-title text-xl font-bold flex items-center gap-3">
-            <span class="section-divider w-1 h-6 rounded-full"></span>
-            Order Schedule
-          </h2>
-          <div class="flex gap-3">
-            <button id="winCancelBtn" class="px-4 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200">Cancel</button>
-            <button id="refreshWindows" class="px-4 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200">Refresh</button>
-            <button id="winAnnounceBtn" class="px-4 py-2 rounded-lg border-2 border-amber-300 dark:border-yellow-600 text-amber-900 dark:text-yellow-200">Announce</button>
+      <!-- Order Schedule Card -->
+      <div class="glass-card p-5 sm:p-7 page-enter-2">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div class="flex items-center gap-3">
+            <div class="section-divider h-6"></div>
+            <h2 class="text-xl font-black text-yellow-400">Order Schedule</h2>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button id="winCancelBtn" class="px-4 py-2 rounded-xl btn-ghost text-sm font-bold">Cancel</button>
+            <button id="refreshWindows" class="px-4 py-2 rounded-xl btn-secondary text-sm font-bold">Refresh</button>
+            <button id="winAnnounceBtn" class="px-4 py-2 rounded-xl btn-primary text-sm font-bold">Announce</button>
           </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end mb-6">
-          <div class="flex flex-col gap-2 md:col-span-3">
-            <label
-              class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >Start</label
-            >
-            <input
-              id="winStart"
-              type="datetime-local"
-              class="w-full px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]"
-            />
+
+        <!-- Schedule Form -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end mb-6">
+          <div class="flex flex-col gap-1.5 lg:col-span-3">
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Start</label>
+            <input id="winStart" type="datetime-local"
+              class="w-full px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
           </div>
-          <div class="flex flex-col gap-2 md:col-span-3">
-            <label
-              class="text-sm font-semibold text-slate-700 dark:text-yellow-200"
-              >End</label
-            >
-            <input
-              id="winEnd"
-              type="datetime-local"
-              class="w-full px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]"
-            />
+          <div class="flex flex-col gap-1.5 lg:col-span-3">
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">End</label>
+            <input id="winEnd" type="datetime-local"
+              class="w-full px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
           </div>
-          <div class="flex flex-col gap-2 md:col-span-4">
-            <label class="text-sm font-semibold text-slate-700 dark:text-yellow-200">Order No.</label>
-            <div class="grid grid-cols-4 gap-3">
-              <select
-                id="winMonth"
-                class="w-full px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]"
-              >
-                <option value="">Bulan</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-                <option value="6">6</option>
-                <option value="7">7</option>
-                <option value="8">8</option>
-                <option value="9">9</option>
-                <option value="10">10</option>
-                <option value="11">11</option>
-                <option value="12">12</option>
+          <div class="flex flex-col gap-1.5 lg:col-span-4">
+            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Order No.</label>
+            <div class="grid grid-cols-4 gap-2">
+              <select id="winMonth" class="w-full px-2 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+                <option value="">Bln</option>
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                <option value="4">4</option><option value="5">5</option><option value="6">6</option>
+                <option value="7">7</option><option value="8">8</option><option value="9">9</option>
+                <option value="10">10</option><option value="11">11</option><option value="12">12</option>
               </select>
-              <select
-                id="winWeek"
-                class="w-full px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]"
-              >
-                <option value="">Minggu</option>
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
+              <select id="winWeek" class="w-full px-2 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+                <option value="">Mgg</option>
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                <option value="4">4</option><option value="5">5</option>
               </select>
-              <input
-                id="winOrderNoLabel"
-                type="text"
-                readonly
-                class="col-span-2 w-full px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]"
-              />
+              <input id="winOrderNoLabel" type="text" readonly
+                class="col-span-2 w-full px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm font-mono" />
             </div>
             <input id="winOrderanke" type="hidden" />
           </div>
-          <div class="flex gap-3 md:col-span-2 justify-end">
-            <button
-              id="winCreateBtn"
-              class="px-6 py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow"
-            >
+          <div class="flex lg:col-span-2 justify-end sm:justify-start lg:justify-end">
+            <button id="winCreateBtn" class="w-full lg:w-auto px-6 py-2.5 rounded-xl btn-primary text-sm font-bold">
               Create
             </button>
           </div>
         </div>
-        <div class="overflow-x-auto">
+
+        <!-- Schedule Table -->
+        <div class="scroll-table">
           <table class="w-full text-sm">
-            <thead>
+            <thead class="bg-black/40 text-stone-400 uppercase text-[10px] tracking-widest border-b border-[#3d342d]">
               <tr>
-                <th class="text-left px-2 py-2">Order No.</th>
-                <th class="text-left px-2 py-2">Start</th>
-                <th class="text-left px-2 py-2">End</th>
-                <th class="text-left px-2 py-2">Status</th>
-                <th class="text-left px-2 py-2">Actions</th>
+                <th class="px-4 py-3 text-left font-semibold">Order No.</th>
+                <th class="px-4 py-3 text-left font-semibold hidden sm:table-cell">Start</th>
+                <th class="px-4 py-3 text-left font-semibold hidden sm:table-cell">End</th>
+                <th class="px-4 py-3 text-left font-semibold">Status</th>
+                <th class="px-4 py-3 text-left font-semibold">Actions</th>
               </tr>
             </thead>
-            <tbody id="windowsTableBody"></tbody>
+            <tbody id="windowsTableBody" class="divide-y divide-[#3d342d] text-[#fef3c7]"></tbody>
           </table>
         </div>
       </div>
     </main>
 
-    <div
-      id="appAlert"
-      class="fixed inset-x-0 top-16 flex justify-center z-50 pointer-events-none"
-    >
-      <div
-        id="appAlertBox"
-        class="hidden px-4 py-2 rounded-lg bg-red-600 text-white shadow-lg pointer-events-auto"
-      ></div>
+    <div id="appAlert" class="fixed inset-x-0 top-16 flex justify-center z-50 pointer-events-none">
+      <div id="appAlertBox" class="hidden px-4 py-2 rounded-lg bg-red-600 text-white shadow-lg pointer-events-auto"></div>
     </div>
 
     <script src="config.js"></script>

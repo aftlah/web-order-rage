@@ -3,111 +3,260 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Login - R.A.G.E</title>
+    <title>Login — R.A.G.E Order System</title>
     <link rel="icon" href="/images/LOGO_RAGE.png" type="image/png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
     <style>
-      * {
-        font-family: "Poppins", sans-serif;
+      /* Login-specific styles */
+      .login-card {
+        background: rgba(26, 15, 10, 0.96);
+        border: 1px solid rgba(61, 52, 45, 0.9);
+        box-shadow:
+          0 0 0 1px rgba(251, 191, 36, 0.04),
+          0 32px 64px rgba(0, 0, 0, 0.6),
+          0 0 60px rgba(0, 0, 0, 0.4);
+        animation: fadeInUp 0.5s 0.1s ease both;
       }
-      :root {
-        --bg-main: linear-gradient(135deg, #fefdf2 0%, #fef3c7 100%);
-        --bg-card: #ffffff;
-        --text-primary: #1a1410;
-        --border-color: #f3e8d8;
+
+      .login-logo-ring {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(251,191,36,0.10) 0%, rgba(217,119,6,0.04) 60%, transparent 100%);
+        border: 1.5px solid rgba(251,191,36,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulseGold 3s ease infinite;
+        position: relative;
       }
-      .dark {
-        --bg-main: linear-gradient(135deg, #0a0805 0%, #1a1410 100%);
-        --bg-card: #1f1410;
-        --text-primary: #fef3c7;
-        --border-color: #3d342d;
+
+      .login-logo-ring::before {
+        content: '';
+        position: absolute;
+        inset: -8px;
+        border-radius: 50%;
+        border: 1px solid rgba(251,191,36,0.06);
       }
-      body {
-        background-image: url("/images/foto_rage1.png");
-        background-size: cover;
-        background-position: center;
-        min-height: 100vh;
-        color: var(--text-primary);
+
+      .login-input {
+        width: 100%;
+        padding: 14px 48px 14px 16px;
+        background: rgba(10, 8, 5, 0.9);
+        border: 1.5px solid #3d342d;
+        border-radius: 12px;
+        color: #fef3c7;
+        font-size: 14px;
+        font-family: 'Poppins', sans-serif;
+        outline: none;
+        transition: all 0.25s ease;
       }
-      body::before {
-        content: "";
+
+      .login-input:focus {
+        border-color: #d97706;
+        box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+        background: rgba(15, 10, 6, 0.95);
+      }
+
+      .login-input::placeholder {
+        color: #4a3828;
+      }
+
+      .login-btn {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+        color: #1a0f0a;
+        font-weight: 800;
+        font-size: 14px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        border-radius: 12px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 20px rgba(217, 119, 6, 0.4);
+        position: relative;
+        overflow: hidden;
+        font-family: 'Poppins', sans-serif;
+      }
+
+      .login-btn::before {
+        content: '';
+        position: absolute;
+        top: 0; left: -100%;
+        width: 100%; height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+        transition: left 0.5s ease;
+      }
+
+      .login-btn:hover::before {
+        left: 100%;
+      }
+
+      .login-btn:hover {
+        box-shadow: 0 12px 30px rgba(217, 119, 6, 0.5);
+        transform: translateY(-2px);
+      }
+
+      .login-btn:active {
+        transform: translateY(0);
+      }
+
+      .login-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.7;
+        transform: none;
+      }
+
+      .login-btn-spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(26,15,10,0.3);
+        border-top-color: #1a0f0a;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        vertical-align: middle;
+        margin-right: 8px;
+      }
+
+      .eye-toggle {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6b5c4f;
+        cursor: pointer;
+        transition: color 0.2s ease;
+        background: none;
+        border: none;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .eye-toggle:hover {
+        color: #fbbf24;
+      }
+
+      .divider-line {
+        height: 1px;
+        background: linear-gradient(to right, transparent, #3d342d, transparent);
+      }
+
+      .login-page-glow {
         position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 0;
+        top: 30%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(217,119,6,0.06) 0%, transparent 70%);
         pointer-events: none;
-      }
-      .card {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
+        z-index: 1;
       }
     </style>
   </head>
   <body>
-    <header
-      class="bg-white dark:bg-[#1f1410] border-b border-[#f3e8d8] dark:border-[#3d342d] sticky top-0 z-50"
-    >
-      <div
-        class="max-w-6xl mx-auto px-6 py-2 flex items-center justify-between"
-      >
-        <div class="flex items-center gap-3">
-          <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-12" />
-          <div>
-            <h1 class="text-lg font-bold text-yellow-300">R.A.G.E</h1>
-            <p class="text-xs text-yellow-200/80">Login</p>
-          </div>
-        </div>
-      </div>
-    </header>
+    <!-- Ambient glow -->
+    <div class="login-page-glow"></div>
 
-    <main class="max-w-md mx-auto px-6 py-10 relative z-10">
-      <div class="card rounded-2xl shadow-lg p-8">
-        <h2 class="text-xl font-bold mb-6">Masuk</h2>
-        <form id="loginForm" class="space-y-4">
-          <div class="flex flex-col gap-2">
-            <label for="loginEmail" class="text-sm font-semibold">Username</label>
-            <input
-              id="loginEmail"
-              type="text"
-              required
-              autocomplete="username"
-              placeholder="contoh: leo"
-              class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]"
-            />
+
+    <!-- Main Login Area -->
+    <main class="relative z-10 min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-12">
+      <div class="w-full max-w-md">
+        
+        <!-- Logo & Title -->
+        <div class="flex flex-col items-center mb-8" style="animation: fadeInUp 0.4s ease both;">
+          <div class="login-logo-ring mb-5">
+            <img src="images/LOGO_RAGE.png" alt="R.A.G.E" class="w-12 h-12 object-contain" />
           </div>
-          <div class="flex flex-col gap-2">
-            <label for="loginPassword" class="text-sm font-semibold"
-              >Password</label
-            >
-            <input
-              id="loginPassword"
-              type="password"
-              required
-              autocomplete="current-password"
-              class="px-4 py-3 rounded-lg bg-[#fffbf0] dark:bg-[#0a0805] border border-[#f3e8d8] dark:border-[#3d342d] text-[#1a1410] dark:text-[#fef3c7]"
-            />
-          </div>
-          <button
-            id="loginBtn"
-            type="submit"
-            class="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-orange-700 to-amber-600 text-white font-semibold shadow"
-          >
-            Login
-          </button>
-        </form>
+          <h2 class="text-2xl font-black text-yellow-400 tracking-tight">Masuk ke R.A.G.E</h2>
+          <p class="text-xs text-stone-500 mt-1 font-medium">Order System — Para anggota bersatu</p>
+        </div>
+
+        <!-- Card -->
+        <div class="login-card rounded-2xl p-8">
+          
+          <!-- Divider -->
+          <div class="divider-line mb-7"></div>
+
+          <!-- Form -->
+          <form id="loginForm" class="flex flex-col gap-5" autocomplete="off" novalidate>
+
+            <!-- Username -->
+            <div class="flex flex-col gap-2">
+              <label for="loginEmail" class="text-xs font-bold text-stone-500 uppercase tracking-widest flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-yellow-700">
+                  <path fill-rule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clip-rule="evenodd" />
+                </svg>
+                Username
+              </label>
+              <div class="relative">
+                <input
+                  id="loginEmail"
+                  type="text"
+                  required
+                  autocomplete="username"
+                  placeholder="contoh: leo / evan"
+                  class="login-input pr-4"
+                />
+              </div>
+            </div>
+
+            <!-- Password -->
+            <div class="flex flex-col gap-2">
+              <label for="loginPassword" class="text-xs font-bold text-stone-500 uppercase tracking-widest flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3.5 h-3.5 text-yellow-700">
+                  <path fill-rule="evenodd" d="M12 1.5a5.25 5.25 0 00-5.25 5.25v3a3 3 0 00-3 3v6.75a3 3 0 003 3h10.5a3 3 0 003-3v-6.75a3 3 0 00-3-3v-3c0-2.9-2.35-5.25-5.25-5.25zm3.75 8.25v-3a3.75 3.75 0 10-7.5 0v3h7.5z" clip-rule="evenodd" />
+                </svg>
+                Password
+              </label>
+              <div class="relative">
+                <input
+                  id="loginPassword"
+                  type="password"
+                  required
+                  autocomplete="current-password"
+                  placeholder="••••••••"
+                  class="login-input"
+                />
+                <button type="button" class="eye-toggle" id="eyeToggle" onclick="togglePassword()">
+                  <svg id="eyeOpen" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <svg id="eyeClosed" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 hidden">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Divider -->
+            <div class="divider-line"></div>
+
+            <!-- Submit -->
+            <button id="loginBtn" type="submit" class="login-btn">
+              <span id="loginBtnText">Masuk</span>
+            </button>
+
+          </form>
+        </div>
+
+        <!-- Footer note -->
+        <p class="text-center text-xs text-stone-600 mt-6" style="animation: fadeIn 0.6s 0.5s ease both; opacity: 0; animation-fill-mode: both;">
+          R.A.G.E Order System · Internal Only
+        </p>
       </div>
     </main>
-
-    <div
-      id="appAlert"
-      class="fixed inset-x-0 top-16 flex justify-center z-50 pointer-events-none"
-    >
-      <div
-        id="appAlertBox"
-        class="hidden px-4 py-2 rounded-lg bg-red-600 text-white shadow-lg pointer-events-auto"
-      ></div>
-    </div>
 
     <script src="config.js?v=20260413b"></script>
     <script type="module">
@@ -117,16 +266,36 @@
           ? createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
           : null;
 
-      function show(message, type = "info") {
-        // SweetAlert2 Implementation
-        if (typeof Swal !== 'undefined') {
-          const icons = {
-            success: 'success',
-            error: 'error',
-            warning: 'warning',
-            info: 'info'
-          };
+      // Show/hide password toggle
+      window.togglePassword = function() {
+        const input = document.getElementById('loginPassword');
+        const eyeOpen = document.getElementById('eyeOpen');
+        const eyeClosed = document.getElementById('eyeClosed');
+        if (input.type === 'password') {
+          input.type = 'text';
+          eyeOpen.classList.add('hidden');
+          eyeClosed.classList.remove('hidden');
+        } else {
+          input.type = 'password';
+          eyeOpen.classList.remove('hidden');
+          eyeClosed.classList.add('hidden');
+        }
+      };
 
+      function setLoading(loading) {
+        const btn = document.getElementById("loginBtn");
+        const txt = document.getElementById("loginBtnText");
+        btn.disabled = loading;
+        if (loading) {
+          txt.innerHTML = '<span class="login-btn-spinner"></span> Masuk...';
+        } else {
+          txt.innerHTML = 'Masuk';
+        }
+      }
+
+      function show(message, type = "info") {
+        if (typeof Swal !== 'undefined') {
+          const icons = { success: 'success', error: 'error', warning: 'warning', info: 'info' };
           Swal.fire({
             text: message,
             icon: icons[type] || 'info',
@@ -148,23 +317,6 @@
           });
           return;
         }
-
-        const box = document.getElementById("appAlertBox");
-        if (!box) {
-          alert(message);
-          return;
-        }
-        const base = "px-4 py-2 rounded-lg text-white shadow-lg";
-        const color =
-          type === "success"
-            ? "bg-green-600"
-            : type === "error"
-            ? "bg-red-600"
-            : "bg-yellow-600";
-        box.className = `${base} ${color}`;
-        box.textContent = message;
-        box.classList.remove("hidden");
-        setTimeout(() => box.classList.add("hidden"), 3000);
       }
 
       async function checkSession() {
@@ -190,8 +342,7 @@
         }
         const usernameOrEmail = document.getElementById("loginEmail").value.trim();
         const password = document.getElementById("loginPassword").value;
-        const btn = document.getElementById("loginBtn");
-        btn.disabled = true;
+        setLoading(true);
         try {
           const primaryDomain = (window.AUTH_EMAIL_DOMAIN || "rage.example.com").trim();
           const legacyDomain = (window.LEGACY_AUTH_EMAIL_DOMAIN || "rage.local").trim();
@@ -201,10 +352,7 @@
 
           let lastError = null;
           for (const email of candidates) {
-            const { error } = await supabase.auth.signInWithPassword({
-              email,
-              password,
-            });
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
             if (!error) {
               location.href = "rekap.html";
               return;
@@ -212,10 +360,10 @@
             lastError = error;
           }
           show(`Gagal login: ${(lastError && lastError.message) || "unknown"}`, "error");
-          btn.disabled = false;
+          setLoading(false);
         } catch (err) {
           show("Gagal login (network error)", "error");
-          btn.disabled = false;
+          setLoading(false);
         }
       }
 

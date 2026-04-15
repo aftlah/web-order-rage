@@ -1,34 +1,31 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>R.A.G.E - Storan</title>
-    <link
-      rel="icon"
-      type="image/png"
-      href="images/LOGO_RAGE.png"
-    />
+    <link rel="icon" type="image/png" href="images/LOGO_RAGE.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   </head>
   <body class="transition-colors duration-300">
+
+    <!-- Header -->
     <header class="shadow-xl sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto px-6 py-2">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2.5">
         <div class="flex items-center justify-between">
           <div class="logo-container">
-            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-12" />
+            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-11 sm:w-12" />
             <div class="brand-title">
-              <h1 class="text-xl font-black">R.A.G.E</h1>
-              <p class="brand-subtitle text-[10px] uppercase font-bold tracking-wider">Order System</p>
+              <h1>R.A.G.E</h1>
+              <p class="brand-subtitle">Order System</p>
             </div>
           </div>
-          <div class="flex items-center gap-4 lg:gap-8">
-            <!-- Desktop Nav -->
+          <div class="flex items-center gap-3 lg:gap-6">
             <nav id="mainNav" class="hidden md:flex items-center gap-1">
               <a href="index.html" class="nav-link">Order</a>
               <a href="dashboard.html" class="nav-link">Dashboard</a>
@@ -37,19 +34,13 @@
               <a href="kas.html" class="nav-link">Kas</a>
               <a href="rekap.html" class="nav-link">Rekap</a>
             </nav>
-            
-            <button id="logoutBtn" class="btn-logout hidden md:block">
-              Logout
-            </button>
-
-            <div class="text-right hidden sm:block border-l border-[#2d1b14] pl-6">
+            <button id="logoutBtn" class="btn-logout hidden md:block">Logout</button>
+            <div class="text-right hidden sm:block border-l border-[#2d1b14]/60 pl-5">
               <p class="today-label">Today</p>
               <p class="today-date" id="current-date"></p>
             </div>
-
-            <!-- Hamburger Button -->
             <button id="mobileMenuBtn" class="md:hidden" onclick="toggleMobileMenu()">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
               </svg>
             </button>
@@ -58,110 +49,109 @@
       </div>
 
       <!-- Mobile Menu -->
-      <div id="mobileMenu" class="mobile-menu absolute top-full left-0 w-full hidden flex flex-col z-50">
-        <div class="flex flex-col p-4 gap-1">
+      <div id="mobileMenu" class="mobile-menu absolute top-full left-0 w-full hidden z-50">
+        <div class="flex flex-col p-3 gap-0.5">
           <a href="index.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
             Order
           </a>
           <a href="dashboard.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 0113.5 18v-2.25z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25a2.25 2.25 0 01-2.25-2.25v-2.25z" /></svg>
             Dashboard
           </a>
           <a href="storan.html" class="mobile-nav-link mobile-nav-active">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75V4.5m0 2.25a2.25 2.25 0 100 4.5m0-4.5a2.25 2.25 0 010 4.5m-6.75 6h13.5a2.25 2.25 0 002.25-2.25V8.25A2.25 2.25 0 0018.75 6h-13.5A2.25 2.25 0 003 8.25v6.75A2.25 2.25 0 005.25 18z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
             Storan
           </a>
           <a href="drugs.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75V4.5m0 2.25a2.25 2.25 0 100 4.5m0-4.5a2.25 2.25 0 010 4.5m-6.75 6h13.5a2.25 2.25 0 002.25-2.25V8.25A2.25 2.25 0 0018.75 6h-13.5A2.25 2.25 0 003 8.25v6.75A2.25 2.25 0 005.25 18z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" /></svg>
             Drugs
           </a>
           <a href="kas.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m6-6H6" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             Kas
           </a>
           <a href="rekap.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18" /><path stroke-linecap="round" stroke-linejoin="round" d="M7 14l3-3 3 3 5-6" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18" /><path stroke-linecap="round" stroke-linejoin="round" d="M7 14l3-3 3 3 5-6" /></svg>
             Rekap
           </a>
-          <hr class="border-[#2d1b14] my-2" />
-          <button id="mobileLogoutBtn" class="mobile-nav-link text-red-500">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
+          <div class="my-1 mx-2" style="height:1px;background:linear-gradient(to right,transparent,#3d342d,transparent)"></div>
+          <button id="mobileLogoutBtn" class="mobile-nav-link" style="color:#f87171 !important;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>
             Logout
           </button>
         </div>
       </div>
     </header>
 
-    <main class="min-h-[calc(100vh-64px)] relative z-10">
-      <div class="max-w-4xl mx-auto p-4 flex flex-col gap-6" id="storanSection">
+    <main class="relative z-10">
+      <div class="max-w-4xl mx-auto px-3 sm:px-4 py-5 flex flex-col gap-5" id="storanSection">
 
         <!-- Hero Header Card -->
-        <div class="bg-[#1f1410]/95 backdrop-blur-md border border-[#3d342d] rounded-xl p-6 shadow-2xl relative overflow-hidden">
-          <!-- Decorative glow -->
-          <div class="absolute -top-20 -right-20 w-48 h-48 bg-yellow-600/10 rounded-full blur-3xl pointer-events-none"></div>
-          <div class="absolute -bottom-16 -left-16 w-36 h-36 bg-orange-600/8 rounded-full blur-3xl pointer-events-none"></div>
-          
+        <div class="glass-card p-5 sm:p-6 page-enter-1 relative overflow-hidden">
+          <!-- Decorative glows -->
+          <div class="absolute -top-16 -right-16 w-40 h-40 bg-yellow-600/8 rounded-full blur-3xl pointer-events-none"></div>
+          <div class="absolute -bottom-12 -left-12 w-32 h-32 bg-orange-600/6 rounded-full blur-3xl pointer-events-none"></div>
+
           <div class="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div class="flex items-start gap-4">
-              <div class="w-12 h-12 rounded-xl bg-yellow-600/15 border border-yellow-600/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div class="w-12 h-12 rounded-xl bg-yellow-600/12 border border-yellow-600/20 flex items-center justify-center flex-shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-yellow-500">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
                 </svg>
               </div>
               <div>
-                <h2 class="text-xl sm:text-2xl font-black text-yellow-500 tracking-tight">Storan Mingguan</h2>
-                <p class="text-[11px] sm:text-xs text-slate-500 mt-1 max-w-md leading-relaxed">
-                  Pilih nama dari database lalu tandai apakah sudah storan atau belum untuk minggu ini.
-                </p>
+                <h2 class="text-xl sm:text-2xl font-black text-yellow-400 tracking-tight">Storan Mingguan</h2>
+                <p class="text-xs text-stone-500 mt-1 max-w-sm leading-relaxed">Pilih nama dari database lalu tandai apakah sudah storan atau belum untuk minggu ini.</p>
               </div>
             </div>
-            <div id="storanStats" class="flex gap-3 sm:gap-4">
-              <div class="bg-green-600/10 border border-green-600/20 rounded-xl px-4 py-2.5 text-center min-w-[80px]">
-                <p class="text-[10px] font-bold text-green-500/70 uppercase tracking-widest">Sudah</p>
-                <p id="storanCountSudah" class="text-lg font-black text-green-400 font-mono mt-0.5">-</p>
+
+            <!-- Stats -->
+            <div id="storanStats" class="flex gap-3">
+              <div class="stat-card stat-card-green text-center min-w-[80px]">
+                <p class="text-[10px] font-black text-green-500/70 uppercase tracking-widest">Sudah</p>
+                <p id="storanCountSudah" class="text-xl font-black text-green-400 font-mono mt-1">-</p>
               </div>
-              <div class="bg-red-600/10 border border-red-600/20 rounded-xl px-4 py-2.5 text-center min-w-[80px]">
-                <p class="text-[10px] font-bold text-red-500/70 uppercase tracking-widest">Belum</p>
-                <p id="storanCountBelum" class="text-lg font-black text-red-400 font-mono mt-0.5">-</p>
+              <div class="stat-card stat-card-red text-center min-w-[80px]">
+                <p class="text-[10px] font-black text-red-500/70 uppercase tracking-widest">Belum</p>
+                <p id="storanCountBelum" class="text-xl font-black text-red-400 font-mono mt-1">-</p>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Form Card -->
-        <div class="bg-[#1f1410]/95 backdrop-blur-md border border-[#3d342d] rounded-xl p-6 shadow-2xl">
-          <div class="flex items-center gap-3 mb-6">
-            <div class="w-1.5 h-6 bg-yellow-600 rounded-full"></div>
-            <h3 class="text-lg font-bold text-yellow-500">Catat Storan</h3>
+        <div class="glass-card p-5 sm:p-6 page-enter-2">
+          <div class="flex items-center gap-3 mb-5">
+            <div class="section-divider h-6"></div>
+            <h3 class="text-lg font-black text-yellow-400">Catat Storan</h3>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <!-- Nama -->
             <div class="flex flex-col gap-2 relative">
-              <label for="storanNama" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Nama</label>
+              <label for="storanNama" class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Nama</label>
               <input
                 id="storanNama"
                 type="text"
                 placeholder="Cari nama dari database"
-                class="w-full px-4 py-3 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] focus:outline-none focus:border-yellow-600 transition placeholder:text-slate-600"
+                class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 focus:shadow-[0_0_0_3px_rgba(217,119,6,0.12)] transition placeholder:text-stone-700"
                 autocomplete="off"
               />
               <input type="hidden" id="storanMemberId" />
               <input type="hidden" id="storanEditId" />
-              <div
-                id="storanNamaDropdown"
-                class="absolute left-0 right-0 top-full mt-2 bg-[#1f1410] border border-[#3d342d] rounded-xl shadow-2xl max-h-60 overflow-auto hidden z-50 text-[#fef3c7] custom-scrollbar"
+              <div id="storanNamaDropdown"
+                class="rage-dropdown absolute left-0 right-0 top-full mt-2 hidden z-50 custom-scrollbar"
               ></div>
-              <p id="storanNamaStatus" class="text-[10px] text-red-500 font-bold uppercase mt-0.5">Pilih nama dari database</p>
+              <p id="storanNamaStatus" class="text-[10px] text-red-500/80 font-bold uppercase mt-0.5">Pilih nama dari database</p>
             </div>
 
             <!-- Status -->
             <div class="flex flex-col gap-2">
-              <label for="storanStatus" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status Storan</label>
+              <label for="storanStatus" class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Status Storan</label>
               <select
                 id="storanStatus"
-                class="w-full px-4 py-3 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] focus:outline-none focus:border-yellow-600 transition cursor-pointer"
+                class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"
               >
                 <option value="SUDAH">✅ Sudah storan</option>
                 <option value="BELUM">❌ Belum storan</option>
@@ -169,11 +159,11 @@
             </div>
 
             <!-- Penerima -->
-            <div class="flex flex-col gap-2 md:col-span-2">
-              <label for="storanPenerima" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Penerima</label>
+            <div class="flex flex-col gap-2 sm:col-span-2">
+              <label for="storanPenerima" class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Penerima</label>
               <select
                 id="storanPenerima"
-                class="w-full px-4 py-3 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] focus:outline-none focus:border-yellow-600 transition cursor-pointer"
+                class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"
               >
                 <option value="">Pilih penerima</option>
                 <option value="Leo">Leo</option>
@@ -182,32 +172,28 @@
             </div>
 
             <!-- Catatan -->
-            <div class="flex flex-col gap-2 md:col-span-2">
-              <label for="storanCatatan" class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Catatan (opsional)</label>
+            <div class="flex flex-col gap-2 sm:col-span-2">
+              <label for="storanCatatan" class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Catatan (opsional)</label>
               <textarea
                 id="storanCatatan"
                 rows="3"
                 placeholder="Misal: keterangan storan minggu ini, dll"
-                class="w-full px-4 py-3 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] focus:outline-none focus:border-yellow-600 transition resize-none placeholder:text-slate-600"
+                class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition resize-none placeholder:text-stone-700"
               ></textarea>
             </div>
           </div>
 
           <!-- Submit Area -->
-          <div class="flex items-center justify-between gap-4 mt-6 pt-6 border-t border-[#3d342d]">
+          <div class="flex items-center justify-between gap-4 mt-5 pt-5 border-t border-[#3d342d]/60">
             <div id="appAlertBox" class="hidden text-sm px-4 py-2 rounded-lg"></div>
             <div class="ml-auto flex items-center gap-3">
-              <button
-                id="storanCancelEdit"
-                class="hidden inline-flex items-center gap-2 px-4 py-3 rounded-xl border border-[#3d342d] text-slate-300 font-black uppercase tracking-widest text-xs hover:bg-[#2a1d17] transition"
-              >
+              <button id="storanCancelEdit"
+                class="hidden items-center gap-2 px-5 py-3 rounded-xl btn-ghost text-xs font-black uppercase tracking-widest">
                 Batal Edit
               </button>
-              <button
-                id="storanSubmit"
-                class="inline-flex items-center gap-2.5 px-6 py-3 rounded-xl bg-yellow-600 text-[#1a1410] font-black uppercase tracking-widest text-sm hover:bg-yellow-500 transition shadow-lg shadow-yellow-600/20 active:translate-y-0.5"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+              <button id="storanSubmit"
+                class="inline-flex items-center gap-2 px-6 py-3 rounded-xl btn-primary text-sm font-black uppercase tracking-widest active:scale-95 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                 </svg>
                 <span id="storanSubmitLabel">Kirim Storan</span>
@@ -217,32 +203,31 @@
         </div>
 
         <!-- Rekap Table Card -->
-        <div class="bg-[#1f1410]/95 backdrop-blur-md border border-[#3d342d] rounded-xl p-6 shadow-2xl">
-          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div class="glass-card p-5 sm:p-6 page-enter-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
             <div class="flex items-center gap-3">
-              <div class="w-1.5 h-6 bg-yellow-600 rounded-full"></div>
-              <h3 class="text-lg font-bold text-yellow-500">Rekap Storan Minggu Ini</h3>
+              <div class="section-divider h-6"></div>
+              <h3 class="text-lg font-black text-yellow-400">Rekap Storan Minggu Ini</h3>
             </div>
             <div class="flex items-center gap-3">
               <span id="storanPeriodeLabel" class="text-[10px] font-black text-yellow-600 uppercase tracking-widest"></span>
-              <button
-                id="storanReloadBtn"
-                class="px-4 py-2 rounded-lg bg-[#3d342d] text-slate-300 text-[10px] font-bold uppercase tracking-widest hover:bg-[#4a3f37] transition active:translate-y-0.5"
-              >
+              <button id="storanReloadBtn"
+                class="px-4 py-2 rounded-xl btn-secondary text-[10px] font-bold uppercase tracking-widest">
                 ↻ Reload
               </button>
             </div>
           </div>
 
-          <div class="overflow-x-auto max-h-[420px] overflow-y-auto rounded-lg border border-[#3d342d] custom-scrollbar">
-            <table class="w-full text-sm text-left border-collapse">
-              <thead class="bg-black/30 text-slate-400 uppercase text-[10px] tracking-widest border-b border-[#3d342d] sticky top-0">
+          <!-- Table -->
+          <div class="scroll-table max-h-[420px] overflow-y-auto custom-scrollbar">
+            <table class="w-full text-sm text-left border-collapse table-mobile">
+              <thead class="bg-black/40 text-stone-400 uppercase text-[10px] tracking-widest border-b border-[#3d342d] sticky top-0">
                 <tr>
                   <th class="px-4 py-3">Nama</th>
-                  <th class="px-4 py-3">Penerima</th>
+                  <th class="px-4 py-3 hidden sm:table-cell">Penerima</th>
                   <th class="px-4 py-3 text-center">Status</th>
-                  <th class="px-4 py-3">Catatan</th>
-                  <th class="px-4 py-3 whitespace-nowrap">Waktu</th>
+                  <th class="px-4 py-3 hidden md:table-cell">Catatan</th>
+                  <th class="px-4 py-3 hidden sm:table-cell whitespace-nowrap">Waktu</th>
                   <th class="px-4 py-3 text-center">Aksi</th>
                 </tr>
               </thead>
@@ -250,18 +235,23 @@
             </table>
           </div>
 
-          <div id="storanTableEmpty" class="flex flex-col items-center justify-center py-12 text-slate-500 gap-3">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor" class="w-12 h-12 opacity-20">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-            </svg>
-            <div class="text-sm font-medium">Belum ada data</div>
-            <div class="text-[10px] uppercase tracking-widest opacity-50">Belum ada storan di periode ini</div>
+          <div id="storanTableEmpty" class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            <p>Belum ada data</p>
+            <span>Belum ada storan di periode ini</span>
           </div>
         </div>
 
       </div>
     </main>
 
+    <script>
+      function toggleMobileMenu() { document.getElementById("mobileMenu").classList.toggle("hidden"); }
+      document.addEventListener("DOMContentLoaded", () => {
+        const mob = document.getElementById("mobileLogoutBtn");
+        if (mob) mob.addEventListener("click", () => { const b = document.getElementById("logoutBtn"); if(b) b.click(); });
+      });
+    </script>
     <script src="config.js"></script>
     <script type="module" src="script.js"></script>
   </body>
