@@ -6177,26 +6177,35 @@ async function loadRekapData() {
     if (drugsLabel) {
       drugsLabel.textContent = `${isDrugsFallback ? "Terakhir • " : ""}M${m}-W${w} (#${raw})`;
     }
-    const { data, error } = await supabase
-      .from("drugs_sales")
-      .select("uang_merah,upah_putih,uang_rage,periode_orderanke")
-      .eq("periode_orderanke", v)
-      .order("waktu", { ascending: false })
-      .limit(5000);
-    if (error) {
+    
+    if (Number.isNaN(memberId) || !memberId) {
       if (drugsMerah) drugsMerah.textContent = "$ 0";
       if (drugsGaji) drugsGaji.textContent = "$ 0";
       if (drugsRage) drugsRage.textContent = "$ 0";
       if (drugsCount) drugsCount.textContent = "0";
     } else {
-      const rows = data || [];
-      const totalMerah = rows.reduce((a, r) => a + (parseFloat(r.uang_merah) || 0), 0);
-      const totalGaji = rows.reduce((a, r) => a + (parseFloat(r.upah_putih) || 0), 0);
-      const totalRage = rows.reduce((a, r) => a + (parseFloat(r.uang_rage) || 0), 0);
-      if (drugsMerah) drugsMerah.textContent = fmt(totalMerah);
-      if (drugsGaji) drugsGaji.textContent = fmt(totalGaji);
-      if (drugsRage) drugsRage.textContent = fmt(totalRage);
-      if (drugsCount) drugsCount.textContent = String(rows.length);
+      const { data, error } = await supabase
+        .from("drugs_sales")
+        .select("uang_merah,upah_putih,uang_rage,periode_orderanke")
+        .eq("periode_orderanke", v)
+        .eq("member_id", memberId)
+        .order("waktu", { ascending: false })
+        .limit(5000);
+      if (error) {
+        if (drugsMerah) drugsMerah.textContent = "$ 0";
+        if (drugsGaji) drugsGaji.textContent = "$ 0";
+        if (drugsRage) drugsRage.textContent = "$ 0";
+        if (drugsCount) drugsCount.textContent = "0";
+      } else {
+        const rows = data || [];
+        const totalMerah = rows.reduce((a, r) => a + (parseFloat(r.uang_merah) || 0), 0);
+        const totalGaji = rows.reduce((a, r) => a + (parseFloat(r.upah_putih) || 0), 0);
+        const totalRage = rows.reduce((a, r) => a + (parseFloat(r.uang_rage) || 0), 0);
+        if (drugsMerah) drugsMerah.textContent = fmt(totalMerah);
+        if (drugsGaji) drugsGaji.textContent = fmt(totalGaji);
+        if (drugsRage) drugsRage.textContent = fmt(totalRage);
+        if (drugsCount) drugsCount.textContent = String(rows.length);
+      }
     }
   } else {
     if (drugsLabel) drugsLabel.textContent = "Tidak ada data";
