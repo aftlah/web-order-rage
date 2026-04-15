@@ -133,7 +133,7 @@ async function postToDiscord(message, overrideUrl) {
       window.DISCORD_STORAN_WEBHOOK_URL &&
       overrideUrl === window.DISCORD_STORAN_WEBHOOK_URL;
     if (window && window.MAINTENANCE_MODE === true && !isStoranHook) {
-      content = `@everyone\n## **MAINTENANCE DULUU**\n${content}`;
+      content = `## **MAINTENANCE DULUU**\n${content}`;
     }
     const MAX = 1900;
     const isCode = content.startsWith("```") && content.endsWith("```");
@@ -192,7 +192,7 @@ async function postToDiscordEmbed(embed, overrideUrl, contentOverride) {
       window.DISCORD_STORAN_WEBHOOK_URL &&
       overrideUrl === window.DISCORD_STORAN_WEBHOOK_URL;
     if (window && window.MAINTENANCE_MODE === true && !isStoranHook) {
-      content = `@everyone\n## **MAINTENANCE DULUU**\n${content || ""}`.trim();
+      content = `## **MAINTENANCE DULUU**\n${content || ""}`.trim();
     }
 
     const now = Date.now();
@@ -5561,29 +5561,49 @@ async function sendDrugsEntryToDiscord(payload) {
     const periodeLabel = periode
       ? `M${periode.m}-W${periode.w} (#${periode.raw})`
       : "-";
-    const ts = fmtDateTime(
-      payload && payload.waktu ? payload.waktu : new Date().toISOString()
-    );
+    const ts = payload && payload.waktu ? payload.waktu : new Date().toISOString();
 
-    let msg = "```";
-    msg += "\nGaji Penjualan Drugs";
     const modeLabel =
       payload && payload.mode === "edit"
         ? "UPDATE DATA"
         : payload && payload.mode === "update"
         ? "TAMBAH KE TOTAL"
         : "INPUT BARU";
-    msg += `\nMode      : ${modeLabel}`;
-    msg += `\nPeriode   : ${periodeLabel}\n`;
-    msg += `\nNama      : ${payload.nama || "-"}`;
-    if (payload.jenis) msg += `\nJenis     : ${payload.jenis}`;
-    if (payload.jumlahTotal != null) msg += `\nJumlah    : ${fmtNumber(payload.jumlahTotal)}`;
-    msg += `\nDuit Merah: ${fmt(payload.duitMerahTotal || 0)}`;
-    msg += `\nGaji Putih: ${fmt(payload.upahPutihTotal || 0)}\n`;
-    msg += `\nWaktu     : ${ts}`;
-    msg += "\n```";
+        
+    let modeColor = 0xfbbf24; // yellow-400 (Input Baru)
+    if (payload.mode === "edit") modeColor = 0x3b82f6; // blue-500 (Update Data)
+    else if (payload.mode === "update") modeColor = 0x8b5cf6; // violet-500 (Tambah Total)
 
-    await postToDiscord(msg, hook);
+    let modeText = "INPUT BARU";
+    if (payload.mode === "edit") modeText = "UPDATE DATA";
+    else if (payload.mode === "update") modeText = "TAMBAH TOTAL";
+
+    const desc = 
+`\`Nama   :\` **${payload.nama || "-"}**
+\`Jenis  :\` **${payload.jenis || "-"}**
+\`Jumlah :\` **${payload.jumlahTotal != null ? fmtNumber(payload.jumlahTotal) : "-"} items**`;
+
+    const embed = {
+      author: { name: `Laporan Penjualan Drugs  —  ${modeText}` },
+      color: modeColor,
+      description: desc,
+      fields: [
+        {
+          name: "🔴  Duit Merah",
+          value: `\`\`\`diff\n- ${fmt(payload.duitMerahTotal || 0)}\n\`\`\``,
+          inline: false
+        },
+        {
+          name: "🟢  Gaji Putih",
+          value: `\`\`\`diff\n+ ${fmt(payload.upahPutihTotal || 0)}\n\`\`\``,
+          inline: false
+        }
+      ],
+      footer: { text: `Periode: ${periodeLabel}` },
+      timestamp: ts
+    };
+
+    await postToDiscordEmbed(embed, hook);
   } catch (e) {
     showAlert("Data tersimpan, tapi gagal kirim ke Discord", "warning");
   }
@@ -5650,20 +5670,31 @@ async function sendDrugsTotalsToDiscord() {
   });
 
   const periode = decodeOrderanke(parseInt(currentDrugsBatch, 10));
-  let msg = "```";
-  msg += "\nTotal Gaji Drugs (Batch Aktif)";
-  msg += `\nPeriode : M${periode.m}-W${periode.w} (#${periode.raw})\n`;
+  
+  let desc = "Berikut adalah total gaji karyawan untuk batch ini:\n";
+  desc += "```yaml\n";
+  desc += "NAMA               GAJI PUTIH \n";
+  desc += "------------------------------\n";
+  
   Array.from(map.values())
     .sort((a, b) => String(a.nama).localeCompare(String(b.nama)))
     .forEach((r) => {
-      msg += `\nNama  : ${r.nama}`;
-      msg += `\nTanggal: ${fmtDateTime(r.waktu || new Date().toISOString())}`;
-      msg += `\nGaji  : ${fmt(r.upah_putih)}\n`;
+      const n = String(r.nama).padEnd(16, " ");
+      const g = String(fmt(r.upah_putih)).padStart(12, " ");
+      desc += `${n} : ${g}\n`;
     });
-  msg += "\n```";
+  desc += "```";
+
+  const embed = {
+    author: { name: `R.A.G.E DRUGS PAYROLL  —  M${periode.m}-W${periode.w}` },
+    color: 0x10b981, // Emerald-500
+    description: desc,
+    footer: { text: `ID Periode: #${periode.raw}` },
+    timestamp: new Date().toISOString()
+  };
 
   try {
-    await postToDiscord(msg, hook);
+    await postToDiscordEmbed(embed, hook);
     showAlert("Total batch terkirim ke Discord", "success");
   } catch (e) {
     showAlert("Gagal mengirim ke Discord", "error");
