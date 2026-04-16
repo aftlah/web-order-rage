@@ -15,6 +15,7 @@ const CATALOG = {
     { name: "SHOTGUN", price: 65000 }, // to BOA
     { name: "NAVY REVOLVER", price: 72000 }, // to BOA
     { name: "PISTOL X17", price: 33000 }, // to BOA
+    { name: "X17 + Attachment", price: 65000 }, // to BOA, sebelum markup Gun
     { name: "BLACK REVOLVER", price: 91000 },
     { name: "KVR", price: 78000 },
     { name: "Assault Rifle", price: 195000 }, //max 20
@@ -65,6 +66,7 @@ const ITEM_MAX_LIMITS = {
   "AMMO .50": 300,
   "VEST MEDIUM": 75,
   "PISTOL X17": 25,
+  "X17 + Attachment": 25,
   "SMG": 20,
   "SHOTGUN": 15,
   "NAVY REVOLVER": 25,      
@@ -2662,6 +2664,7 @@ const GROUP_ITEMS = {
     "AMMO 12 GAUGE",
     "VEST MEDIUM",
     "PISTOL X17",
+    "X17 + Attachment",
 
     "AMMO 44 MAGNUM",
     "KVR",
