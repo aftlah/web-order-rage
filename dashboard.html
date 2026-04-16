@@ -14,7 +14,7 @@
     <script>
       (function () {
         try {
-          var keys = Object.keys(localStorage || {});
+          var keys = Object.keys(localStorage || {});   
           var key = keys.find(function (k) { return k.startsWith("sb-") && k.endsWith("-auth-token"); });
           var raw = key ? localStorage.getItem(key) : null;
           if (!raw) { window.location.href = "login.html"; return; }
@@ -305,5 +305,6 @@
 
     <script src="config.js"></script>
     <script type="module" src="script.js"></script>
+    <script src="interactive.js"></script>
   </body>
 </html>

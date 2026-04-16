@@ -856,3 +856,61 @@ header .brand-subtitle {
   letter-spacing: 0.1em;
   opacity: 0.5;
 }
+
+/* ===== Interactive Effects - Ripple ===== */
+.btn-primary, .btn-secondary, .btn-success, .login-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  width: 100px;
+  height: 100px;
+  margin-top: -50px;
+  margin-left: -50px;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  animation: ripple-anim 0.6s linear;
+  pointer-events: none;
+}
+
+@keyframes ripple-anim {
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* ===== Interactive Effects - Glow Borders ===== */
+.glass-card, .login-card {
+  position: relative;
+  overflow: hidden; /* For inner glow */
+}
+
+.glass-card::after, .login-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    600px circle at var(--mouse-x, -9999px) var(--mouse-y, -9999px),
+    rgba(251, 191, 36, 0.06),
+    transparent 40%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 10;
+}
+
+.glass-card:hover::after, .login-card:hover::after {
+  opacity: 1;
+}
+
+/* Fix for overlapping interactive content */
+.glass-card > *, .login-card > * {
+  position: relative;
+  z-index: 20;
+}
