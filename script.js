@@ -11,7 +11,7 @@ const CATALOG = {
     { name: "TECH 9", price: 26000 },
     { name: "MINI SMG", price: 30000 },
     { name: "MICRO SMG", price: 30000 },
-    { name: "SMG", price: 40000 },
+    // { name: "SMG", price: 40000 }, // nonaktif sementara
     { name: "SHOTGUN", price: 65000 }, // to BOA
     { name: "NAVY REVOLVER", price: 72000 }, // to BOA
     { name: "PISTOL X17", price: 33000 }, // to BOA
@@ -38,7 +38,7 @@ const CATALOG = {
     { name: "Extended Pistol Clip", price: 4000, scrap: 5 },
     { name: "Extended SMG Clip", price: 7000, scrap: 5 },
     { name: "Extended Rifle Clip", price: 20000, scrap: 5 },
-    { name: "SMG Drum", price: 13000, scrap: 5 },
+    // { name: "SMG Drum", price: 13000, scrap: 5 }, // nonaktif sementara
     { name: "Rifle Drum", price: 26000, scrap: 5 },
     { name: "Macro Scope", price: 4000, scrap: 5 },
     { name: "Medium Scope", price: 4000, scrap: 5 },
@@ -67,7 +67,7 @@ const ITEM_MAX_LIMITS = {
   "VEST MEDIUM": 75,
   "PISTOL X17": 25,
   "X17 + Attachment": 25,
-  "SMG": 20,
+  // "SMG": 20, // nonaktif sementara
   "SHOTGUN": 15,
   "NAVY REVOLVER": 25,      
   "KVR": 25,
@@ -89,7 +89,7 @@ const ITEM_MAX_LIMITS = {
   "Extended Pistol Clip": 20,
   "Extended SMG Clip": 20,
   "Extended Rifle Clip": 20,
-  "SMG Drum": 20,
+  // "SMG Drum": 20, // nonaktif sementara
   "Rifle Drum": 20,
   "Macro Scope": 20,
   "Medium Scope": 20,
@@ -1087,7 +1087,7 @@ function getRolePermissions(role) {
   const HANGAROUND_ADDITIONS = [
     "MINI SMG",
     "MICRO SMG",
-    "SMG",
+    // "SMG", // nonaktif sementara
     "PISTOL X17",
   ];
   const HANGAROUND_AMMO = ["AMMO .45"];
@@ -2680,7 +2680,7 @@ const GROUP_ITEMS = {
     "Extended Pistol Clip",
     "Extended SMG Clip",
     "Extended Rifle Clip",
-    "SMG Drum",
+    // "SMG Drum", // nonaktif sementara
     "Rifle Drum",
     "Macro Scope",
     "Medium Scope",
@@ -2693,7 +2693,7 @@ const GROUP_ITEMS = {
     "TECH 9",
     "MINI SMG",
     "MICRO SMG",
-    "SMG",
+    // "SMG", // nonaktif sementara
     "AMMO 9MM",
     "AMMO .50",
     "VEST MEDIUM",
