@@ -1,13 +1,34 @@
 import fs from "node:fs";
 
-const SUPABASE_URL = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const EMAIL_DOMAIN = (process.env.EMAIL_DOMAIN || "rage.local").trim();
+function readConfigJsValues() {
+  try {
+    const raw = fs.readFileSync(new URL("../config.js", import.meta.url), "utf8");
+    const pick = (re) => {
+      const m = raw.match(re);
+      return m && m[1] ? String(m[1]).trim() : "";
+    };
+    const supabaseUrl = pick(/window\.SUPABASE_URL\s*=\s*["']([^"']+)["']/);
+    const serviceRoleKey = pick(/window\.SUPABASE_SERVICE_ROLE_KEY\s*=\s*["']([^"']+)["']/);
+    const authEmailDomain = pick(/window\.AUTH_EMAIL_DOMAIN\s*=\s*["']([^"']+)["']/);
+    return { supabaseUrl, serviceRoleKey, authEmailDomain };
+  } catch (e) {
+    return { supabaseUrl: "", serviceRoleKey: "", authEmailDomain: "" };
+  }
+}
+
+const cfg = readConfigJsValues();
+const envSupabaseUrl = (process.env.SUPABASE_URL || "").replace(/\/+$/, "");
+const envServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const envEmailDomain = (process.env.EMAIL_DOMAIN || "").trim();
+
+const SUPABASE_URL = (envSupabaseUrl || cfg.supabaseUrl || "").replace(/\/+$/, "");
+const SERVICE_ROLE_KEY = envServiceRole || cfg.serviceRoleKey || "";
+const EMAIL_DOMAIN = (envEmailDomain || cfg.authEmailDomain || "rage.local").trim();
 const DRY_RUN = String(process.env.DRY_RUN || "").toLowerCase() === "true";
 const EXPORT_ALL = String(process.env.EXPORT_ALL || "").toLowerCase() === "true";
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env var");
+  throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY (env atau config.js)");
 }
 if (typeof fetch !== "function") {
   throw new Error("Node fetch not available. Use Node 18+.");
