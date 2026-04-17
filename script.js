@@ -503,7 +503,7 @@ function requireAdminOrRedirect() {
 
 function applyAdminNav(member) {
   const isAdmin = isAdminMember(member);
-  const adminOnlyHrefs = ["dashboard.html", "storan.html", "drugs.html", "kas.html", "admin_users.html"];
+  const adminOnlyHrefs = ["dashboard.html", "storan.html", "drugs.html", "kas.html", "admin_users.html", "admin_activity.html"];
   adminOnlyHrefs.forEach((href) => {
     document.querySelectorAll(`a[href="${href}"]`).forEach((a) => {
       if (!isAdmin) a.classList.add("hidden");
@@ -755,67 +755,226 @@ function applyCurrentMemberToDrugsUI(member) {
   }
 }
 
-function ensureProfileNavLinks() {
-  const isProfilePage = /\/profile\.html$/i.test(location.pathname || "");
+function ensureProfileNavLinks(member) {
+  const isAdmin = isAdminMember(member);
+  const path = String(location.pathname || "").toLowerCase();
+  const items = [
+    { href: "profile.html", label: "Profile", isVisible: true },
+    { href: "admin_users.html", label: "Users", isVisible: isAdmin },
+    { href: "admin_activity.html", label: "Monitor", isVisible: isAdmin },
+  ].filter((x) => x.isVisible);
+
+  const isActive = items.some((it) => path.endsWith("/" + it.href.toLowerCase()));
+
   const desktopNav = document.getElementById("mainNav");
   const logoutBtn = document.getElementById("logoutBtn");
-  if (desktopNav && !desktopNav.querySelector('a[href="profile.html"]')) {
-    const a = document.createElement("a");
-    a.href = "profile.html";
-    a.className = `nav-link nav-link-profile${isProfilePage ? " nav-active" : ""}`;
-    a.innerHTML = '<span class="nav-profile-icon">P</span><span>Profile</span>';
-    if (logoutBtn && logoutBtn.parentElement) {
-      logoutBtn.insertAdjacentElement("afterend", a);
-    } else {
-      desktopNav.appendChild(a);
+  if (desktopNav) {
+    desktopNav.querySelectorAll('a[href="profile.html"]').forEach((a) => a.remove());
+    desktopNav.querySelectorAll('a[href="admin_users.html"], a[href="admin_activity.html"]').forEach((a) => a.classList.add("hidden"));
+    const oldAdmin = desktopNav.querySelector("#adminNavDropdown");
+    if (oldAdmin) oldAdmin.remove();
+
+    if (!desktopNav.querySelector("#profileNavDropdown")) {
+      const wrap = document.createElement("div");
+      wrap.id = "profileNavDropdown";
+      wrap.className = "nav-dropdown";
+      if (isActive) wrap.classList.add("nav-dropdown-active-page");
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = `nav-link nav-link-profile nav-dropdown-toggle${isActive ? " nav-active" : ""}`;
+      btn.innerHTML =
+        '<span class="nav-profile-icon">P</span><span>Profile</span>' +
+        '<svg class="nav-dropdown-caret" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:16px;height:16px;opacity:0.9"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.25a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z" clip-rule="evenodd"/></svg>';
+
+      const menu = document.createElement("div");
+      menu.className = "nav-dropdown-menu";
+      menu.innerHTML =
+        items
+          .map((it) => {
+            const active = path.endsWith("/" + it.href.toLowerCase());
+            return `<a href="${it.href}" class="nav-dropdown-item${active ? " nav-dropdown-active" : ""}"><span>${it.label}</span></a>`;
+          })
+          .join("") +
+        `<button type="button" class="nav-dropdown-item"><span>Logout</span></button>`;
+
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const open = !wrap.classList.contains("open");
+        document.querySelectorAll(".nav-dropdown").forEach((dd) => dd.classList.remove("open"));
+        wrap.classList.toggle("open", open);
+        btn.classList.toggle("nav-active", open || isActive);
+      });
+
+      menu.querySelectorAll("button.nav-dropdown-item").forEach((b) => {
+        b.addEventListener("click", () => {
+          if (logoutBtn) logoutBtn.click();
+        });
+      });
+
+      wrap.appendChild(btn);
+      wrap.appendChild(menu);
+
+      if (logoutBtn && logoutBtn.parentElement) logoutBtn.insertAdjacentElement("afterend", wrap);
+      else desktopNav.appendChild(wrap);
+
+      if (!window.__navDropdownHandlers) {
+        window.__navDropdownHandlers = true;
+        document.addEventListener("click", (e) => {
+          document.querySelectorAll(".nav-dropdown").forEach((dd) => {
+            const target = e.target;
+            const isInside = target && dd.contains(target);
+            if (!isInside) {
+              dd.classList.remove("open");
+              const b = dd.querySelector(".nav-dropdown-toggle");
+              if (b) b.classList.toggle("nav-active", dd.classList.contains("nav-dropdown-active-page"));
+            }
+          });
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key !== "Escape") return;
+          document.querySelectorAll(".nav-dropdown").forEach((dd) => {
+            dd.classList.remove("open");
+            const b = dd.querySelector(".nav-dropdown-toggle");
+            if (b) b.classList.toggle("nav-active", dd.classList.contains("nav-dropdown-active-page"));
+          });
+        });
+      }
     }
   }
 
   const mobileMenu = document.getElementById("mobileMenu");
   const mobileContainer = mobileMenu ? mobileMenu.querySelector("div.flex.flex-col") : null;
-  if (mobileContainer && !mobileContainer.querySelector('a[href="profile.html"]')) {
-    const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
-    const a = document.createElement("a");
-    a.href = "profile.html";
-    a.className = `mobile-nav-link mobile-nav-profile${isProfilePage ? " mobile-nav-active" : ""}`;
-    a.innerHTML = '<span class="nav-profile-icon">P</span><span>Profile</span>';
-    if (mobileLogoutBtn) mobileLogoutBtn.insertAdjacentElement("beforebegin", a);
-    else mobileContainer.appendChild(a);
-  }
-}
+  if (mobileContainer) {
+    mobileContainer.querySelectorAll('a[href="profile.html"]').forEach((a) => a.remove());
+    mobileContainer.querySelectorAll('a[href="admin_users.html"], a[href="admin_activity.html"]').forEach((a) => a.classList.add("hidden"));
 
-function ensureAdminUsersNavLinks(member) {
-  if (!isAdminMember(member)) return;
-  const isUsersPage = /\/admin_users\.html$/i.test(location.pathname || "");
-  const desktopNav = document.getElementById("mainNav");
-  const logoutBtn = document.getElementById("logoutBtn");
-  if (desktopNav && !document.querySelector('a[href="admin_users.html"]')) {
-    const a = document.createElement("a");
-    a.href = "admin_users.html";
-    a.className = `nav-link${isUsersPage ? " nav-active" : ""}`;
-    a.textContent = "Users";
-    if (logoutBtn && logoutBtn.parentElement) {
-      logoutBtn.insertAdjacentElement("beforebegin", a);
+    const existing = mobileContainer.querySelector("#mobileProfileDropdown");
+    if (existing) existing.remove();
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = `mobile-nav-link mobile-nav-profile${isActive ? " mobile-nav-active" : ""}`;
+    toggle.innerHTML =
+      '<span class="nav-profile-icon">P</span><span style="flex:1">Profile</span>' +
+      '<svg class="nav-dropdown-caret" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" style="width:18px;height:18px;opacity:0.9"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 10.94l3.71-3.71a.75.75 0 1 1 1.06 1.06l-4.24 4.25a.75.75 0 0 1-1.06 0L5.21 8.29a.75.75 0 0 1 .02-1.08Z" clip-rule="evenodd"/></svg>';
+
+    const submenu = document.createElement("div");
+    submenu.id = "mobileProfileDropdown";
+    submenu.className = "mobile-admin-submenu hidden";
+    submenu.innerHTML = items
+      .map((it) => {
+        const active = path.endsWith("/" + it.href.toLowerCase());
+        return `<a href="${it.href}" class="mobile-nav-link mobile-admin-subitem${active ? " mobile-nav-active" : ""}">${it.label}</a>`;
+      })
+      .join("");
+
+    toggle.addEventListener("click", () => {
+      submenu.classList.toggle("hidden");
+    });
+
+    const hr = mobileContainer.querySelector("hr");
+    if (hr) {
+      mobileContainer.insertBefore(toggle, hr);
+      mobileContainer.insertBefore(submenu, hr);
     } else {
-      desktopNav.appendChild(a);
+      mobileContainer.appendChild(toggle);
+      mobileContainer.appendChild(submenu);
     }
-  }
-
-  const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
-  const mobileMenu = document.getElementById("mobileMenu");
-  const mobileContainer = mobileMenu ? mobileMenu.querySelector("div.flex.flex-col") : null;
-  if (mobileContainer && !mobileContainer.querySelector('a[href="admin_users.html"]')) {
-    const a = document.createElement("a");
-    a.href = "admin_users.html";
-    a.className = `mobile-nav-link${isUsersPage ? " mobile-nav-active" : ""}`;
-    a.textContent = "Users";
-    if (mobileLogoutBtn) mobileLogoutBtn.insertAdjacentElement("beforebegin", a);
-    else mobileContainer.appendChild(a);
   }
 }
 
 function getServiceRoleKey() {
   return String((window && window.SUPABASE_SERVICE_ROLE_KEY) || "").trim();
+}
+
+function getDeviceId() {
+  try {
+    const key = "rage_device_id_v1";
+    const existing = localStorage.getItem(key);
+    if (existing) return existing;
+    const id =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : String(Date.now()) + "-" + String(Math.random()).slice(2);
+    localStorage.setItem(key, id);
+    return id;
+  } catch (e) {
+    return "unknown";
+  }
+}
+
+async function upsertSessionHeartbeat(member) {
+  if (!supabase) return;
+  try {
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = userRes && userRes.user ? userRes.user : null;
+    const uid = user && user.id ? String(user.id) : "";
+    if (!uid) return;
+    const deviceId = getDeviceId();
+    const payload = {
+      auth_user_id: uid,
+      member_id: member && member.id ? member.id : null,
+      device_id: deviceId,
+      user_agent: (navigator && navigator.userAgent) || "",
+      last_seen_at: new Date().toISOString(),
+      logout_time: null,
+    };
+    await supabase.from("user_login_sessions").upsert(payload, { onConflict: "auth_user_id,device_id" });
+  } catch (e) {}
+}
+
+async function markSessionLogout() {
+  if (!supabase) return;
+  try {
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = userRes && userRes.user ? userRes.user : null;
+    const uid = user && user.id ? String(user.id) : "";
+    if (!uid) return;
+    const deviceId = getDeviceId();
+    await supabase
+      .from("user_login_sessions")
+      .update({ logout_time: new Date().toISOString(), last_seen_at: new Date().toISOString() })
+      .eq("auth_user_id", uid)
+      .eq("device_id", deviceId);
+  } catch (e) {}
+}
+
+function recordPageAccess(member) {
+  if (!supabase) return;
+  const pageUrl = String(location.pathname || "") + String(location.search || "");
+  const ref = document.referrer || "";
+  const now = Date.now();
+  const key = "rage_page_access_prev_v1";
+  try {
+    const prevRaw = sessionStorage.getItem(key);
+    if (prevRaw) {
+      const prev = JSON.parse(prevRaw);
+      if (prev && prev.t && prev.url) {
+        const durationMs = Math.max(0, now - Number(prev.t));
+        Promise.resolve()
+          .then(async () => {
+            const { data: userRes } = await supabase.auth.getUser();
+            const user = userRes && userRes.user ? userRes.user : null;
+            const uid = user && user.id ? String(user.id) : "";
+            if (!uid) return;
+            await supabase.from("page_access_logs").insert({
+              auth_user_id: uid,
+              member_id: member && member.id ? member.id : null,
+              device_id: getDeviceId(),
+              page_url: String(prev.url),
+              referrer: String(prev.ref || ""),
+              access_time: new Date(Number(prev.t)).toISOString(),
+              duration_ms: durationMs,
+            });
+          })
+          .catch(() => {});
+      }
+    }
+  } catch (e) {}
+  try {
+    sessionStorage.setItem(key, JSON.stringify({ url: pageUrl, ref, t: now }));
+  } catch (e) {}
 }
 
 async function supabaseAdminUpdateUser(targetAuthUserId, updatePayload) {
@@ -1230,6 +1389,164 @@ async function initAdminUsersPage() {
   await loadAudit();
 }
 
+async function initAdminActivityPage() {
+  if (!supabase) return;
+  if (!requireAdminOrRedirect()) return;
+
+  const typeEl = document.getElementById("actType");
+  const userEl = document.getElementById("actUserFilter");
+  const reloadBtn = document.getElementById("actReload");
+  const autoBtn = document.getElementById("actAuto");
+  const titleEl = document.getElementById("actTitle");
+  const headEl = document.getElementById("actHead");
+  const bodyEl = document.getElementById("actBody");
+  const activeCountEl = document.getElementById("activeSessionsCount");
+  if (!typeEl || !bodyEl || !headEl) return;
+
+  let auto = true;
+  let timer = null;
+
+  const setAutoLabel = () => {
+    if (autoBtn) autoBtn.textContent = auto ? "Auto: ON" : "Auto: OFF";
+  };
+
+  const render = (headCells, rowsHtml) => {
+    headEl.innerHTML = headCells.map((h) => `<th class="px-3 py-3 text-left text-[10px] uppercase tracking-wider">${h}</th>`).join("");
+    bodyEl.innerHTML = rowsHtml || '<tr><td colspan="6" class="px-3 py-8 text-center text-slate-400">Tidak ada data</td></tr>';
+  };
+
+  const refreshActiveCount = async () => {
+    if (!activeCountEl) return;
+    const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from("user_login_sessions")
+      .select("id")
+      .gt("last_seen_at", cutoff)
+      .is("logout_time", null)
+      .limit(500);
+    if (error) return;
+    activeCountEl.textContent = String((data || []).length);
+  };
+
+  const load = async () => {
+    const t = String(typeEl.value || "sessions");
+    const term = String((userEl || {}).value || "").trim().toLowerCase();
+    if (titleEl) {
+      titleEl.textContent =
+        t === "pages" ? "Page Access Logs" : t === "failed" ? "Failed Login Attempts" : "Login Sessions";
+    }
+
+    if (t === "sessions") {
+      const { data, error } = await supabase
+        .from("user_login_sessions")
+        .select("auth_user_id,member_id,device_id,login_time,last_seen_at,logout_time,user_agent")
+        .order("last_seen_at", { ascending: false })
+        .limit(80);
+      if (error) {
+        render(["Waktu", "User", "Member", "Device", "Status"], `<tr><td colspan="5" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`);
+        return;
+      }
+      const rows = (data || []).filter((r) => {
+        if (!term) return true;
+        const hay = `${r.auth_user_id || ""} ${r.member_id || ""} ${r.device_id || ""}`.toLowerCase();
+        return hay.includes(term);
+      });
+      render(
+        ["Last Seen", "Auth UID", "Member", "Device", "Status"],
+        rows
+          .map((r) => {
+            const active = !r.logout_time && new Date(r.last_seen_at).getTime() > Date.now() - 2 * 60 * 1000;
+            return `<tr class="hover:bg-white/5 transition-colors">
+  <td class="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">${fmtDateTime(r.last_seen_at)}</td>
+  <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${String(r.auth_user_id || "-")}</td>
+  <td class="px-3 py-3 text-xs text-slate-600 dark:text-amber-200/80">${String(r.member_id || "-")}</td>
+  <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${String(r.device_id || "-")}</td>
+  <td class="px-3 py-3 text-xs ${active ? "text-green-500" : "text-slate-400"}">${active ? "ACTIVE" : (r.logout_time ? "LOGOUT" : "IDLE")}</td>
+</tr>`;
+          })
+          .join("")
+      );
+      await refreshActiveCount();
+      return;
+    }
+
+    if (t === "pages") {
+      const { data, error } = await supabase
+        .from("page_access_logs")
+        .select("auth_user_id,member_id,device_id,page_url,access_time,duration_ms")
+        .order("access_time", { ascending: false })
+        .limit(120);
+      if (error) {
+        render(["Waktu", "User", "Halaman", "Durasi"], `<tr><td colspan="4" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`);
+        return;
+      }
+      const rows = (data || []).filter((r) => {
+        if (!term) return true;
+        const hay = `${r.auth_user_id || ""} ${r.member_id || ""} ${r.page_url || ""}`.toLowerCase();
+        return hay.includes(term);
+      });
+      render(
+        ["Waktu", "Auth UID", "Halaman", "Durasi"],
+        rows
+          .map((r) => {
+            const d = r.duration_ms == null ? "-" : `${fmtNumber(r.duration_ms)} ms`;
+            return `<tr class="hover:bg-white/5 transition-colors">
+  <td class="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">${fmtDateTime(r.access_time)}</td>
+  <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${String(r.auth_user_id || "-")}</td>
+  <td class="px-3 py-3 text-xs text-slate-600 dark:text-amber-200/80 break-all">${String(r.page_url || "-")}</td>
+  <td class="px-3 py-3 text-xs text-slate-600 dark:text-amber-200/80 whitespace-nowrap">${d}</td>
+</tr>`;
+          })
+          .join("")
+      );
+      await refreshActiveCount();
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("failed_login_attempts")
+      .select("username,attempt_time,ip_address,user_agent,failure_reason")
+      .order("attempt_time", { ascending: false })
+      .limit(120);
+    if (error) {
+      render(["Waktu", "Username", "Reason"], `<tr><td colspan="3" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`);
+      return;
+    }
+    const rows = (data || []).filter((r) => {
+      if (!term) return true;
+      const hay = `${r.username || ""} ${r.failure_reason || ""}`.toLowerCase();
+      return hay.includes(term);
+    });
+    render(
+      ["Waktu", "Username", "Reason"],
+      rows
+        .map((r) => {
+          return `<tr class="hover:bg-white/5 transition-colors">
+  <td class="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">${fmtDateTime(r.attempt_time)}</td>
+  <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${String(r.username || "-")}</td>
+  <td class="px-3 py-3 text-xs text-slate-600 dark:text-amber-200/80 break-all">${String(r.failure_reason || "-")}</td>
+</tr>`;
+        })
+        .join("")
+    );
+    await refreshActiveCount();
+  };
+
+  if (reloadBtn) reloadBtn.addEventListener("click", () => load());
+  if (typeEl) typeEl.addEventListener("change", () => load());
+  if (autoBtn) {
+    autoBtn.addEventListener("click", () => {
+      auto = !auto;
+      setAutoLabel();
+      if (timer) clearInterval(timer);
+      timer = auto ? setInterval(load, 5000) : null;
+    });
+  }
+  setAutoLabel();
+  await load();
+  timer = setInterval(load, 5000);
+}
+
 async function init() {
   console.log("R.A.G.E script initializing...");
   // document.documentElement.classList.add("dark"); // Allow system/user preference
@@ -1259,25 +1576,30 @@ async function init() {
   const isRekap = !!document.getElementById("rekapSection");
   const isProfile = !!document.getElementById("profileSection");
   const isAdminUsers = !!document.getElementById("adminUsersSection");
-  const needsAuth = isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile || isAdminUsers;
+  const isAdminActivity = !!document.getElementById("adminActivitySection");
+  const needsAuth = isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile || isAdminUsers || isAdminActivity;
   if (needsAuth) {
     const ok = await guardApp();
     if (!ok) return;
   }
 
   let currentMember = null;
-  if (isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile || isAdminUsers) {
+  if (isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile || isAdminUsers || isAdminActivity) {
     currentMember = await resolveCurrentMember();
     window.__currentMember = currentMember;
     if (!currentMember || !currentMember.id) {
       await showLinkMemberHelpModal();
     }
   }
-  ensureProfileNavLinks();
-  ensureAdminUsersNavLinks(currentMember);
+  recordPageAccess(currentMember);
+  upsertSessionHeartbeat(currentMember);
+  window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") upsertSessionHeartbeat(window.__currentMember || null);
+  });
+  ensureProfileNavLinks(currentMember);
   applyAdminNav(currentMember);
 
-  if (!isAdminMember(currentMember) && (isDashboard || isStoran || isDrugs || isKas || isAdminUsers)) {
+  if (!isAdminMember(currentMember) && (isDashboard || isStoran || isDrugs || isKas || isAdminUsers || isAdminActivity)) {
     showAlert("Menu ini hanya untuk Admin", "error");
     location.href = "index.html";
     return;
@@ -1344,9 +1666,13 @@ async function init() {
   if (isAdminUsers) {
     initAdminUsersPage();
   }
+  if (isAdminActivity) {
+    initAdminActivityPage();
+  }
 
   // Global Logout & Mobile Menu
   const handleLogout = async () => {
+    await markSessionLogout();
     try {
       await supabase.auth.signOut();
     } catch (e) {}

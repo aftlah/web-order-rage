@@ -374,6 +374,83 @@
         }
       }
 
+      function getDeviceId() {
+        try {
+          const key = "rage_device_id_v1";
+          const existing = localStorage.getItem(key);
+          if (existing) return existing;
+          const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + "-" + String(Math.random()).slice(2);
+          localStorage.setItem(key, id);
+          return id;
+        } catch (e) {
+          return "unknown";
+        }
+      }
+
+      function rateLimitKey(usernameOrEmail) {
+        return "rage_login_rl_v1:" + String(usernameOrEmail || "").trim().toLowerCase();
+      }
+
+      function canAttemptLogin(usernameOrEmail) {
+        try {
+          const key = rateLimitKey(usernameOrEmail);
+          const raw = localStorage.getItem(key);
+          if (!raw) return { ok: true, retryAfterSec: 0 };
+          const obj = JSON.parse(raw);
+          const now = Date.now();
+          const windowMs = 5 * 60 * 1000;
+          const maxFails = 5;
+          const firstAt = typeof obj.firstAt === "number" ? obj.firstAt : now;
+          const fails = typeof obj.fails === "number" ? obj.fails : 0;
+          if (now - firstAt > windowMs) return { ok: true, retryAfterSec: 0 };
+          if (fails >= maxFails) {
+            const retryAfter = Math.ceil((windowMs - (now - firstAt)) / 1000);
+            return { ok: false, retryAfterSec: retryAfter };
+          }
+          return { ok: true, retryAfterSec: 0 };
+        } catch (e) {
+          return { ok: true, retryAfterSec: 0 };
+        }
+      }
+
+      function recordFailedAttempt(usernameOrEmail) {
+        try {
+          const key = rateLimitKey(usernameOrEmail);
+          const now = Date.now();
+          const raw = localStorage.getItem(key);
+          if (!raw) {
+            localStorage.setItem(key, JSON.stringify({ firstAt: now, fails: 1 }));
+            return;
+          }
+          const obj = JSON.parse(raw) || {};
+          const firstAt = typeof obj.firstAt === "number" ? obj.firstAt : now;
+          const fails = typeof obj.fails === "number" ? obj.fails : 0;
+          const windowMs = 5 * 60 * 1000;
+          if (now - firstAt > windowMs) {
+            localStorage.setItem(key, JSON.stringify({ firstAt: now, fails: 1 }));
+          } else {
+            localStorage.setItem(key, JSON.stringify({ firstAt, fails: fails + 1 }));
+          }
+        } catch (e) {}
+      }
+
+      function clearRateLimit(usernameOrEmail) {
+        try { localStorage.removeItem(rateLimitKey(usernameOrEmail)); } catch (e) {}
+      }
+
+      function logFailedLogin(usernameOrEmail, reason) {
+        try {
+          if (!supabase) return;
+          const payload = {
+            username: String(usernameOrEmail || "").trim().slice(0, 160),
+            ip_address: null,
+            user_agent: navigator.userAgent || "",
+            failure_reason: String(reason || "unknown").slice(0, 200),
+          };
+          Promise.resolve().then(() => supabase.from("failed_login_attempts").insert(payload)).catch(() => {});
+        } catch (e) {}
+      }
+
       async function checkSession() {
         try {
           var keys = Object.keys(localStorage || {});
@@ -397,6 +474,11 @@
         }
         const usernameOrEmail = document.getElementById("loginEmail").value.trim();
         const password = document.getElementById("loginPassword").value;
+        const rl = canAttemptLogin(usernameOrEmail);
+        if (!rl.ok) {
+          show(`Terlalu banyak percobaan gagal. Coba lagi dalam ${rl.retryAfterSec} detik.`, "warning");
+          return;
+        }
         setLoading(true);
         try {
           const primaryDomain = (window.AUTH_EMAIL_DOMAIN || "rage.example.com").trim();
@@ -409,14 +491,35 @@
           for (const email of candidates) {
             const { error } = await supabase.auth.signInWithPassword({ email, password });
             if (!error) {
+              clearRateLimit(usernameOrEmail);
+              try {
+                const { data: userRes } = await supabase.auth.getUser();
+                const uid = userRes && userRes.user && userRes.user.id ? String(userRes.user.id) : "";
+                if (uid) {
+                  const deviceId = getDeviceId();
+                  Promise.resolve()
+                    .then(() =>
+                      supabase.from("user_login_sessions").insert({
+                        auth_user_id: uid,
+                        device_id: deviceId,
+                        user_agent: navigator.userAgent || "",
+                      })
+                    )
+                    .catch(() => {});
+                }
+              } catch (e) {}
               location.href = "rekap.html";
               return;
             }
             lastError = error;
           }
+          recordFailedAttempt(usernameOrEmail);
+          logFailedLogin(usernameOrEmail, (lastError && lastError.message) || "unknown");
           show(`Gagal login: ${(lastError && lastError.message) || "unknown"}`, "error");
           setLoading(false);
         } catch (err) {
+          recordFailedAttempt(usernameOrEmail);
+          logFailedLogin(usernameOrEmail, "network_error");
           show("Gagal login (network error)", "error");
           setLoading(false);
         }
