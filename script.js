@@ -503,7 +503,7 @@ function requireAdminOrRedirect() {
 
 function applyAdminNav(member) {
   const isAdmin = isAdminMember(member);
-  const adminOnlyHrefs = ["dashboard.html", "storan.html", "drugs.html", "kas.html"];
+  const adminOnlyHrefs = ["dashboard.html", "storan.html", "drugs.html", "kas.html", "admin_users.html"];
   adminOnlyHrefs.forEach((href) => {
     document.querySelectorAll(`a[href="${href}"]`).forEach((a) => {
       if (!isAdmin) a.classList.add("hidden");
@@ -784,6 +784,99 @@ function ensureProfileNavLinks() {
   }
 }
 
+function ensureAdminUsersNavLinks(member) {
+  if (!isAdminMember(member)) return;
+  const isUsersPage = /\/admin_users\.html$/i.test(location.pathname || "");
+  const desktopNav = document.getElementById("mainNav");
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (desktopNav && !document.querySelector('a[href="admin_users.html"]')) {
+    const a = document.createElement("a");
+    a.href = "admin_users.html";
+    a.className = `nav-link${isUsersPage ? " nav-active" : ""}`;
+    a.textContent = "Users";
+    if (logoutBtn && logoutBtn.parentElement) {
+      logoutBtn.insertAdjacentElement("beforebegin", a);
+    } else {
+      desktopNav.appendChild(a);
+    }
+  }
+
+  const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
+  const mobileMenu = document.getElementById("mobileMenu");
+  const mobileContainer = mobileMenu ? mobileMenu.querySelector("div.flex.flex-col") : null;
+  if (mobileContainer && !mobileContainer.querySelector('a[href="admin_users.html"]')) {
+    const a = document.createElement("a");
+    a.href = "admin_users.html";
+    a.className = `mobile-nav-link${isUsersPage ? " mobile-nav-active" : ""}`;
+    a.textContent = "Users";
+    if (mobileLogoutBtn) mobileLogoutBtn.insertAdjacentElement("beforebegin", a);
+    else mobileContainer.appendChild(a);
+  }
+}
+
+function getServiceRoleKey() {
+  return String((window && window.SUPABASE_SERVICE_ROLE_KEY) || "").trim();
+}
+
+async function supabaseAdminUpdateUser(targetAuthUserId, updatePayload) {
+  const url = String((window && window.SUPABASE_URL) || "").trim();
+  const key = getServiceRoleKey();
+  if (!url || !key) return { error: { message: "SUPABASE_SERVICE_ROLE_KEY belum diisi" } };
+  const uid = String(targetAuthUserId || "").trim();
+  if (!uid) return { error: { message: "Target auth_user_id kosong" } };
+
+  const res = await fetch(`${url}/auth/v1/admin/users/${encodeURIComponent(uid)}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify(updatePayload || {}),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) return { error: { message: (json && (json.msg || json.message || json.error)) || `HTTP ${res.status}` } };
+  return { data: json };
+}
+
+async function supabaseServiceRoleUpsertAuditLog(payload) {
+  const url = String((window && window.SUPABASE_URL) || "").trim();
+  const key = getServiceRoleKey();
+  if (!url || !key) return;
+  try {
+    await fetch(`${url}/rest/v1/account_audit_logs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+  } catch (e) {}
+}
+
+async function supabaseServiceRoleUpdateMembersById(memberId, patch) {
+  const url = String((window && window.SUPABASE_URL) || "").trim();
+  const key = getServiceRoleKey();
+  if (!url || !key) return;
+  const id = String(memberId || "").trim();
+  if (!id) return;
+  try {
+    await fetch(`${url}/rest/v1/members?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(patch || {}),
+    });
+  } catch (e) {}
+}
+
 function getUsernameFromEmail(email) {
   const raw = String(email || "").trim();
   if (!raw) return "";
@@ -889,6 +982,254 @@ async function initProfile() {
   }
 }
 
+async function initAdminUsersPage() {
+  if (!supabase) return;
+  if (!requireAdminOrRedirect()) return;
+
+  const tableBody = document.getElementById("adminUsersTable");
+  const searchEl = document.getElementById("adminUsersSearch");
+  const reloadBtn = document.getElementById("adminUsersReload");
+
+  const selName = document.getElementById("adminSelectedName");
+  const selRole = document.getElementById("adminSelectedRole");
+  const selEmail = document.getElementById("adminSelectedEmail");
+  const selUid = document.getElementById("adminSelectedAuthUid");
+  const selMemberId = document.getElementById("adminSelectedMemberId");
+
+  const newUsernameEl = document.getElementById("adminNewUsername");
+  const reqUsernameBtn = document.getElementById("adminRequestUsernameChange");
+  const adminNewPasswordEl = document.getElementById("adminNewPassword");
+  const adminConfirmPasswordEl = document.getElementById("adminConfirmPassword");
+  const setPwBtn = document.getElementById("adminSetPasswordDirect");
+
+  const auditBody = document.getElementById("adminAuditTable");
+  const auditReload = document.getElementById("adminAuditReload");
+
+  let allUsers = [];
+  let selected = null;
+  let actorUid = "";
+  try {
+    const { data: userRes } = await supabase.auth.getUser();
+    actorUid = userRes && userRes.user && userRes.user.id ? String(userRes.user.id) : "";
+  } catch (e) {}
+
+  const renderSelected = () => {
+    if (selName) selName.textContent = selected && selected.nama ? String(selected.nama) : "-";
+    if (selRole) selRole.textContent = selected && selected.role ? String(selected.role) : "-";
+    if (selEmail) selEmail.textContent = selected && selected.email ? String(selected.email) : "-";
+    if (selUid) selUid.textContent = selected && selected.auth_user_id ? String(selected.auth_user_id) : "-";
+    if (selMemberId) selMemberId.value = selected && selected.id ? String(selected.id) : "";
+  };
+
+  const renderTable = (rows) => {
+    if (!tableBody) return;
+    if (!rows.length) {
+      tableBody.innerHTML =
+        '<tr><td colspan="3" class="px-3 py-6 text-center text-slate-400">Tidak ada data</td></tr>';
+      return;
+    }
+    tableBody.innerHTML = rows
+      .map((u) => {
+        const id = String(u.id || "");
+        const name = String(u.nama || "-");
+        const role = String(u.role || "-");
+        return `<tr class="hover:bg-white/5 transition-colors">
+  <td class="px-3 py-3 text-amber-900 dark:text-amber-100 font-medium">${name}</td>
+  <td class="px-3 py-3 text-slate-600 dark:text-amber-200/80">${role}</td>
+  <td class="px-3 py-3 text-right">
+    <button class="px-3 py-1 rounded-lg bg-amber-600/20 text-amber-300 border border-amber-600/30 text-[10px] font-bold uppercase hover:bg-amber-600/30 transition" data-admin-user-pick="${id}">
+      Pilih
+    </button>
+  </td>
+</tr>`;
+      })
+      .join("");
+
+    tableBody.querySelectorAll("[data-admin-user-pick]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = String(btn.getAttribute("data-admin-user-pick") || "");
+        selected = allUsers.find((u) => String(u.id || "") === id) || null;
+        renderSelected();
+      });
+    });
+  };
+
+  const loadUsers = async () => {
+    if (!tableBody) return;
+    tableBody.innerHTML =
+      '<tr><td colspan="3" class="px-3 py-6 text-center text-slate-400">Memuat...</td></tr>';
+    const { data, error } = await supabase
+      .from("members")
+      .select("id,nama,role,email,auth_user_id")
+      .order("nama", { ascending: true })
+      .limit(500);
+    if (error) {
+      tableBody.innerHTML = `<tr><td colspan="3" class="px-3 py-6 text-center text-red-400">Gagal memuat: ${error.message}</td></tr>`;
+      return;
+    }
+    allUsers = data || [];
+    const term = String((searchEl || {}).value || "").trim().toLowerCase();
+    const filtered = term
+      ? allUsers.filter((u) => {
+          const hay = `${u.nama || ""} ${u.email || ""} ${u.role || ""}`.toLowerCase();
+          return hay.includes(term);
+        })
+      : allUsers;
+    renderTable(filtered);
+  };
+
+  const loadAudit = async () => {
+    if (!auditBody) return;
+    auditBody.innerHTML =
+      '<tr><td colspan="4" class="px-3 py-6 text-center text-slate-400">Memuat...</td></tr>';
+    const { data, error } = await supabase
+      .from("account_audit_logs")
+      .select("created_at,action,actor_auth_user_id,target_auth_user_id,target_member_id")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) {
+      auditBody.innerHTML = `<tr><td colspan="4" class="px-3 py-6 text-center text-slate-400">Audit belum tersedia</td></tr>`;
+      return;
+    }
+    const rows = data || [];
+    if (!rows.length) {
+      auditBody.innerHTML =
+        '<tr><td colspan="4" class="px-3 py-6 text-center text-slate-400">Belum ada audit</td></tr>';
+      return;
+    }
+    auditBody.innerHTML = rows
+      .map((r) => {
+        return `<tr class="hover:bg-white/5 transition-colors">
+  <td class="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">${fmtDateTime(r.created_at)}</td>
+  <td class="px-3 py-3 text-amber-900 dark:text-amber-100 font-semibold">${String(r.action || "-")}</td>
+  <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${String(r.target_auth_user_id || r.target_member_id || "-")}</td>
+  <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${String(r.actor_auth_user_id || "-")}</td>
+</tr>`;
+      })
+      .join("");
+  };
+
+  if (searchEl) {
+    searchEl.addEventListener("input", () => loadUsers());
+  }
+  if (reloadBtn) reloadBtn.addEventListener("click", () => loadUsers());
+  if (auditReload) auditReload.addEventListener("click", () => loadAudit());
+
+  if (reqUsernameBtn) {
+    reqUsernameBtn.addEventListener("click", async () => {
+      if (!selected || !selected.id) {
+        showAlert("Pilih user terlebih dahulu", "error");
+        return;
+      }
+      const username = normalizeUsernameInput((newUsernameEl || {}).value || "");
+      if (!username || username.length < 3) {
+        showAlert("Username minimal 3 karakter", "error");
+        return;
+      }
+      if (!selected.auth_user_id) {
+        showAlert("Target belum terhubung ke auth_user_id", "error");
+        return;
+      }
+      const domain = getPrimaryAuthEmailDomain();
+      const nextEmail = `${username}@${domain}`;
+      const btn = reqUsernameBtn;
+      btn.disabled = true;
+      try {
+        const { error } = await supabaseAdminUpdateUser(String(selected.auth_user_id), {
+          email: nextEmail,
+          email_confirm: true,
+        });
+        if (error) {
+          showAlert("Gagal: " + error.message, "error");
+          return;
+        }
+        await supabaseServiceRoleUpdateMembersById(selected.id, { email: nextEmail, username });
+        await supabaseServiceRoleUpsertAuditLog({
+          actor_auth_user_id: actorUid,
+          target_auth_user_id: String(selected.auth_user_id),
+          target_member_id: selected.id,
+          action: "set_username_direct",
+          meta: { new_email: nextEmail, new_username: username },
+        });
+        selected.email = nextEmail;
+        renderSelected();
+        showAlert("Username berhasil diubah", "success");
+        loadAudit();
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  const isStrongPassword = (pw) => String(pw || "").length >= 6;
+
+  if (setPwBtn) {
+    setPwBtn.addEventListener("click", async () => {
+      if (!selected || !selected.id) {
+        showAlert("Pilih user terlebih dahulu", "error");
+        return;
+      }
+      const pw1 = (adminNewPasswordEl || {}).value || "";
+      const pw2 = (adminConfirmPasswordEl || {}).value || "";
+      if (pw1 !== pw2) {
+        showAlert("Konfirmasi password tidak sama", "error");
+        return;
+      }
+      if (!isStrongPassword(pw1)) {
+        showAlert("Password minimal 6 karakter", "error");
+        return;
+      }
+      const confirm = await Swal.fire({
+        title: "Ganti password user ini?",
+        text: "Password akan langsung diganti oleh Admin. Pastikan ini sudah disetujui.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Ganti",
+        cancelButtonText: "Batal",
+        customClass: {
+          popup: "rage-modal-popup",
+          title: "rage-modal-title",
+          confirmButton: "rage-modal-confirm",
+          cancelButton: "rage-modal-cancel",
+        },
+      });
+      if (!confirm.isConfirmed) return;
+      const btn = setPwBtn;
+      btn.disabled = true;
+      try {
+        if (!selected.auth_user_id) {
+          showAlert("Target belum terhubung ke auth_user_id", "error");
+          return;
+        }
+        const { error } = await supabaseAdminUpdateUser(String(selected.auth_user_id), {
+          password: pw1,
+        });
+        if (error) {
+          showAlert("Gagal: " + error.message, "error");
+          return;
+        }
+        await supabaseServiceRoleUpsertAuditLog({
+          actor_auth_user_id: actorUid,
+          target_auth_user_id: String(selected.auth_user_id),
+          target_member_id: selected.id,
+          action: "set_password_direct",
+          meta: { by_admin: true },
+        });
+        if (adminNewPasswordEl) adminNewPasswordEl.value = "";
+        if (adminConfirmPasswordEl) adminConfirmPasswordEl.value = "";
+        showAlert("Password berhasil diganti", "success");
+        loadAudit();
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+
+  renderSelected();
+  await loadUsers();
+  await loadAudit();
+}
+
 async function init() {
   console.log("R.A.G.E script initializing...");
   // document.documentElement.classList.add("dark"); // Allow system/user preference
@@ -917,14 +1258,15 @@ async function init() {
   const isKas = !!document.getElementById("rageCashSubmit");
   const isRekap = !!document.getElementById("rekapSection");
   const isProfile = !!document.getElementById("profileSection");
-  const needsAuth = isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile;
+  const isAdminUsers = !!document.getElementById("adminUsersSection");
+  const needsAuth = isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile || isAdminUsers;
   if (needsAuth) {
     const ok = await guardApp();
     if (!ok) return;
   }
 
   let currentMember = null;
-  if (isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile) {
+  if (isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile || isAdminUsers) {
     currentMember = await resolveCurrentMember();
     window.__currentMember = currentMember;
     if (!currentMember || !currentMember.id) {
@@ -932,9 +1274,10 @@ async function init() {
     }
   }
   ensureProfileNavLinks();
+  ensureAdminUsersNavLinks(currentMember);
   applyAdminNav(currentMember);
 
-  if (!isAdminMember(currentMember) && (isDashboard || isStoran || isDrugs || isKas)) {
+  if (!isAdminMember(currentMember) && (isDashboard || isStoran || isDrugs || isKas || isAdminUsers)) {
     showAlert("Menu ini hanya untuk Admin", "error");
     location.href = "index.html";
     return;
@@ -997,6 +1340,9 @@ async function init() {
   }
   if (isProfile) {
     initProfile();
+  }
+  if (isAdminUsers) {
+    initAdminUsersPage();
   }
 
   // Global Logout & Mobile Menu
