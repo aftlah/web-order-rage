@@ -68,24 +68,24 @@ const ITEM_MAX_LIMITS = {
   "PISTOL X17": 25,
   "X17 + Attachment": 25,
   // "SMG": 20, // nonaktif sementara
-  "SHOTGUN": 15,
-  "NAVY REVOLVER": 25,      
-  "KVR": 25,
+  SHOTGUN: 15,
+  "NAVY REVOLVER": 25,
+  KVR: 25,
   "BLACK REVOLVER": 15,
   "AMMO .45": 300,
   "AMMO 12 GAUGE": 150,
-  "VEST": 350,
+  VEST: 350,
   // "VEST MEDIUM": 150,
-  "LOCKPICK": 60,
+  LOCKPICK: 60,
   "AMMO 44 MAGNUM": 300,
   "Assault Rifle": 20,
   "Virtus#3": 20,
   "Ammo 762": 400,
   "Ammo 556": 400,
   "Tactical Flashlight": 20,
-  "Suppressor": 20,
+  Suppressor: 20,
   "Tactical Suppressor": 20,
-  "Grip": 20,
+  Grip: 20,
   "Extended Pistol Clip": 20,
   "Extended SMG Clip": 20,
   "Extended Rifle Clip": 20,
@@ -125,7 +125,7 @@ function loadStoredDashboard() {
 
 async function postToDiscord(message, overrideUrl) {
   try {
-    const url = overrideUrl || ((window && window.DISCORD_WEBHOOK_URL) || "");
+    const url = overrideUrl || (window && window.DISCORD_WEBHOOK_URL) || "";
     const enabled = window.DISCORD_ENABLED !== false;
     if (!url || !enabled || !message || typeof message !== "string") return;
     let content = message;
@@ -183,7 +183,7 @@ async function postToDiscord(message, overrideUrl) {
 
 async function postToDiscordEmbed(embed, overrideUrl, contentOverride) {
   try {
-    const url = overrideUrl || ((window && window.DISCORD_WEBHOOK_URL) || "");
+    const url = overrideUrl || (window && window.DISCORD_WEBHOOK_URL) || "";
     const enabled = window.DISCORD_ENABLED !== false;
     if (!url || !enabled || !embed || typeof embed !== "object") return;
 
@@ -246,9 +246,10 @@ async function postWeaponPaymentLog(payload) {
       fields: [
         {
           name: "Ringkasan",
-          value: payload && payload.paid
-            ? "Pembayaran order senjata sudah dikonfirmasi lunas."
-            : "Status pembayaran order senjata diubah menjadi belum lunas.",
+          value:
+            payload && payload.paid
+              ? "Pembayaran order senjata sudah dikonfirmasi lunas."
+              : "Status pembayaran order senjata diubah menjadi belum lunas.",
           inline: false,
         },
       ],
@@ -392,7 +393,7 @@ async function ensureUserPasswordUpdated() {
     const { data: userRes } = await supabase.auth.getUser();
     const user = (userRes || {}).user || null;
     if (!user) return;
-    const meta = (user.user_metadata || {});
+    const meta = user.user_metadata || {};
     if (!meta.must_change_password) return;
     if (window.__passwordChangeInProgress) return;
     window.__passwordChangeInProgress = true;
@@ -417,8 +418,10 @@ async function ensureUserPasswordUpdated() {
       preConfirm: () => {
         const pw1 = (document.getElementById("pw1") || {}).value || "";
         const pw2 = (document.getElementById("pw2") || {}).value || "";
-        if (pw1.length < 6) return Swal.showValidationMessage("Password minimal 6 karakter");
-        if (pw1 !== pw2) return Swal.showValidationMessage("Password tidak sama");
+        if (pw1.length < 6)
+          return Swal.showValidationMessage("Password minimal 6 karakter");
+        if (pw1 !== pw2)
+          return Swal.showValidationMessage("Password tidak sama");
         return pw1;
       },
     });
@@ -455,7 +458,8 @@ async function resolveCurrentMember() {
     if (q1 && q1.error) {
       const msg = String(q1.error.message || "").toLowerCase();
       if (!msg.includes("column")) {
-        window.__currentMemberResolveError = q1.error.message || "Gagal membaca tabel members";
+        window.__currentMemberResolveError =
+          q1.error.message || "Gagal membaca tabel members";
         return null;
       }
     } else {
@@ -472,7 +476,8 @@ async function resolveCurrentMember() {
       if (q2 && q2.error) {
         const msg = String(q2.error.message || "").toLowerCase();
         if (!msg.includes("column")) {
-          window.__currentMemberResolveError = q2.error.message || "Gagal membaca tabel members";
+          window.__currentMemberResolveError =
+            q2.error.message || "Gagal membaca tabel members";
           return null;
         }
       }
@@ -503,7 +508,14 @@ function requireAdminOrRedirect() {
 
 function applyAdminNav(member) {
   const isAdmin = isAdminMember(member);
-  const adminOnlyHrefs = ["dashboard.html", "storan.html", "drugs.html", "kas.html", "admin_users.html", "admin_activity.html"];
+  const adminOnlyHrefs = [
+    "dashboard.html",
+    "storan.html",
+    "drugs.html",
+    "kas.html",
+    "admin_users.html",
+    "admin_activity.html",
+  ];
   adminOnlyHrefs.forEach((href) => {
     document.querySelectorAll(`a[href="${href}"]`).forEach((a) => {
       if (!isAdmin) a.classList.add("hidden");
@@ -520,12 +532,21 @@ async function showLinkMemberHelpModal() {
     const user = (userRes || {}).user || null;
     const uid = user && user.id ? String(user.id) : "";
     const email = user && user.email ? String(user.email) : "";
-    const err = window.__currentMemberResolveError ? String(window.__currentMemberResolveError) : "";
+    const err = window.__currentMemberResolveError
+      ? String(window.__currentMemberResolveError)
+      : "";
 
     const lines = [];
-    if (email) lines.push(`<div class="text-xs text-slate-500 dark:text-slate-400">Email</div><div class="font-mono text-sm break-all">${email}</div>`);
-    if (uid) lines.push(`<div class="mt-3 text-xs text-slate-500 dark:text-slate-400">User ID</div><div class="font-mono text-sm break-all">${uid}</div>`);
-    if (err) lines.push(`<div class="mt-3 text-xs text-red-500">Info: ${err}</div>`);
+    if (email)
+      lines.push(
+        `<div class="text-xs text-slate-500 dark:text-slate-400">Email</div><div class="font-mono text-sm break-all">${email}</div>`
+      );
+    if (uid)
+      lines.push(
+        `<div class="mt-3 text-xs text-slate-500 dark:text-slate-400">User ID</div><div class="font-mono text-sm break-all">${uid}</div>`
+      );
+    if (err)
+      lines.push(`<div class="mt-3 text-xs text-red-500">Info: ${err}</div>`);
 
     const html =
       `<div class="text-left">` +
@@ -599,7 +620,10 @@ async function showLinkMemberHelpModal() {
       }
 
       if (!matches.length) {
-        showAlert("Member tidak ditemukan. Pastikan nama sama persis di database.", "error");
+        showAlert(
+          "Member tidak ditemukan. Pastikan nama sama persis di database.",
+          "error"
+        );
         return;
       }
 
@@ -711,7 +735,10 @@ function applyCurrentMemberToOrderUI(member) {
     if (identityName) identityName.textContent = String(member.nama || "");
   }
   if (status) {
-    status.textContent = member && member.id ? "Login: Nama valid" : "Akun belum terhubung ke member";
+    status.textContent =
+      member && member.id
+        ? "Login: Nama valid"
+        : "Akun belum terhubung ke member";
     status.classList.toggle("text-green-500", !!(member && member.id));
     status.classList.toggle("text-red-500", !(member && member.id));
   }
@@ -730,7 +757,10 @@ function applyCurrentMemberToStoranUI(member) {
   if (hidden && member && member.id) hidden.value = String(member.id);
   if (dd) dd.classList.add("hidden");
   if (status) {
-    status.textContent = member && member.id ? "Login: Nama valid" : "Akun belum terhubung ke member";
+    status.textContent =
+      member && member.id
+        ? "Login: Nama valid"
+        : "Akun belum terhubung ke member";
     status.classList.toggle("text-green-500", !!(member && member.id));
     status.classList.toggle("text-red-500", !(member && member.id));
   }
@@ -749,7 +779,10 @@ function applyCurrentMemberToDrugsUI(member) {
   if (dd) dd.classList.add("hidden");
   if (typeof updateDrugsNameValidity === "function") updateDrugsNameValidity();
   if (status) {
-    status.textContent = member && member.id ? "Login: Nama valid" : "Akun belum terhubung ke member";
+    status.textContent =
+      member && member.id
+        ? "Login: Nama valid"
+        : "Akun belum terhubung ke member";
     status.classList.toggle("text-green-500", !!(member && member.id));
     status.classList.toggle("text-red-500", !(member && member.id));
   }
@@ -764,13 +797,21 @@ function ensureProfileNavLinks(member) {
     { href: "admin_activity.html", label: "Monitor", isVisible: isAdmin },
   ].filter((x) => x.isVisible);
 
-  const isActive = items.some((it) => path.endsWith("/" + it.href.toLowerCase()));
+  const isActive = items.some((it) =>
+    path.endsWith("/" + it.href.toLowerCase())
+  );
 
   const desktopNav = document.getElementById("mainNav");
   const logoutBtn = document.getElementById("logoutBtn");
   if (desktopNav) {
-    desktopNav.querySelectorAll('a[href="profile.html"]').forEach((a) => a.remove());
-    desktopNav.querySelectorAll('a[href="admin_users.html"], a[href="admin_activity.html"]').forEach((a) => a.classList.add("hidden"));
+    desktopNav
+      .querySelectorAll('a[href="profile.html"]')
+      .forEach((a) => a.remove());
+    desktopNav
+      .querySelectorAll(
+        'a[href="admin_users.html"], a[href="admin_activity.html"]'
+      )
+      .forEach((a) => a.classList.add("hidden"));
     const oldAdmin = desktopNav.querySelector("#adminNavDropdown");
     if (oldAdmin) oldAdmin.remove();
 
@@ -801,7 +842,9 @@ function ensureProfileNavLinks(member) {
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         const open = !wrap.classList.contains("open");
-        document.querySelectorAll(".nav-dropdown").forEach((dd) => dd.classList.remove("open"));
+        document
+          .querySelectorAll(".nav-dropdown")
+          .forEach((dd) => dd.classList.remove("open"));
         wrap.classList.toggle("open", open);
         btn.classList.toggle("nav-active", open || isActive);
       });
@@ -815,7 +858,8 @@ function ensureProfileNavLinks(member) {
       wrap.appendChild(btn);
       wrap.appendChild(menu);
 
-      if (logoutBtn && logoutBtn.parentElement) logoutBtn.insertAdjacentElement("afterend", wrap);
+      if (logoutBtn && logoutBtn.parentElement)
+        logoutBtn.insertAdjacentElement("afterend", wrap);
       else desktopNav.appendChild(wrap);
 
       if (!window.__navDropdownHandlers) {
@@ -827,7 +871,11 @@ function ensureProfileNavLinks(member) {
             if (!isInside) {
               dd.classList.remove("open");
               const b = dd.querySelector(".nav-dropdown-toggle");
-              if (b) b.classList.toggle("nav-active", dd.classList.contains("nav-dropdown-active-page"));
+              if (b)
+                b.classList.toggle(
+                  "nav-active",
+                  dd.classList.contains("nav-dropdown-active-page")
+                );
             }
           });
         });
@@ -836,7 +884,11 @@ function ensureProfileNavLinks(member) {
           document.querySelectorAll(".nav-dropdown").forEach((dd) => {
             dd.classList.remove("open");
             const b = dd.querySelector(".nav-dropdown-toggle");
-            if (b) b.classList.toggle("nav-active", dd.classList.contains("nav-dropdown-active-page"));
+            if (b)
+              b.classList.toggle(
+                "nav-active",
+                dd.classList.contains("nav-dropdown-active-page")
+              );
           });
         });
       }
@@ -844,10 +896,18 @@ function ensureProfileNavLinks(member) {
   }
 
   const mobileMenu = document.getElementById("mobileMenu");
-  const mobileContainer = mobileMenu ? mobileMenu.querySelector("div.flex.flex-col") : null;
+  const mobileContainer = mobileMenu
+    ? mobileMenu.querySelector("div.flex.flex-col")
+    : null;
   if (mobileContainer) {
-    mobileContainer.querySelectorAll('a[href="profile.html"]').forEach((a) => a.remove());
-    mobileContainer.querySelectorAll('a[href="admin_users.html"], a[href="admin_activity.html"]').forEach((a) => a.classList.add("hidden"));
+    mobileContainer
+      .querySelectorAll('a[href="profile.html"]')
+      .forEach((a) => a.remove());
+    mobileContainer
+      .querySelectorAll(
+        'a[href="admin_users.html"], a[href="admin_activity.html"]'
+      )
+      .forEach((a) => a.classList.add("hidden"));
 
     const existing = mobileContainer.querySelector("#mobileProfileDropdown");
     if (existing) existing.remove();
@@ -920,7 +980,9 @@ async function upsertSessionHeartbeat(member) {
       last_seen_at: new Date().toISOString(),
       logout_time: null,
     };
-    await supabase.from("user_login_sessions").upsert(payload, { onConflict: "auth_user_id,device_id" });
+    await supabase
+      .from("user_login_sessions")
+      .upsert(payload, { onConflict: "auth_user_id,device_id" });
   } catch (e) {}
 }
 
@@ -934,7 +996,10 @@ async function markSessionLogout() {
     const deviceId = getDeviceId();
     await supabase
       .from("user_login_sessions")
-      .update({ logout_time: new Date().toISOString(), last_seen_at: new Date().toISOString() })
+      .update({
+        logout_time: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
+      })
       .eq("auth_user_id", uid)
       .eq("device_id", deviceId);
   } catch (e) {}
@@ -942,7 +1007,8 @@ async function markSessionLogout() {
 
 function recordPageAccess(member) {
   if (!supabase) return;
-  const pageUrl = String(location.pathname || "") + String(location.search || "");
+  const pageUrl =
+    String(location.pathname || "") + String(location.search || "");
   const ref = document.referrer || "";
   const now = Date.now();
   const key = "rage_page_access_prev_v1";
@@ -980,21 +1046,32 @@ function recordPageAccess(member) {
 async function supabaseAdminUpdateUser(targetAuthUserId, updatePayload) {
   const url = String((window && window.SUPABASE_URL) || "").trim();
   const key = getServiceRoleKey();
-  if (!url || !key) return { error: { message: "SUPABASE_SERVICE_ROLE_KEY belum diisi" } };
+  if (!url || !key)
+    return { error: { message: "SUPABASE_SERVICE_ROLE_KEY belum diisi" } };
   const uid = String(targetAuthUserId || "").trim();
   if (!uid) return { error: { message: "Target auth_user_id kosong" } };
 
-  const res = await fetch(`${url}/auth/v1/admin/users/${encodeURIComponent(uid)}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    },
-    body: JSON.stringify(updatePayload || {}),
-  });
+  const res = await fetch(
+    `${url}/auth/v1/admin/users/${encodeURIComponent(uid)}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify(updatePayload || {}),
+    }
+  );
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) return { error: { message: (json && (json.msg || json.message || json.error)) || `HTTP ${res.status}` } };
+  if (!res.ok)
+    return {
+      error: {
+        message:
+          (json && (json.msg || json.message || json.error)) ||
+          `HTTP ${res.status}`,
+      },
+    };
   return { data: json };
 }
 
@@ -1043,19 +1120,26 @@ function getUsernameFromEmail(email) {
 }
 
 function getPrimaryAuthEmailDomain() {
-  return String((window && window.AUTH_EMAIL_DOMAIN) || "rage.example.com").trim();
+  return String(
+    (window && window.AUTH_EMAIL_DOMAIN) || "rage.example.com"
+  ).trim();
 }
 
 function getLegacyAuthEmailDomain() {
-  return String((window && window.LEGACY_AUTH_EMAIL_DOMAIN) || "rage.local").trim();
+  return String(
+    (window && window.LEGACY_AUTH_EMAIL_DOMAIN) || "rage.local"
+  ).trim();
 }
 
 function getPreferredAuthEmailDomain(currentEmail) {
-  const email = String(currentEmail || "").trim().toLowerCase();
+  const email = String(currentEmail || "")
+    .trim()
+    .toLowerCase();
   const primary = getPrimaryAuthEmailDomain();
   if (email && email.includes("@")) {
     const domain = email.split("@")[1] || "";
-    if (domain && domain !== getLegacyAuthEmailDomain() && domain.includes(".")) return domain;
+    if (domain && domain !== getLegacyAuthEmailDomain() && domain.includes("."))
+      return domain;
   }
   return primary;
 }
@@ -1099,8 +1183,12 @@ async function initProfile() {
   const confirmPasswordEl = document.getElementById("profileConfirmPassword");
 
   const currentMember = window.__currentMember || null;
-  if (nameEl) nameEl.textContent = currentMember && currentMember.nama ? String(currentMember.nama) : "-";
-  if (roleEl) roleEl.textContent = currentMember && currentMember.role ? String(currentMember.role) : "-";
+  if (nameEl)
+    nameEl.textContent =
+      currentMember && currentMember.nama ? String(currentMember.nama) : "-";
+  if (roleEl)
+    roleEl.textContent =
+      currentMember && currentMember.role ? String(currentMember.role) : "-";
 
   try {
     const { data: userRes } = await supabase.auth.getUser();
@@ -1158,7 +1246,9 @@ async function initAdminUsersPage() {
   const newUsernameEl = document.getElementById("adminNewUsername");
   const reqUsernameBtn = document.getElementById("adminRequestUsernameChange");
   const adminNewPasswordEl = document.getElementById("adminNewPassword");
-  const adminConfirmPasswordEl = document.getElementById("adminConfirmPassword");
+  const adminConfirmPasswordEl = document.getElementById(
+    "adminConfirmPassword"
+  );
   const setPwBtn = document.getElementById("adminSetPasswordDirect");
 
   const auditBody = document.getElementById("adminAuditTable");
@@ -1169,15 +1259,25 @@ async function initAdminUsersPage() {
   let actorUid = "";
   try {
     const { data: userRes } = await supabase.auth.getUser();
-    actorUid = userRes && userRes.user && userRes.user.id ? String(userRes.user.id) : "";
+    actorUid =
+      userRes && userRes.user && userRes.user.id ? String(userRes.user.id) : "";
   } catch (e) {}
 
   const renderSelected = () => {
-    if (selName) selName.textContent = selected && selected.nama ? String(selected.nama) : "-";
-    if (selRole) selRole.textContent = selected && selected.role ? String(selected.role) : "-";
-    if (selEmail) selEmail.textContent = selected && selected.email ? String(selected.email) : "-";
-    if (selUid) selUid.textContent = selected && selected.auth_user_id ? String(selected.auth_user_id) : "-";
-    if (selMemberId) selMemberId.value = selected && selected.id ? String(selected.id) : "";
+    if (selName)
+      selName.textContent =
+        selected && selected.nama ? String(selected.nama) : "-";
+    if (selRole)
+      selRole.textContent =
+        selected && selected.role ? String(selected.role) : "-";
+    if (selEmail)
+      selEmail.textContent =
+        selected && selected.email ? String(selected.email) : "-";
+    if (selUid)
+      selUid.textContent =
+        selected && selected.auth_user_id ? String(selected.auth_user_id) : "-";
+    if (selMemberId)
+      selMemberId.value = selected && selected.id ? String(selected.id) : "";
   };
 
   const renderTable = (rows) => {
@@ -1227,10 +1327,13 @@ async function initAdminUsersPage() {
       return;
     }
     allUsers = data || [];
-    const term = String((searchEl || {}).value || "").trim().toLowerCase();
+    const term = String((searchEl || {}).value || "")
+      .trim()
+      .toLowerCase();
     const filtered = term
       ? allUsers.filter((u) => {
-          const hay = `${u.nama || ""} ${u.email || ""} ${u.role || ""}`.toLowerCase();
+          const hay =
+            `${u.nama || ""} ${u.email || ""} ${u.role || ""}`.toLowerCase();
           return hay.includes(term);
         })
       : allUsers;
@@ -1243,7 +1346,9 @@ async function initAdminUsersPage() {
       '<tr><td colspan="4" class="px-3 py-6 text-center text-slate-400">Memuat...</td></tr>';
     const { data, error } = await supabase
       .from("account_audit_logs")
-      .select("created_at,action,actor_auth_user_id,target_auth_user_id,target_member_id")
+      .select(
+        "created_at,action,actor_auth_user_id,target_auth_user_id,target_member_id"
+      )
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) {
@@ -1280,7 +1385,9 @@ async function initAdminUsersPage() {
         showAlert("Pilih user terlebih dahulu", "error");
         return;
       }
-      const username = normalizeUsernameInput((newUsernameEl || {}).value || "");
+      const username = normalizeUsernameInput(
+        (newUsernameEl || {}).value || ""
+      );
       if (!username || username.length < 3) {
         showAlert("Username minimal 3 karakter", "error");
         return;
@@ -1294,15 +1401,21 @@ async function initAdminUsersPage() {
       const btn = reqUsernameBtn;
       btn.disabled = true;
       try {
-        const { error } = await supabaseAdminUpdateUser(String(selected.auth_user_id), {
-          email: nextEmail,
-          email_confirm: true,
-        });
+        const { error } = await supabaseAdminUpdateUser(
+          String(selected.auth_user_id),
+          {
+            email: nextEmail,
+            email_confirm: true,
+          }
+        );
         if (error) {
           showAlert("Gagal: " + error.message, "error");
           return;
         }
-        await supabaseServiceRoleUpdateMembersById(selected.id, { email: nextEmail, username });
+        await supabaseServiceRoleUpdateMembersById(selected.id, {
+          email: nextEmail,
+          username,
+        });
         await supabaseServiceRoleUpsertAuditLog({
           actor_auth_user_id: actorUid,
           target_auth_user_id: String(selected.auth_user_id),
@@ -1360,9 +1473,12 @@ async function initAdminUsersPage() {
           showAlert("Target belum terhubung ke auth_user_id", "error");
           return;
         }
-        const { error } = await supabaseAdminUpdateUser(String(selected.auth_user_id), {
-          password: pw1,
-        });
+        const { error } = await supabaseAdminUpdateUser(
+          String(selected.auth_user_id),
+          {
+            password: pw1,
+          }
+        );
         if (error) {
           showAlert("Gagal: " + error.message, "error");
           return;
@@ -1411,8 +1527,70 @@ async function initAdminActivityPage() {
   };
 
   const render = (headCells, rowsHtml) => {
-    headEl.innerHTML = headCells.map((h) => `<th class="px-3 py-3 text-left text-[10px] uppercase tracking-wider">${h}</th>`).join("");
-    bodyEl.innerHTML = rowsHtml || '<tr><td colspan="6" class="px-3 py-8 text-center text-slate-400">Tidak ada data</td></tr>';
+    headEl.innerHTML = headCells
+      .map(
+        (h) =>
+          `<th class="px-3 py-3 text-left text-[10px] uppercase tracking-wider">${h}</th>`
+      )
+      .join("");
+    bodyEl.innerHTML =
+      rowsHtml ||
+      `<tr><td colspan="${headCells.length}" class="px-3 py-8 text-center text-slate-400">Tidak ada data</td></tr>`;
+  };
+
+  const resolveUserNames = async (rows) => {
+    const byMemberId = new Map();
+    const byAuthId = new Map();
+    const memberIds = Array.from(
+      new Set(
+        (rows || [])
+          .map((r) => Number(r.member_id))
+          .filter((v) => Number.isFinite(v) && v > 0)
+      )
+    );
+    if (memberIds.length) {
+      const { data, error } = await supabase
+        .from("members")
+        .select("id,nama,auth_user_id")
+        .in("id", memberIds);
+      if (!error && Array.isArray(data)) {
+        data.forEach((m) => {
+          if (m && m.id != null) byMemberId.set(String(m.id), String(m.nama || "-"));
+          if (m && m.auth_user_id)
+            byAuthId.set(String(m.auth_user_id), String(m.nama || "-"));
+        });
+      }
+    }
+
+    const unresolvedAuthIds = Array.from(
+      new Set(
+        (rows || [])
+          .map((r) => String(r.auth_user_id || ""))
+          .filter((v) => v && !byAuthId.has(v))
+      )
+    );
+    if (unresolvedAuthIds.length) {
+      const { data, error } = await supabase
+        .from("members")
+        .select("id,nama,auth_user_id")
+        .in("auth_user_id", unresolvedAuthIds);
+      if (!error && Array.isArray(data)) {
+        data.forEach((m) => {
+          if (m && m.id != null && !byMemberId.has(String(m.id)))
+            byMemberId.set(String(m.id), String(m.nama || "-"));
+          if (m && m.auth_user_id)
+            byAuthId.set(String(m.auth_user_id), String(m.nama || "-"));
+        });
+      }
+    }
+
+    return (r) => {
+      const memberName = r && r.member_id != null ? byMemberId.get(String(r.member_id)) : null;
+      if (memberName) return memberName;
+      const authName = r && r.auth_user_id ? byAuthId.get(String(r.auth_user_id)) : null;
+      if (authName) return authName;
+      return "-";
+    };
   };
 
   const refreshActiveCount = async () => {
@@ -1430,38 +1608,56 @@ async function initAdminActivityPage() {
 
   const load = async () => {
     const t = String(typeEl.value || "sessions");
-    const term = String((userEl || {}).value || "").trim().toLowerCase();
+    const term = String((userEl || {}).value || "")
+      .trim()
+      .toLowerCase();
     if (titleEl) {
       titleEl.textContent =
-        t === "pages" ? "Page Access Logs" : t === "failed" ? "Failed Login Attempts" : "Login Sessions";
+        t === "pages"
+          ? "Page Access Logs"
+          : t === "failed"
+            ? "Failed Login Attempts"
+            : "Login Sessions";
     }
 
     if (t === "sessions") {
       const { data, error } = await supabase
         .from("user_login_sessions")
-        .select("auth_user_id,member_id,device_id,login_time,last_seen_at,logout_time,user_agent")
+        .select(
+          "auth_user_id,member_id,device_id,login_time,last_seen_at,logout_time,user_agent"
+        )
         .order("last_seen_at", { ascending: false })
         .limit(80);
       if (error) {
-        render(["Waktu", "User", "Member", "Device", "Status"], `<tr><td colspan="5" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`);
+        render(
+          ["Waktu", "Nama User", "Auth UID", "Member", "Device", "Status"],
+          `<tr><td colspan="6" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`
+        );
         return;
       }
+      const getUserName = await resolveUserNames(data || []);
       const rows = (data || []).filter((r) => {
         if (!term) return true;
-        const hay = `${r.auth_user_id || ""} ${r.member_id || ""} ${r.device_id || ""}`.toLowerCase();
+        const userName = getUserName(r);
+        const hay =
+          `${userName} ${r.auth_user_id || ""} ${r.member_id || ""} ${r.device_id || ""}`.toLowerCase();
         return hay.includes(term);
       });
       render(
-        ["Last Seen", "Auth UID", "Member", "Device", "Status"],
+        ["Last Seen", "Nama User", "Auth UID", "Member", "Device", "Status"],
         rows
           .map((r) => {
-            const active = !r.logout_time && new Date(r.last_seen_at).getTime() > Date.now() - 2 * 60 * 1000;
+            const userName = getUserName(r);
+            const active =
+              !r.logout_time &&
+              new Date(r.last_seen_at).getTime() > Date.now() - 2 * 60 * 1000;
             return `<tr class="hover:bg-white/5 transition-colors">
   <td class="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">${fmtDateTime(r.last_seen_at)}</td>
+  <td class="px-3 py-3 text-xs text-slate-600 dark:text-amber-200/80">${String(userName || "-")}</td>
   <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${String(r.auth_user_id || "-")}</td>
   <td class="px-3 py-3 text-xs text-slate-600 dark:text-amber-200/80">${String(r.member_id || "-")}</td>
   <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${String(r.device_id || "-")}</td>
-  <td class="px-3 py-3 text-xs ${active ? "text-green-500" : "text-slate-400"}">${active ? "ACTIVE" : (r.logout_time ? "LOGOUT" : "IDLE")}</td>
+  <td class="px-3 py-3 text-xs ${active ? "text-green-500" : "text-slate-400"}">${active ? "ACTIVE" : r.logout_time ? "LOGOUT" : "IDLE"}</td>
 </tr>`;
           })
           .join("")
@@ -1473,25 +1669,36 @@ async function initAdminActivityPage() {
     if (t === "pages") {
       const { data, error } = await supabase
         .from("page_access_logs")
-        .select("auth_user_id,member_id,device_id,page_url,access_time,duration_ms")
+        .select(
+          "auth_user_id,member_id,device_id,page_url,access_time,duration_ms"
+        )
         .order("access_time", { ascending: false })
         .limit(120);
       if (error) {
-        render(["Waktu", "User", "Halaman", "Durasi"], `<tr><td colspan="4" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`);
+        render(
+          ["Waktu", "Nama User", "Auth UID", "Halaman", "Durasi"],
+          `<tr><td colspan="5" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`
+        );
         return;
       }
+      const getUserName = await resolveUserNames(data || []);
       const rows = (data || []).filter((r) => {
         if (!term) return true;
-        const hay = `${r.auth_user_id || ""} ${r.member_id || ""} ${r.page_url || ""}`.toLowerCase();
+        const userName = getUserName(r);
+        const hay =
+          `${userName} ${r.auth_user_id || ""} ${r.member_id || ""} ${r.page_url || ""}`.toLowerCase();
         return hay.includes(term);
       });
       render(
-        ["Waktu", "Auth UID", "Halaman", "Durasi"],
+        ["Waktu", "Nama User", "Auth UID", "Halaman", "Durasi"],
         rows
           .map((r) => {
-            const d = r.duration_ms == null ? "-" : `${fmtNumber(r.duration_ms)} ms`;
+            const userName = getUserName(r);
+            const d =
+              r.duration_ms == null ? "-" : `${fmtNumber(r.duration_ms)} ms`;
             return `<tr class="hover:bg-white/5 transition-colors">
   <td class="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">${fmtDateTime(r.access_time)}</td>
+  <td class="px-3 py-3 text-xs text-slate-600 dark:text-amber-200/80">${String(userName || "-")}</td>
   <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${String(r.auth_user_id || "-")}</td>
   <td class="px-3 py-3 text-xs text-slate-600 dark:text-amber-200/80 break-all">${String(r.page_url || "-")}</td>
   <td class="px-3 py-3 text-xs text-slate-600 dark:text-amber-200/80 whitespace-nowrap">${d}</td>
@@ -1509,7 +1716,10 @@ async function initAdminActivityPage() {
       .order("attempt_time", { ascending: false })
       .limit(120);
     if (error) {
-      render(["Waktu", "Username", "Reason"], `<tr><td colspan="3" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`);
+      render(
+        ["Waktu", "Username", "Reason"],
+        `<tr><td colspan="3" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`
+      );
       return;
     }
     const rows = (data || []).filter((r) => {
@@ -1577,14 +1787,33 @@ async function init() {
   const isProfile = !!document.getElementById("profileSection");
   const isAdminUsers = !!document.getElementById("adminUsersSection");
   const isAdminActivity = !!document.getElementById("adminActivitySection");
-  const needsAuth = isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile || isAdminUsers || isAdminActivity;
+  const needsAuth =
+    isOrder ||
+    isDashboard ||
+    isStoran ||
+    isDrugs ||
+    isKas ||
+    isRekap ||
+    isProfile ||
+    isAdminUsers ||
+    isAdminActivity;
   if (needsAuth) {
     const ok = await guardApp();
     if (!ok) return;
   }
 
   let currentMember = null;
-  if (isOrder || isDashboard || isStoran || isDrugs || isKas || isRekap || isProfile || isAdminUsers || isAdminActivity) {
+  if (
+    isOrder ||
+    isDashboard ||
+    isStoran ||
+    isDrugs ||
+    isKas ||
+    isRekap ||
+    isProfile ||
+    isAdminUsers ||
+    isAdminActivity
+  ) {
     currentMember = await resolveCurrentMember();
     window.__currentMember = currentMember;
     if (!currentMember || !currentMember.id) {
@@ -1594,12 +1823,21 @@ async function init() {
   recordPageAccess(currentMember);
   upsertSessionHeartbeat(currentMember);
   window.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") upsertSessionHeartbeat(window.__currentMember || null);
+    if (document.visibilityState === "visible")
+      upsertSessionHeartbeat(window.__currentMember || null);
   });
   ensureProfileNavLinks(currentMember);
   applyAdminNav(currentMember);
 
-  if (!isAdminMember(currentMember) && (isDashboard || isStoran || isDrugs || isKas || isAdminUsers || isAdminActivity)) {
+  if (
+    !isAdminMember(currentMember) &&
+    (isDashboard ||
+      isStoran ||
+      isDrugs ||
+      isKas ||
+      isAdminUsers ||
+      isAdminActivity)
+  ) {
     showAlert("Menu ini hanya untuk Admin", "error");
     location.href = "index.html";
     return;
@@ -1639,7 +1877,10 @@ async function init() {
       const submitBtn2 = document.getElementById("submitBtn");
       if (addBtn2) addBtn2.disabled = true;
       if (submitBtn2) submitBtn2.disabled = true;
-      showAlert("Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.", "error");
+      showAlert(
+        "Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.",
+        "error"
+      );
     }
     setOrderNoUI();
     updateOrderWindowUI();
@@ -1749,13 +1990,9 @@ function getRolePermissions(role) {
       vestLimit: 9999,
     };
   }
-  const BASE_GUNS = [
-    "PISTOL .50",
-    "CERAMIC PISTOL",
-    "TECH 9",
-  ];
+  const BASE_GUNS = ["PISTOL .50", "CERAMIC PISTOL", "TECH 9"];
   const BASE_AMMO = ["AMMO .50", "AMMO 9MM"];
-  const BASE_ATTACHMENTS = CATALOG.Attachment.map(i => i.name);
+  const BASE_ATTACHMENTS = CATALOG.Attachment.map((i) => i.name);
   const HANGAROUND_ADDITIONS = [
     "MINI SMG",
     "MICRO SMG",
@@ -1763,46 +2000,66 @@ function getRolePermissions(role) {
     "PISTOL X17",
   ];
   const HANGAROUND_AMMO = ["AMMO .45"];
-  
-  const HOODLUM_ADDITIONS = ["SHOTGUN", "NAVY REVOLVER", "KVR", "BLACK REVOLVER"];
+
+  const HOODLUM_ADDITIONS = [
+    "SHOTGUN",
+    "NAVY REVOLVER",
+    "KVR",
+    "BLACK REVOLVER",
+  ];
   const HOODLUM_AMMO = ["AMMO 12 GAUGE", "AMMO 44 MAGNUM"];
 
   // Normalize helper
-  const norm = (list) => list.map(x => x.toUpperCase());
+  const norm = (list) => list.map((x) => x.toUpperCase());
 
   if (R === "Internship") {
     return {
-      allowed: new Set(norm([...BASE_GUNS, ...BASE_AMMO, ...BASE_ATTACHMENTS, "VEST MEDIUM", "LOCKPICK"])),
+      allowed: new Set(
+        norm([
+          ...BASE_GUNS,
+          ...BASE_AMMO,
+          ...BASE_ATTACHMENTS,
+          "VEST MEDIUM",
+          "LOCKPICK",
+        ])
+      ),
       vestType: "VEST MEDIUM", // Merah
-      vestLimit: 5
+      vestLimit: 5,
     };
   }
-  
+
   if (R === "Hangaround") {
     return {
-      allowed: new Set(norm([
-        ...BASE_GUNS, ...BASE_AMMO, ...BASE_ATTACHMENTS,
-        ...HANGAROUND_ADDITIONS, ...HANGAROUND_AMMO,
-        "VEST MEDIUM", "VEST", "LOCKPICK"
-      ])),
+      allowed: new Set(
+        norm([
+          ...BASE_GUNS,
+          ...BASE_AMMO,
+          ...BASE_ATTACHMENTS,
+          ...HANGAROUND_ADDITIONS,
+          ...HANGAROUND_AMMO,
+          "VEST MEDIUM",
+          "VEST",
+          "LOCKPICK",
+        ])
+      ),
       vestType: "BOTH",
-      vestLimit: 5
+      vestLimit: 5,
     };
   }
-  
+
   if (R === "Hoodlum") {
     return {
       allowed: "ALL",
       vestType: "BOTH",
-      vestLimit: 5
+      vestLimit: 5,
     };
   }
-  
+
   // Highrank
   return {
     allowed: "ALL",
-    vestType: "BOTH", 
-    vestLimit: 10
+    vestType: "BOTH",
+    vestLimit: 10,
   };
 }
 
@@ -1827,23 +2084,23 @@ async function addToCart() {
   const qtyInput = document.getElementById("qty");
   const qty = parseInt(qtyInput ? qtyInput.value : "1", 10) || 1;
   if (!itemName || !kategori || qty < 1) return;
-  
+
   const nItem = itemName.toUpperCase();
   const isLeo = nama.toLowerCase() === "leo";
   const perms = getRolePermissions(role);
-  
+
   // 1. Check allowed items
   if (!isLeo && perms.allowed !== "ALL") {
     if (!perms.allowed.has(nItem)) {
       // Custom message for VEST mismatch
       if (nItem.includes("VEST")) {
         if (perms.vestType === "VEST" && nItem !== "VEST") {
-            showAlert(`${role} hanya boleh beli VEST`, "error");
-            return;
+          showAlert(`${role} hanya boleh beli VEST`, "error");
+          return;
         }
         if (perms.vestType === "VEST MEDIUM" && nItem !== "VEST MEDIUM") {
-            showAlert(`${role} hanya boleh beli VEST MEDIUM`, "error");
-            return;
+          showAlert(`${role} hanya boleh beli VEST MEDIUM`, "error");
+          return;
         }
         showAlert(`${role} tidak diperbolehkan membeli ${itemName}`, "error");
         return;
@@ -1868,17 +2125,17 @@ async function addToCart() {
       return;
     }
   }
-  
+
   // 3. Check Vest Personal Limit (Local Cart Check + DB check is done at submit, but good to check cart here)
   if (!isLeo && nItem.includes("VEST")) {
-     const currentCartVest = state.cart
-        .filter(c => c.item.toUpperCase().includes("VEST"))
-        .reduce((a, c) => a + c.qty, 0);
-     
-     if (currentCartVest + qty > perms.vestLimit) {
-         showAlert(`Maksimal VEST per orang adalah ${perms.vestLimit}`, "error");
-         return;
-     }
+    const currentCartVest = state.cart
+      .filter((c) => c.item.toUpperCase().includes("VEST"))
+      .reduce((a, c) => a + c.qty, 0);
+
+    if (currentCartVest + qty > perms.vestLimit) {
+      showAlert(`Maksimal VEST per orang adalah ${perms.vestLimit}`, "error");
+      return;
+    }
   }
 
   const item = CATALOG[kategori].find((i) => i.name === itemName);
@@ -2065,18 +2322,18 @@ function renderMyOrders(rows, useOrderanke) {
     btn.addEventListener("click", async () => {
       const id = parseInt(btn.getAttribute("data-del-id") || "", 10);
       if (!id) return;
-      
+
       const result = await Swal.fire({
-        title: 'Hapus baris order ini?',
+        title: "Hapus baris order ini?",
         text: "Tindakan ini tidak dapat dibatalkan!",
-        icon: 'warning',
+        icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Ya, hapus!',
-        cancelButtonText: 'Batal',
-        background: '#1f1410',
-        color: '#fef3c7'
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Ya, hapus!",
+        cancelButtonText: "Batal",
+        background: "#1f1410",
+        color: "#fef3c7",
       });
       if (!result.isConfirmed) return;
 
@@ -2125,7 +2382,10 @@ function initStoran(member) {
   } else {
     setupStoranNameSearch();
     if (btn) btn.disabled = true;
-    showAlert("Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.", "error");
+    showAlert(
+      "Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.",
+      "error"
+    );
   }
   const reload = document.getElementById("storanReloadBtn");
   if (reload) reload.addEventListener("click", () => loadStoranTable());
@@ -2135,7 +2395,8 @@ function initStoran(member) {
 function setStoranFormMode(isEditing) {
   const submitLabel = document.getElementById("storanSubmitLabel");
   const cancelBtn = document.getElementById("storanCancelEdit");
-  if (submitLabel) submitLabel.textContent = isEditing ? "Update Storan" : "Kirim Storan";
+  if (submitLabel)
+    submitLabel.textContent = isEditing ? "Update Storan" : "Kirim Storan";
   if (cancelBtn) cancelBtn.classList.toggle("hidden", !isEditing);
 }
 
@@ -2180,9 +2441,12 @@ function startEditStoran(row) {
   const statusText = document.getElementById("storanNamaStatus");
   if (editIdEl) editIdEl.value = row && row.id ? String(row.id) : "";
   if (nameEl) nameEl.value = row && row.nama ? String(row.nama) : "";
-  if (memberIdEl) memberIdEl.value = row && row.memberId ? String(row.memberId) : "";
-  if (statusEl) statusEl.value = row && row.statusRaw ? String(row.statusRaw) : "SUDAH";
-  if (receiverEl) receiverEl.value = row && row.penerima ? String(row.penerima) : "";
+  if (memberIdEl)
+    memberIdEl.value = row && row.memberId ? String(row.memberId) : "";
+  if (statusEl)
+    statusEl.value = row && row.statusRaw ? String(row.statusRaw) : "SUDAH";
+  if (receiverEl)
+    receiverEl.value = row && row.penerima ? String(row.penerima) : "";
   if (noteEl) noteEl.value = row && row.catatan ? String(row.catatan) : "";
   if (statusText) {
     statusText.textContent = "Mode edit storan";
@@ -2215,15 +2479,17 @@ async function submitStoran() {
     !adminMode && currentMember && currentMember.id
       ? parseInt(String(currentMember.id), 10)
       : memberIdEl
-      ? parseInt(memberIdEl.value || "", 10)
-      : NaN;
+        ? parseInt(memberIdEl.value || "", 10)
+        : NaN;
   const editingId = editIdEl ? parseInt(editIdEl.value || "", 10) : NaN;
   if (Number.isNaN(memberId) || !memberId) {
     showAlert("Akun belum terhubung ke member", "error");
     return;
   }
-  if (memberIdEl && !Number.isNaN(memberId) && memberId) memberIdEl.value = String(memberId);
-  if (!adminMode && currentMember && currentMember.nama) nameEl.value = String(currentMember.nama);
+  if (memberIdEl && !Number.isNaN(memberId) && memberId)
+    memberIdEl.value = String(memberId);
+  if (!adminMode && currentMember && currentMember.nama)
+    nameEl.value = String(currentMember.nama);
 
   if (!nama) {
     showAlert("Nama wajib diisi", "error");
@@ -2241,7 +2507,9 @@ async function submitStoran() {
   const now = new Date();
   const ts = fmtDateTime(now.toISOString());
   const labelStatus =
-    statusVal === "SUDAH" ? "Lunas 50k & 50 Metal Scrap" : "Belum storan minggu ini";
+    statusVal === "SUDAH"
+      ? "Lunas 50k & 50 Metal Scrap"
+      : "Belum storan minggu ini";
   let periodeLabel = "";
   let periodeValue = null;
   if (supabase) {
@@ -2284,7 +2552,10 @@ async function submitStoran() {
       };
       const { error: logErr } =
         !Number.isNaN(editingId) && editingId
-          ? await supabase.from("storan_logs").update(payload).eq("id", editingId)
+          ? await supabase
+              .from("storan_logs")
+              .update(payload)
+              .eq("id", editingId)
           : await supabase.from("storan_logs").insert(payload);
       if (logErr) {
         console.error("Gagal menyimpan storan_logs:", logErr);
@@ -2293,7 +2564,12 @@ async function submitStoran() {
     }
     const hook = (window && window.DISCORD_STORAN_WEBHOOK_URL) || "";
     await postToDiscord(msg, hook);
-    showAlert(!Number.isNaN(editingId) && editingId ? "Storan berhasil diupdate" : "Storan terkirim ke Discord", "success");
+    showAlert(
+      !Number.isNaN(editingId) && editingId
+        ? "Storan berhasil diupdate"
+        : "Storan terkirim ke Discord",
+      "success"
+    );
     resetStoranForm();
     if (typeof loadStoranTable === "function") {
       try {
@@ -2404,7 +2680,11 @@ async function loadStoranTable() {
   const html = rows
     .map(
       (r, idx) => `<tr class="transition-colors hover:bg-amber-900/15 ${
-        r.isBelum ? "bg-red-50/60 dark:bg-red-900/10 dark:hover:bg-red-900/20" : idx % 2 === 0 ? "bg-transparent dark:hover:bg-[#241913]" : "bg-amber-50/40 dark:bg-[#1b120d] dark:hover:bg-[#241913]"
+        r.isBelum
+          ? "bg-red-50/60 dark:bg-red-900/10 dark:hover:bg-red-900/20"
+          : idx % 2 === 0
+            ? "bg-transparent dark:hover:bg-[#241913]"
+            : "bg-amber-50/40 dark:bg-[#1b120d] dark:hover:bg-[#241913]"
       }">
   <td class="px-3 py-2 whitespace-nowrap">${r.nama}</td>
   <td class="px-3 py-2 whitespace-nowrap">${r.penerima}</td>
@@ -2436,7 +2716,8 @@ async function loadStoranTable() {
       if (!row) return;
       startEditStoran(row);
       const formName = document.getElementById("storanNama");
-      if (formName) formName.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (formName)
+        formName.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   });
 }
@@ -2564,7 +2845,10 @@ function startEditMyOrders() {
 async function submitOrder() {
   const statusEl = document.getElementById("status");
   const currentMember = window.__currentMember || null;
-  const nama = (currentMember && currentMember.nama) ? String(currentMember.nama) : document.getElementById("nama").value.trim();
+  const nama =
+    currentMember && currentMember.nama
+      ? String(currentMember.nama)
+      : document.getElementById("nama").value.trim();
   const winCurrent = supabase ? await fetchActiveOrderWindow(null) : null;
   const effectiveOrderanke =
     winCurrent && winCurrent.orderanke
@@ -2637,36 +2921,41 @@ async function submitOrder() {
   const role = await getMemberRole(member_id);
   const perms = getRolePermissions(role);
   const isLeo = String(nama || "").toLowerCase() === "leo";
-  
+
   // 1. Validate Items in Cart against Role
   if (!isLeo && perms.allowed !== "ALL") {
     for (const c of state.cart) {
       const n = normItemName(c.item);
       if (!perms.allowed.has(n)) {
-         if (n.includes("VEST")) {
-            if (perms.vestType === "VEST" && n !== "VEST") {
-                 showAlert(`${role} hanya boleh beli VEST`, "error");
-                 endLoading(); return;
-            }
-            if (perms.vestType === "VEST MEDIUM" && n !== "VEST MEDIUM") {
-                 showAlert(`${role} hanya boleh beli VEST MEDIUM`, "error");
-                 endLoading(); return;
-            }
-         }
-         showAlert(`${role} tidak diperbolehkan membeli ${c.item}`, "error");
-         endLoading();
-         return;
+        if (n.includes("VEST")) {
+          if (perms.vestType === "VEST" && n !== "VEST") {
+            showAlert(`${role} hanya boleh beli VEST`, "error");
+            endLoading();
+            return;
+          }
+          if (perms.vestType === "VEST MEDIUM" && n !== "VEST MEDIUM") {
+            showAlert(`${role} hanya boleh beli VEST MEDIUM`, "error");
+            endLoading();
+            return;
+          }
+        }
+        showAlert(`${role} tidak diperbolehkan membeli ${c.item}`, "error");
+        endLoading();
+        return;
       }
     }
   }
 
   // 2. Validate Vest Limit (Database + Cart)
   if (!isLeo) {
-    const isVestItem = (name) => String(name || "").toUpperCase().includes("VEST");
+    const isVestItem = (name) =>
+      String(name || "")
+        .toUpperCase()
+        .includes("VEST");
     const cartVestCount = state.cart
       .filter((c) => isVestItem(c.item))
       .reduce((a, c) => a + (c.qty || 0), 0);
-      
+
     let existingVest = 0;
     try {
       let q = supabase
@@ -2679,11 +2968,14 @@ async function submitOrder() {
       const { data } = await q;
       existingVest = (data || []).reduce((a, r) => a + (r.qty || 0), 0);
     } catch (e) {}
-    
+
     const totalVest = existingVest + cartVestCount;
     if (totalVest > perms.vestLimit) {
       const remaining = Math.max(0, perms.vestLimit - existingVest);
-      showAlert(`Maksimal VEST per orang ${perms.vestLimit}. Tersisa ${remaining}.`, "error");
+      showAlert(
+        `Maksimal VEST per orang ${perms.vestLimit}. Tersisa ${remaining}.`,
+        "error"
+      );
       endLoading();
       return;
     }
@@ -2823,8 +3115,7 @@ async function submitOrder() {
         "```";
 
       await postToDiscord(msg);
-    } catch (e) {
-    }
+    } catch (e) {}
     endLoading();
   } catch (e) {
     showAlert("Gagal menyimpan (network error)", "error");
@@ -2841,10 +3132,10 @@ async function getMemberRole(id) {
       .select("role")
       .eq("id", id)
       .limit(1);
-    
+
     const row = data && data[0];
     const val = (row && row.role) || "Hoodlum";
-    
+
     cache[id] = val;
     return val;
   } catch (e) {
@@ -2994,9 +3285,9 @@ async function updateOrderWindowUI() {
   const container = document.getElementById("orderWindowStatus");
   const statusBox = document.getElementById("orderStatusBox");
   const detailEl = document.getElementById("orderWindowDetail");
-  
+
   const ok = await ensureOrderingOpen();
-  
+
   if (container) {
     container.classList.toggle("hidden", false); // Selalu tampilkan info
   }
@@ -3014,17 +3305,17 @@ async function updateOrderWindowUI() {
   if (detailEl) {
     if (win) {
       const { m, w, raw } = decodeOrderanke(win.orderanke);
-      const options = { 
-        year: 'numeric', 
-        month: 'numeric', 
-        day: 'numeric', 
-        hour: 'numeric', 
-        minute: 'numeric', 
-        second: 'numeric', 
-        hour12: true 
+      const options = {
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+        hour12: true,
       };
-      const open = new Date(win.start_time).toLocaleString('en-US', options);
-      const close = new Date(win.end_time).toLocaleString('en-US', options);
+      const open = new Date(win.start_time).toLocaleString("en-US", options);
+      const close = new Date(win.end_time).toLocaleString("en-US", options);
       detailEl.textContent = `Buka: ${open} • Tutup: ${close} • Periode: M${m}-W${w} (#${raw})`;
     } else {
       detailEl.textContent = `Tidak ada Periode Order Aktif`;
@@ -3256,7 +3547,9 @@ function saveDeliveredRowSet(set) {
   } catch (e) {}
 }
 function normalizePersonStatusName(name) {
-  return String(name || "").trim().toLowerCase();
+  return String(name || "")
+    .trim()
+    .toLowerCase();
 }
 function makePersonStatusKey(batch, name) {
   return `${String(batch || "")}::${normalizePersonStatusName(name)}`;
@@ -3371,9 +3664,7 @@ const GROUP_ITEMS = {
     "VEST MEDIUM",
   ],
 
-  "LAINNYA": [
-    "LOCKPICK",
-  ],
+  LAINNYA: ["LOCKPICK"],
 };
 function normItemName(s) {
   return String(s || "")
@@ -3471,33 +3762,29 @@ function renderDashboard(groups) {
   const totalsHtml =
     `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4 mb-6\"><h4 class=\"text-sm font-semibold mb-2\">Total Orders per User</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-center px-2 py-2\">Orders</th><th class=\"text-right px-2 py-2\">Total</th><th class=\"text-center px-2 py-2\">Scrap</th><th class=\"text-center px-2 py-2\">Duit</th><th class=\"text-center px-2 py-2\">Metal</th></tr></thead><tbody>` +
     userKeys
-      .map(
-        (n) => {
-          const money = getStatusSummary(totalsByUser[n].paidGroups, {
-            done: "Lunas",
-            none: "Belum",
-          });
-          const metal = getStatusSummary(totalsByUser[n].scrapGroups, {
-            done: "Sudah",
-            none: "Belum",
-          });
-          return (
-          `<tr class=\"table-row-hover border-b border-yellow-900/20\"><td class=\"px-2 py-2\">${n}</td><td class=\"px-2 py-2 text-center\">${
-            totalsByUser[n].count
-          }</td><td class=\"px-2 py-2 text-right\">${fmt(
-            totalsByUser[n].total
-          )}</td><td class=\"px-2 py-2 text-center\">${
-            totalsByUser[n].scrap > 0
-              ? parseFloat(totalsByUser[n].scrap.toFixed(2))
-              : "-"
-          }</td><td class=\"px-2 py-2 text-center\"><span class=\"inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${money.cls}\">${
-            money.text
-          }</span></td><td class=\"px-2 py-2 text-center\"><span class=\"inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${metal.cls}\">${
-            metal.text
-          }</span></td></tr>`
-          );
-        }
-      )
+      .map((n) => {
+        const money = getStatusSummary(totalsByUser[n].paidGroups, {
+          done: "Lunas",
+          none: "Belum",
+        });
+        const metal = getStatusSummary(totalsByUser[n].scrapGroups, {
+          done: "Sudah",
+          none: "Belum",
+        });
+        return `<tr class=\"table-row-hover border-b border-yellow-900/20\"><td class=\"px-2 py-2\">${n}</td><td class=\"px-2 py-2 text-center\">${
+          totalsByUser[n].count
+        }</td><td class=\"px-2 py-2 text-right\">${fmt(
+          totalsByUser[n].total
+        )}</td><td class=\"px-2 py-2 text-center\">${
+          totalsByUser[n].scrap > 0
+            ? parseFloat(totalsByUser[n].scrap.toFixed(2))
+            : "-"
+        }</td><td class=\"px-2 py-2 text-center\"><span class=\"inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${money.cls}\">${
+          money.text
+        }</span></td><td class=\"px-2 py-2 text-center\"><span class=\"inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${metal.cls}\">${
+          metal.text
+        }</span></td></tr>`;
+      })
       .join("") +
     `</tbody></table></div></div>`;
   const batchesHtml = keys
@@ -3579,23 +3866,22 @@ function renderDashboard(groups) {
                 idx === 0
                   ? `<td class=\"px-2 py-2 align-top\" rowspan=\"${byName[name].length}\">${name}</td>`
                   : "";
-              const personTotal = arr.reduce((sum, x) => sum + (x.subtotal || 0), 0);
+              const personTotal = arr.reduce(
+                (sum, x) => sum + (x.subtotal || 0),
+                0
+              );
               const personQty = arr.reduce((sum, x) => sum + (x.qty || 0), 0);
               const paidCell =
                 idx === 0
                   ? `<td class=\"px-2 py-2 text-center align-top\" rowspan=\"${byName[name].length}\"><button data-paid-person-key=\"${personKey}\" data-paid-batch=\"${k}\" data-paid-name=\"${String(name).replace(/"/g, "&quot;")}\" data-paid-total=\"${personTotal}\" data-paid-qty=\"${personQty}\" class="px-2 py-1 rounded ${
                       paidOn ? "bg-emerald-700" : "bg-slate-700"
-                    } text-white">${
-                      paidOn ? "Lunas" : "Belum"
-                    }</button></td>`
+                    } text-white">${paidOn ? "Lunas" : "Belum"}</button></td>`
                   : "";
               const scrapCell =
                 idx === 0
                   ? `<td class=\"px-2 py-2 text-center align-top\" rowspan=\"${byName[name].length}\"><button data-scrap-person-key=\"${personKey}\" data-scrap-batch=\"${k}\" data-scrap-name=\"${String(name).replace(/"/g, "&quot;")}\" class="px-2 py-1 rounded ${
                       scrapOn ? "bg-cyan-700" : "bg-slate-700"
-                    } text-white">${
-                      scrapOn ? "Sudah" : "Belum"
-                    }</button></td>`
+                    } text-white">${scrapOn ? "Sudah" : "Belum"}</button></td>`
                   : "";
               const rowCls =
                 idx === 0 && gIdx > 0
@@ -3745,16 +4031,16 @@ function renderDashboard(groups) {
       if (!id) return;
 
       const result = await Swal.fire({
-        title: 'Hapus item order ini?',
+        title: "Hapus item order ini?",
         text: "Tindakan ini tidak dapat dibatalkan!",
-        icon: 'warning',
+        icon: "warning",
         showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Ya, hapus!',
-        cancelButtonText: 'Batal',
-        background: '#1f1410',
-        color: '#fef3c7'
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Ya, hapus!",
+        cancelButtonText: "Batal",
+        background: "#1f1410",
+        color: "#fef3c7",
       });
       if (!result.isConfirmed) return;
 
@@ -4323,10 +4609,10 @@ function renderOrderWindows(rows) {
       const st = !r.is_active
         ? "Nonaktif"
         : new Date(r.start_time).getTime() > now
-        ? "Belum dimulai"
-        : new Date(r.end_time).getTime() < now
-        ? "Berakhir"
-        : "Aktif sekarang";
+          ? "Belum dimulai"
+          : new Date(r.end_time).getTime() < now
+            ? "Berakhir"
+            : "Aktif sekarang";
       return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${label}</td><td class=\"px-2 py-2\">${fmtDateTime(
         r.start_time
       )}</td><td class=\"px-2 py-2\">${fmtDateTime(
@@ -4393,16 +4679,16 @@ async function deleteOrderWindow(id) {
     return;
   }
   const proceed = await Swal.fire({
-    title: 'Hapus jadwal ini?',
+    title: "Hapus jadwal ini?",
     text: "Tindakan tidak dapat dibatalkan.",
-    icon: 'warning',
+    icon: "warning",
     showCancelButton: true,
-    confirmButtonColor: '#d33',
-    cancelButtonColor: '#3085d6',
-    confirmButtonText: 'Ya, hapus',
-    cancelButtonText: 'Batal',
-    background: '#1f1410',
-    color: '#fef3c7'
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#3085d6",
+    confirmButtonText: "Ya, hapus",
+    cancelButtonText: "Batal",
+    background: "#1f1410",
+    color: "#fef3c7",
   });
   if (!proceed.isConfirmed) return;
 
@@ -4410,23 +4696,23 @@ async function deleteOrderWindow(id) {
   let ok = true;
   if (pin) {
     const { value: typed } = await Swal.fire({
-      title: 'Masukkan PIN delete',
-      input: 'password',
-      inputLabel: 'PIN diperlukan',
-      inputPlaceholder: 'Masukkan PIN',
+      title: "Masukkan PIN delete",
+      input: "password",
+      inputLabel: "PIN diperlukan",
+      inputPlaceholder: "Masukkan PIN",
       showCancelButton: true,
-      background: '#1f1410',
-      color: '#fef3c7'
+      background: "#1f1410",
+      color: "#fef3c7",
     });
     ok = !!typed && typed === pin;
   } else {
     const { value: typed } = await Swal.fire({
-      title: 'Ketik DELETE untuk konfirmasi',
-      input: 'text',
-      inputPlaceholder: 'DELETE',
+      title: "Ketik DELETE untuk konfirmasi",
+      input: "text",
+      inputPlaceholder: "DELETE",
       showCancelButton: true,
-      background: '#1f1410',
-      color: '#fef3c7'
+      background: "#1f1410",
+      color: "#fef3c7",
     });
     ok = (typed || "").toUpperCase() === "DELETE";
   }
@@ -4500,7 +4786,7 @@ function initDashboard() {
     sharePaymentBtn.addEventListener("click", sharePaymentStatusToDiscord);
   if (mSel) mSel.addEventListener("change", () => loadDashboard(false));
   if (wSel) wSel.addEventListener("change", () => loadDashboard(false));
-  
+
   setupDashNameSearch();
   updateDashNameSuggestions();
   const wm = document.getElementById("winMonth");
@@ -4754,7 +5040,7 @@ async function shareDashboardToDiscord() {
     "ORDER KE BOA": 0,
     "ORDER KE BURGENK": 0,
     "ORDER KE PP": 0,
-    "LAINNYA": 0,
+    LAINNYA: 0,
   };
   keys.forEach((k) => {
     const g = groups[k];
@@ -4835,8 +5121,10 @@ async function shareDashboardToDiscord() {
       });
       const label = "Total : ".padEnd(itemW + 3 + qtyW + 3 + hargaW);
       lines.push(label + " | " + fmt(totalGrp).padStart(subW));
-      
-      const gKey = Object.keys(groupTotals).find(k => k.trim().toUpperCase() === grp.trim().toUpperCase());
+
+      const gKey = Object.keys(groupTotals).find(
+        (k) => k.trim().toUpperCase() === grp.trim().toUpperCase()
+      );
       if (gKey) {
         groupTotals[gKey] += totalGrp;
       }
@@ -4932,11 +5220,13 @@ async function sharePaymentStatusToDiscord() {
   const entries = Object.values(grouped)
     .map((g) => {
       const paidDb = g.rows.length ? g.rows.every((x) => !!x.paid) : false;
-      const paid = paidDb || paidPeople.has(makePersonStatusKey(g.batch, g.name));
+      const paid =
+        paidDb || paidPeople.has(makePersonStatusKey(g.batch, g.name));
       return { ...g, paid };
     })
     .sort((a, b) => {
-      if ((b.batch || 0) !== (a.batch || 0)) return (b.batch || 0) - (a.batch || 0);
+      if ((b.batch || 0) !== (a.batch || 0))
+        return (b.batch || 0) - (a.batch || 0);
       if (a.paid !== b.paid) return a.paid ? -1 : 1;
       return a.name.localeCompare(b.name);
     });
@@ -4953,7 +5243,12 @@ async function sharePaymentStatusToDiscord() {
     const totalQty = rows.reduce((sum, r) => sum + (r.qty || 0), 0);
     const totalMoney = rows.reduce((sum, r) => sum + (r.total || 0), 0);
     if (!rows.length) {
-      return [`### ${title}`, `> Orang: 0 • Item: 0 • Total: ${fmt(0)}`, "", "_Tidak ada data_"].join("\n");
+      return [
+        `### ${title}`,
+        `> Orang: 0 • Item: 0 • Total: ${fmt(0)}`,
+        "",
+        "_Tidak ada data_",
+      ].join("\n");
     }
     const entriesText = rows.map((r) => {
       const periodText = singleBatchLabel ? "" : ` • ${fmtBatch(r.batch)}`;
@@ -4973,8 +5268,7 @@ async function sharePaymentStatusToDiscord() {
     const allNames = [
       "```yaml",
       ...entriesText.map(
-        (r) =>
-          `${r.label.padEnd(maxLabel)} : ${r.total.padStart(maxTotal)}`
+        (r) => `${r.label.padEnd(maxLabel)} : ${r.total.padStart(maxTotal)}`
       ),
       "```",
     ].join("\n");
@@ -4988,17 +5282,19 @@ async function sharePaymentStatusToDiscord() {
       .join("\n");
   };
 
-  const batchLabels = Array.from(new Set(entries.map((x) => fmtBatch(x.batch))));
+  const batchLabels = Array.from(
+    new Set(entries.map((x) => fmtBatch(x.batch)))
+  );
   const singleBatchLabel = batchLabels.length === 1 ? batchLabels[0] : "";
   const periodText = singleBatchLabel
     ? singleBatchLabel
     : batchLabels.length > 1
-    ? batchLabels.join(", ")
-    : month
-    ? weekVal
-      ? `M${month}-W${weekVal}`
-      : `M${month}`
-    : "-";
+      ? batchLabels.join(", ")
+      : month
+        ? weekVal
+          ? `M${month}-W${weekVal}`
+          : `M${month}`
+        : "-";
   const message = [
     "## Status Pembayaran Order Senjata",
     `> 🗓️ Periode: ${periodText}`,
@@ -5016,32 +5312,38 @@ async function sharePaymentStatusToDiscord() {
 }
 function showAlert(message, type = "info") {
   // SweetAlert2 Implementation
-  if (typeof Swal !== 'undefined') {
+  if (typeof Swal !== "undefined") {
     const icons = {
-      success: 'success',
-      error: 'error',
-      warning: 'warning',
-      info: 'info'
+      success: "success",
+      error: "error",
+      warning: "warning",
+      info: "info",
     };
 
     Swal.fire({
       text: message,
-      icon: icons[type] || 'info',
+      icon: icons[type] || "info",
       toast: true,
-      position: 'top-end',
+      position: "top-end",
       showConfirmButton: false,
       timer: 3000,
       timerProgressBar: true,
-      background: '#1a0f0a',
-      color: '#fef3c7',
-      iconColor: type === 'success' ? '#fbbf24' : (type === 'error' ? '#ef4444' : '#eab308'),
+      background: "#1a0f0a",
+      color: "#fef3c7",
+      iconColor:
+        type === "success"
+          ? "#fbbf24"
+          : type === "error"
+            ? "#ef4444"
+            : "#eab308",
       customClass: {
-        popup: 'rage-modal-popup border-amber-500/30 shadow-2xl rounded-2xl p-4'
+        popup:
+          "rage-modal-popup border-amber-500/30 shadow-2xl rounded-2xl p-4",
       },
       didOpen: (toast) => {
         toast.onmouseenter = Swal.stopTimer;
         toast.onmouseleave = Swal.resumeTimer;
-      }
+      },
     });
     return;
   }
@@ -5056,8 +5358,8 @@ function showAlert(message, type = "info") {
     type === "success"
       ? "bg-green-600"
       : type === "error"
-      ? "bg-red-600"
-      : "bg-yellow-600";
+        ? "bg-red-600"
+        : "bg-yellow-600";
   box.className = `${base} ${color}`;
   box.textContent = message;
   box.classList.remove("hidden");
@@ -5086,15 +5388,17 @@ async function loadMemberListInModal() {
   const list = document.getElementById("memberList");
   const countBadge = document.getElementById("memberCountBadge");
   if (!list) return;
-  list.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500 animate-pulse">Loading...</td></tr>';
-  
+  list.innerHTML =
+    '<tr><td colspan="3" class="text-center p-8 text-slate-500 animate-pulse">Loading...</td></tr>';
+
   const { data, error } = await supabase
     .from("members")
     .select("id,nama,role")
     .order("nama", { ascending: true });
 
   if (error || !data) {
-    list.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-red-500">Gagal memuat member</td></tr>';
+    list.innerHTML =
+      '<tr><td colspan="3" class="text-center p-8 text-red-500">Gagal memuat member</td></tr>';
     if (countBadge) countBadge.innerText = "0";
     return;
   }
@@ -5102,37 +5406,50 @@ async function loadMemberListInModal() {
   if (countBadge) countBadge.innerText = data.length;
 
   if (data.length === 0) {
-    list.innerHTML = '<tr><td colspan="3" class="text-center p-8 text-slate-500">Belum ada member</td></tr>';
+    list.innerHTML =
+      '<tr><td colspan="3" class="text-center p-8 text-slate-500">Belum ada member</td></tr>';
     return;
   }
 
-  list.innerHTML = data.map(m => {
-    // Role logic
-    const roles = ['Internship', 'Hangaround', 'Hoodlum', 'Highrank', 'Admin'];
-    const currentRole = m.role || 'Hoodlum';
-    
-    // Style logic
-    let btnClass = "";
-    let dotClass = "";
-    
-    if (currentRole === 'Admin') {
-      btnClass = "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/20 dark:hover:bg-purple-500/20";
-      dotClass = "bg-purple-500";
-    } else if (currentRole === 'Highrank') {
-      btnClass = "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20 dark:hover:bg-red-500/20";
-      dotClass = "bg-red-500";
-    } else if (currentRole === 'Hoodlum') {
-      btnClass = "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20 dark:hover:bg-amber-500/20";
-      dotClass = "bg-amber-500";
-    } else if (currentRole === 'Hangaround') {
-      btnClass = "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/20 dark:hover:bg-blue-500/20";
-      dotClass = "bg-blue-500";
-    } else {
-      btnClass = "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-500/10 dark:text-green-300 dark:border-green-500/20 dark:hover:bg-green-500/20";
-      dotClass = "bg-green-500";
-    }
+  list.innerHTML = data
+    .map((m) => {
+      // Role logic
+      const roles = [
+        "Internship",
+        "Hangaround",
+        "Hoodlum",
+        "Highrank",
+        "Admin",
+      ];
+      const currentRole = m.role || "Hoodlum";
 
-    return `
+      // Style logic
+      let btnClass = "";
+      let dotClass = "";
+
+      if (currentRole === "Admin") {
+        btnClass =
+          "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 dark:bg-purple-500/10 dark:text-purple-300 dark:border-purple-500/20 dark:hover:bg-purple-500/20";
+        dotClass = "bg-purple-500";
+      } else if (currentRole === "Highrank") {
+        btnClass =
+          "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-300 dark:border-red-500/20 dark:hover:bg-red-500/20";
+        dotClass = "bg-red-500";
+      } else if (currentRole === "Hoodlum") {
+        btnClass =
+          "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20 dark:hover:bg-amber-500/20";
+        dotClass = "bg-amber-500";
+      } else if (currentRole === "Hangaround") {
+        btnClass =
+          "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/20 dark:hover:bg-blue-500/20";
+        dotClass = "bg-blue-500";
+      } else {
+        btnClass =
+          "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-500/10 dark:text-green-300 dark:border-green-500/20 dark:hover:bg-green-500/20";
+        dotClass = "bg-green-500";
+      }
+
+      return `
     <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group border-b border-transparent last:border-0">
       <td class="px-5 py-3 font-medium text-slate-700 dark:text-slate-200">
         ${m.nama}
@@ -5152,26 +5469,30 @@ async function loadMemberListInModal() {
             
             <div id="dropdown-${m.id}" class="role-dropdown-menu hidden absolute top-full left-0 mt-2 w-40 bg-white dark:bg-[#1a1410] rounded-xl border border-slate-200 dark:border-[#3d342d] shadow-xl z-50 overflow-hidden ring-1 ring-black/5 dark:ring-white/10 origin-top-left animate-in fade-in zoom-in-95 duration-100">
                 <div class="py-1">
-                    ${roles.map(r => {
+                    ${roles
+                      .map((r) => {
                         let dot = "bg-slate-400";
-                        if (r === 'Admin') dot = "bg-purple-500";
-                        if (r === 'Highrank') dot = "bg-red-500";
-                        if (r === 'Hoodlum') dot = "bg-amber-500";
-                        if (r === 'Hangaround') dot = "bg-blue-500";
-                        if (r === 'Internship') dot = "bg-green-500";
-                        
+                        if (r === "Admin") dot = "bg-purple-500";
+                        if (r === "Highrank") dot = "bg-red-500";
+                        if (r === "Hoodlum") dot = "bg-amber-500";
+                        if (r === "Hangaround") dot = "bg-blue-500";
+                        if (r === "Internship") dot = "bg-green-500";
+
                         const isActive = r === currentRole;
-                        const activeClass = isActive ? "bg-slate-50 dark:bg-white/5" : "";
-                        
+                        const activeClass = isActive
+                          ? "bg-slate-50 dark:bg-white/5"
+                          : "";
+
                         return `
                         <button onclick="selectMemberRole('${m.id}', '${r}')" 
                             class="w-full text-left px-3 py-2 text-xs font-medium hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center gap-3 ${activeClass} text-slate-700 dark:text-slate-300">
-                            <span class="w-2 h-2 rounded-full ${dot} ${isActive ? 'ring-2 ring-offset-1 ring-slate-200 dark:ring-offset-black dark:ring-slate-700' : ''}"></span>
+                            <span class="w-2 h-2 rounded-full ${dot} ${isActive ? "ring-2 ring-offset-1 ring-slate-200 dark:ring-offset-black dark:ring-slate-700" : ""}"></span>
                             ${r}
-                            ${isActive ? '<svg class="w-3 h-3 ml-auto text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' : ''}
+                            ${isActive ? '<svg class="w-3 h-3 ml-auto text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>' : ""}
                         </button>
-                        `
-                    }).join('')}
+                        `;
+                      })
+                      .join("")}
                 </div>
             </div>
         </div>
@@ -5185,45 +5506,49 @@ async function loadMemberListInModal() {
         </button>
       </td>
     </tr>
-  `}).join("");
+  `;
+    })
+    .join("");
 }
 
 // Global functions for custom dropdown
-window.toggleRoleDropdown = function(id) {
-    // Close other dropdowns first
-    const allDropdowns = document.querySelectorAll('.role-dropdown-menu');
-    allDropdowns.forEach(d => {
-        if (d.id !== `dropdown-${id}`) d.classList.add('hidden');
-    });
-    
-    const dropdown = document.getElementById(`dropdown-${id}`);
-    if (dropdown) {
-        dropdown.classList.toggle('hidden');
-    }
-    
-    // Stop propagation to prevent immediate closing
-    if (window.event) window.event.stopPropagation();
-}
+window.toggleRoleDropdown = function (id) {
+  // Close other dropdowns first
+  const allDropdowns = document.querySelectorAll(".role-dropdown-menu");
+  allDropdowns.forEach((d) => {
+    if (d.id !== `dropdown-${id}`) d.classList.add("hidden");
+  });
 
-window.selectMemberRole = function(id, role) {
-    updateMemberRole(id, role);
-    const dropdown = document.getElementById(`dropdown-${id}`);
-    if (dropdown) dropdown.classList.add('hidden');
-    if (window.event) window.event.stopPropagation();
-}
+  const dropdown = document.getElementById(`dropdown-${id}`);
+  if (dropdown) {
+    dropdown.classList.toggle("hidden");
+  }
+
+  // Stop propagation to prevent immediate closing
+  if (window.event) window.event.stopPropagation();
+};
+
+window.selectMemberRole = function (id, role) {
+  updateMemberRole(id, role);
+  const dropdown = document.getElementById(`dropdown-${id}`);
+  if (dropdown) dropdown.classList.add("hidden");
+  if (window.event) window.event.stopPropagation();
+};
 
 // Close dropdowns when clicking outside
-window.addEventListener('click', function(e) {
-    if (!e.target.closest('.role-dropdown-container')) {
-        document.querySelectorAll('.role-dropdown-menu').forEach(d => d.classList.add('hidden'));
-    }
+window.addEventListener("click", function (e) {
+  if (!e.target.closest(".role-dropdown-container")) {
+    document
+      .querySelectorAll(".role-dropdown-menu")
+      .forEach((d) => d.classList.add("hidden"));
+  }
 });
 
-window.filterMembers = function() {
-  const input = document.getElementById('memberSearchInput');
+window.filterMembers = function () {
+  const input = document.getElementById("memberSearchInput");
   const filter = input.value.toUpperCase();
   const list = document.getElementById("memberList");
-  const tr = list.getElementsByTagName('tr');
+  const tr = list.getElementsByTagName("tr");
 
   for (let i = 0; i < tr.length; i++) {
     const td = tr[i].getElementsByTagName("td")[0];
@@ -5236,26 +5561,28 @@ window.filterMembers = function() {
       }
     }
   }
-}
+};
 
-window.updateMemberRole = async function(id, newRole) {
+window.updateMemberRole = async function (id, newRole) {
   if (!isAdminMember(window.__currentMember || null)) {
     showAlert("Hanya Admin yang bisa mengubah role", "error");
     loadMemberListInModal();
     return;
   }
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session) {
     showAlert("Harus login untuk mengubah role", "error");
     loadMemberListInModal(); // Reset select to previous value
     return;
   }
-  
+
   const { error } = await supabase
     .from("members")
     .update({ role: newRole })
     .eq("id", id);
-    
+
   if (error) {
     showAlert("Gagal mengubah role: " + error.message, "error");
     loadMemberListInModal(); // Reset on error
@@ -5264,16 +5591,18 @@ window.updateMemberRole = async function(id, newRole) {
     // Clear cache agar perubahan role langsung terdeteksi saat order
     if (window.__memberRoleCache) delete window.__memberRoleCache[id];
   }
-}
+};
 
-window.deleteMember = async function(id, name) {
+window.deleteMember = async function (id, name) {
   if (!isAdminMember(window.__currentMember || null)) {
     showAlert("Hanya Admin yang bisa menghapus member", "error");
     return;
   }
   try {
     // 0. Check session
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
       showAlert("Harus login untuk menghapus member", "error");
       return;
@@ -5312,7 +5641,7 @@ window.deleteMember = async function(id, name) {
     const orderCountSafe = orderCount || 0;
     const storanCountSafe = storanCount || 0;
     const drugsCountSafe = drugsCount || 0;
-      
+
     let confirmMsg = `Yakin ingin menghapus member "${name}"?`;
     const parts = [];
     if (orderCountSafe > 0) parts.push(`${orderCountSafe} history order`);
@@ -5325,21 +5654,21 @@ window.deleteMember = async function(id, name) {
         `\n\nMenghapus member ini akan MENGHAPUS SEMUA data tersebut.\n\nApakah Anda yakin ingin melanjutkan?`;
     }
 
-  const result = await Swal.fire({
-      title: 'Konfirmasi Hapus',
+    const result = await Swal.fire({
+      title: "Konfirmasi Hapus",
       text: confirmMsg,
-      icon: 'warning',
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#d33',
-      cancelButtonColor: '#3085d6',
-      confirmButtonText: 'Ya, hapus',
-      cancelButtonText: 'Batal',
-      background: '#1f1410',
-      color: '#fef3c7'
-  });
-  
-  if (!result.isConfirmed) return;
-  
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Ya, hapus",
+      cancelButtonText: "Batal",
+      background: "#1f1410",
+      color: "#fef3c7",
+    });
+
+    if (!result.isConfirmed) return;
+
     const deletions = [
       { table: "orders", label: "history order" },
       { table: "storan_logs", label: "log storan" },
@@ -5359,7 +5688,10 @@ window.deleteMember = async function(id, name) {
         .select("*", { count: "exact", head: true })
         .eq("member_id", memberId);
       if (remainErr) {
-        showAlert(`Gagal verifikasi hapus ${d.label} (permission/RLS)`, "error");
+        showAlert(
+          `Gagal verifikasi hapus ${d.label} (permission/RLS)`,
+          "error"
+        );
         return;
       }
       if ((remain || 0) > 0) {
@@ -5387,7 +5719,7 @@ window.deleteMember = async function(id, name) {
         return;
       }
     }
-    
+
     // 3. Delete member
     const { error } = await supabase
       .from("members")
@@ -5395,27 +5727,33 @@ window.deleteMember = async function(id, name) {
       .eq("id", memberId);
 
     if (error) {
-      showAlert("Gagal menghapus member dari database: " + error.message, "error");
+      showAlert(
+        "Gagal menghapus member dari database: " + error.message,
+        "error"
+      );
     } else {
       // 4. Double check deletion
       const { count: checkCount } = await supabase
         .from("members")
-        .select("*", { count: 'exact', head: true })
+        .select("*", { count: "exact", head: true })
         .eq("id", memberId);
-        
+
       if (checkCount === 0) {
-          showAlert("Member dan datanya berhasil dihapus permanen.", "success");
-          loadMemberListInModal();
-          updateDashNameSuggestions();
-          loadDashboard(true);
+        showAlert("Member dan datanya berhasil dihapus permanen.", "success");
+        loadMemberListInModal();
+        updateDashNameSuggestions();
+        loadDashboard(true);
       } else {
-          showAlert("Gagal: Member masih ada di database. Cek permission/RLS.", "error");
+        showAlert(
+          "Gagal: Member masih ada di database. Cek permission/RLS.",
+          "error"
+        );
       }
     }
   } catch (e) {
     showAlert("Gagal menjalankan hapus member (runtime error)", "error");
   }
-}
+};
 
 // --- DRUGS SECTION ---
 let currentDrugsBatch = null;
@@ -5423,7 +5761,7 @@ let drugsSalesHasJenisJumlah = null;
 
 async function initDrugs(member) {
   console.log("Initializing Drugs section...");
-  
+
   try {
     const win = await fetchActiveOrderWindow(null, "drugs");
     if (win && win.orderanke) {
@@ -5465,7 +5803,10 @@ async function initDrugs(member) {
     updateDrugsNameValidity();
     const submitBtn0 = document.getElementById("submitDrugs");
     if (submitBtn0) submitBtn0.disabled = true;
-    showAlert("Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.", "error");
+    showAlert(
+      "Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.",
+      "error"
+    );
   }
   await checkDrugsSalesJenisJumlahSchema();
   loadDrugsTable();
@@ -5484,7 +5825,7 @@ async function initDrugs(member) {
   if (duitMerahInput && estimasiGajiEl) {
     duitMerahInput.addEventListener("input", () => {
       const val = parseFloat(duitMerahInput.value) || 0;
-      const gaji = (val * 0.35) * 0.65;
+      const gaji = val * 0.35 * 0.65;
       estimasiGajiEl.textContent = fmt(gaji);
     });
   }
@@ -5493,7 +5834,9 @@ async function initDrugs(member) {
     submitBtn.addEventListener("click", submitDrugsData);
   }
   if (cancelEditBtn) {
-    cancelEditBtn.addEventListener("click", () => resetDrugsForm(window.__currentMember || null));
+    cancelEditBtn.addEventListener("click", () =>
+      resetDrugsForm(window.__currentMember || null)
+    );
   }
 
   if (refreshBtn) {
@@ -5509,11 +5852,16 @@ async function initDrugs(member) {
     else addBatchBtn.classList.add("hidden");
   }
   if (sendTotalsBtn) {
-    if (isAdmin) sendTotalsBtn.addEventListener("click", sendDrugsTotalsToDiscord);
+    if (isAdmin)
+      sendTotalsBtn.addEventListener("click", sendDrugsTotalsToDiscord);
     else sendTotalsBtn.classList.add("hidden");
   }
   if (setActiveBatchBtn) {
-    if (isAdmin) setActiveBatchBtn.addEventListener("click", openSelectActiveDrugsBatchModal);
+    if (isAdmin)
+      setActiveBatchBtn.addEventListener(
+        "click",
+        openSelectActiveDrugsBatchModal
+      );
     else setActiveBatchBtn.classList.add("hidden");
   }
 }
@@ -5570,11 +5918,17 @@ function startEditDrugsRow(row) {
   if (nameEl) nameEl.value = String(row.nama || "");
   if (memberIdEl) memberIdEl.value = row.member_id ? String(row.member_id) : "";
   if (editIdEl) editIdEl.value = row.primaryId ? String(row.primaryId) : "";
-  if (editBatchEl) editBatchEl.value = row.periode_orderanke ? String(row.periode_orderanke) : "";
+  if (editBatchEl)
+    editBatchEl.value = row.periode_orderanke
+      ? String(row.periode_orderanke)
+      : "";
   if (jenisEl) jenisEl.value = String(row.jenis || "Weed");
   if (jumlahEl) jumlahEl.value = String(parseFloat(row.jumlah) || 0);
   if (duitEl) duitEl.value = String(parseFloat(row.uang_merah) || 0);
-  if (estimasiEl) estimasiEl.textContent = fmt((parseFloat(row.uang_merah) || 0) * 0.35 * 0.65);
+  if (estimasiEl)
+    estimasiEl.textContent = fmt(
+      (parseFloat(row.uang_merah) || 0) * 0.35 * 0.65
+    );
   if (statusEl) {
     statusEl.textContent = "Mode edit data drugs";
     statusEl.classList.remove("text-red-500");
@@ -5589,8 +5943,16 @@ async function checkDrugsSalesJenisJumlahSchema() {
     drugsSalesHasJenisJumlah = false;
     return drugsSalesHasJenisJumlah;
   }
-  const { error } = await supabase.from("drugs_sales").select("jenis,jumlah").limit(1);
-  if (error && String(error.message || "").toLowerCase().includes("column")) {
+  const { error } = await supabase
+    .from("drugs_sales")
+    .select("jenis,jumlah")
+    .limit(1);
+  if (
+    error &&
+    String(error.message || "")
+      .toLowerCase()
+      .includes("column")
+  ) {
     drugsSalesHasJenisJumlah = false;
     showAlert(
       "Kolom 'jenis' & 'jumlah' belum ada di database (drugs_sales). Tambahkan dulu di Supabase supaya tampil di riwayat.",
@@ -5637,7 +5999,10 @@ async function openSelectActiveDrugsBatchModal() {
     inputOptions[String(r.id)] = `M${m}-W${w} (#${raw})${active}`;
   });
 
-  const current = rows.find((r) => parseInt(r.orderanke || 0, 10) === parseInt(currentDrugsBatch || 0, 10));
+  const current = rows.find(
+    (r) =>
+      parseInt(r.orderanke || 0, 10) === parseInt(currentDrugsBatch || 0, 10)
+  );
   const res = await Swal.fire({
     title: "Atur Periode Aktif Drugs",
     input: "select",
@@ -5743,7 +6108,10 @@ async function openSelectActiveDrugsBatchModal() {
         .delete()
         .eq("periode_orderanke", periodeOrderanke);
       if (delSalesErr) {
-        showAlert("Gagal menghapus data drugs: " + delSalesErr.message, "error");
+        showAlert(
+          "Gagal menghapus data drugs: " + delSalesErr.message,
+          "error"
+        );
         return;
       }
     }
@@ -5816,44 +6184,48 @@ async function openCreateBatchModal() {
   }
   const currentVal = currentDrugsBatch ? currentDrugsBatch - 1000 : null;
   const { value: formValues } = await Swal.fire({
-    title: 'Tambah Batch Drugs Baru',
+    title: "Tambah Batch Drugs Baru",
     html:
       '<div class="flex flex-col gap-5 py-2">' +
       '  <div class="flex flex-col text-left gap-2">' +
       '    <label class="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] ml-1">Bulan (M)</label>' +
-      '    <input id="swal-month" type="number" class="swal2-input rage-modal-input" placeholder="Contoh: 2" value="' + (currentVal ? Math.floor(currentVal / 10) : "") + '">' +
-      '  </div>' +
+      '    <input id="swal-month" type="number" class="swal2-input rage-modal-input" placeholder="Contoh: 2" value="' +
+      (currentVal ? Math.floor(currentVal / 10) : "") +
+      '">' +
+      "  </div>" +
       '  <div class="flex flex-col text-left gap-2">' +
       '    <label class="text-[10px] font-black text-amber-500/50 uppercase tracking-[0.2em] ml-1">Minggu (W)</label>' +
-      '    <input id="swal-week" type="number" class="swal2-input rage-modal-input" placeholder="Contoh: 4" value="' + (currentVal ? (currentVal % 10) + 1 : "") + '">' +
-      '  </div>' +
+      '    <input id="swal-week" type="number" class="swal2-input rage-modal-input" placeholder="Contoh: 4" value="' +
+      (currentVal ? (currentVal % 10) + 1 : "") +
+      '">' +
+      "  </div>" +
       '  <div class="p-4 bg-amber-500/5 border border-amber-500/10 text-amber-200/60 text-[11px] rounded-xl text-left italic leading-relaxed">' +
-      '    *Batch Drugs dipisahkan dari sistem Orderan. Membuat batch baru hanya akan menutup batch Drugs aktif sebelumnya.' +
-      '  </div>' +
-      '</div>',
+      "    *Batch Drugs dipisahkan dari sistem Orderan. Membuat batch baru hanya akan menutup batch Drugs aktif sebelumnya." +
+      "  </div>" +
+      "</div>",
     focusConfirm: false,
     showCancelButton: true,
-    confirmButtonText: 'Buat Batch',
-    cancelButtonText: 'Batal',
+    confirmButtonText: "Buat Batch",
+    cancelButtonText: "Batal",
     reverseButtons: true,
     customClass: {
-      popup: 'rage-modal-popup',
-      title: 'rage-modal-title',
-      confirmButton: 'rage-modal-confirm',
-      cancelButton: 'rage-modal-cancel'
+      popup: "rage-modal-popup",
+      title: "rage-modal-title",
+      confirmButton: "rage-modal-confirm",
+      cancelButton: "rage-modal-cancel",
     },
     preConfirm: () => {
       return [
-        document.getElementById('swal-month').value,
-        document.getElementById('swal-week').value
-      ]
-    }
+        document.getElementById("swal-month").value,
+        document.getElementById("swal-week").value,
+      ];
+    },
   });
 
   if (formValues) {
     const m = parseInt(formValues[0], 10);
     const w = parseInt(formValues[1], 10);
-    
+
     if (isNaN(m) || isNaN(w) || m < 1 || w < 1) {
       showAlert("Bulan dan Minggu harus diisi angka valid", "error");
       return;
@@ -5870,13 +6242,13 @@ async function openCreateBatchModal() {
         .update({ is_active: false })
         .eq("is_active", true)
         .gte("orderanke", 1000);
-      
+
       // 2. Insert new one
       const { error } = await supabase.from("order_windows").insert({
         orderanke,
         start_time: now.toISOString(),
         end_time: end.toISOString(),
-        is_active: true
+        is_active: true,
       });
 
       if (error) {
@@ -5906,7 +6278,7 @@ function setupDrugsNameSearch() {
       )
       .join("");
     dd.classList.toggle("hidden", items.length === 0);
-    
+
     dd.querySelectorAll("[data-id]").forEach((el) =>
       el.addEventListener("mousedown", (e) => {
         input.value = e.currentTarget.getAttribute("data-name");
@@ -5933,7 +6305,7 @@ function setupDrugsNameSearch() {
         .select("id,nama")
         .order("nama", { ascending: true })
         .limit(20);
-    
+
     const { data, error } = await q;
     if (error) return;
     active = -1;
@@ -5968,7 +6340,9 @@ function setupDrugsNameSearch() {
       el.classList.toggle("bg-amber-500/30", i === active)
     );
   });
-  input.addEventListener("blur", () => setTimeout(() => dd.classList.add("hidden"), 200));
+  input.addEventListener("blur", () =>
+    setTimeout(() => dd.classList.add("hidden"), 200)
+  );
 }
 
 function updateDrugsNameValidity() {
@@ -5988,7 +6362,8 @@ async function submitDrugsData() {
   const adminMode = isAdminMember(currentMember);
   const memberIdRaw = document.getElementById("drugsMemberId").value;
   const editIdRaw = (document.getElementById("drugsEditId") || {}).value || "";
-  const editBatchRaw = (document.getElementById("drugsEditBatch") || {}).value || "";
+  const editBatchRaw =
+    (document.getElementById("drugsEditBatch") || {}).value || "";
   const editingId = String(editIdRaw || "").trim();
   const memberId =
     !adminMode && currentMember && currentMember.id
@@ -6000,7 +6375,9 @@ async function submitDrugsData() {
       : document.getElementById("drugsNama").value.trim();
   const duitMerah = parseFloat(document.getElementById("duitMerah").value) || 0;
   const jenis = (document.getElementById("drugsJenis") || {}).value || "";
-  const jumlah = parseInt((document.getElementById("drugsJumlah") || {}).value || "0", 10) || 0;
+  const jumlah =
+    parseInt((document.getElementById("drugsJumlah") || {}).value || "0", 10) ||
+    0;
 
   if (!nama) {
     showAlert("Pilih nama anggota terlebih dahulu", "error");
@@ -6011,9 +6388,11 @@ async function submitDrugsData() {
     return;
   }
   const memberIdEl = document.getElementById("drugsMemberId");
-  if (memberIdEl && !Number.isNaN(memberId) && memberId) memberIdEl.value = String(memberId);
+  if (memberIdEl && !Number.isNaN(memberId) && memberId)
+    memberIdEl.value = String(memberId);
   const nameEl = document.getElementById("drugsNama");
-  if (!adminMode && nameEl && currentMember && currentMember.nama) nameEl.value = String(currentMember.nama);
+  if (!adminMode && nameEl && currentMember && currentMember.nama)
+    nameEl.value = String(currentMember.nama);
   if (!jenis) {
     showAlert("Pilih jenis jualan (Weed/Meth)", "error");
     return;
@@ -6022,7 +6401,8 @@ async function submitDrugsData() {
     showAlert("Masukkan jumlah terjual yang valid", "error");
     return;
   }
-  const targetBatch = parseInt(editBatchRaw || "", 10) || currentDrugsBatch || 0;
+  const targetBatch =
+    parseInt(editBatchRaw || "", 10) || currentDrugsBatch || 0;
   if (!targetBatch) {
     showAlert("Tidak ada batch drugs aktif", "error");
     return;
@@ -6038,8 +6418,8 @@ async function submitDrugsData() {
   // Rumus:
   // Gaji Putih = (duit merah * 35%) * 65%
   // Uang RAGE = (duit merah * 65%) * 65%
-  const upahPutih = duitMerah > 0 ? (duitMerah * 0.35) * 0.65 : 0;
-  const uangRage = duitMerah > 0 ? (duitMerah * 0.65) * 0.65 : 0;
+  const upahPutih = duitMerah > 0 ? duitMerah * 0.35 * 0.65 : 0;
+  const uangRage = duitMerah > 0 ? duitMerah * 0.65 * 0.65 : 0;
 
   const nowIso = new Date().toISOString();
   if (editingId) {
@@ -6054,8 +6434,16 @@ async function submitDrugsData() {
       jenis,
       jumlah,
     };
-    let { error } = await supabase.from("drugs_sales").update(updatePayload).eq("id", editingId);
-    if (error && String(error.message || "").toLowerCase().includes("column")) {
+    let { error } = await supabase
+      .from("drugs_sales")
+      .update(updatePayload)
+      .eq("id", editingId);
+    if (
+      error &&
+      String(error.message || "")
+        .toLowerCase()
+        .includes("column")
+    ) {
       updatePayload = {
         member_id: memberId,
         nama,
@@ -6065,7 +6453,10 @@ async function submitDrugsData() {
         periode_orderanke: targetBatch,
         waktu: nowIso,
       };
-      const res2 = await supabase.from("drugs_sales").update(updatePayload).eq("id", editingId);
+      const res2 = await supabase
+        .from("drugs_sales")
+        .update(updatePayload)
+        .eq("id", editingId);
       error = res2.error || null;
     }
     if (error) {
@@ -6101,7 +6492,12 @@ async function submitDrugsData() {
       .eq("jenis", jenis)
       .order("waktu", { ascending: false })
       .limit(1);
-    if (exErr && String(exErr.message || "").toLowerCase().includes("column")) {
+    if (
+      exErr &&
+      String(exErr.message || "")
+        .toLowerCase()
+        .includes("column")
+    ) {
       const { data: exData2 } = await supabase
         .from("drugs_sales")
         .select("id,uang_merah,upah_putih,uang_rage,waktu")
@@ -6132,7 +6528,12 @@ async function submitDrugsData() {
       .from("drugs_sales")
       .update(updatePayload)
       .eq("id", existing.id);
-    if (error && String(error.message || "").toLowerCase().includes("column")) {
+    if (
+      error &&
+      String(error.message || "")
+        .toLowerCase()
+        .includes("column")
+    ) {
       updatePayload = {
         uang_merah: nextUangMerah,
         upah_putih: nextUpahPutih,
@@ -6178,7 +6579,12 @@ async function submitDrugsData() {
       jumlah,
     };
     let { error } = await supabase.from("drugs_sales").insert(insertPayload);
-    if (error && String(error.message || "").toLowerCase().includes("column")) {
+    if (
+      error &&
+      String(error.message || "")
+        .toLowerCase()
+        .includes("column")
+    ) {
       insertPayload = {
         member_id: memberId,
         nama: nama,
@@ -6236,25 +6642,26 @@ async function sendDrugsEntryToDiscord(payload) {
     const periodeLabel = periode
       ? `M${periode.m}-W${periode.w} (#${periode.raw})`
       : "-";
-    const ts = payload && payload.waktu ? payload.waktu : new Date().toISOString();
+    const ts =
+      payload && payload.waktu ? payload.waktu : new Date().toISOString();
 
     const modeLabel =
       payload && payload.mode === "edit"
         ? "UPDATE DATA"
         : payload && payload.mode === "update"
-        ? "TAMBAH KE TOTAL"
-        : "INPUT BARU";
-        
+          ? "TAMBAH KE TOTAL"
+          : "INPUT BARU";
+
     let modeColor = 0xfbbf24; // yellow-400 (Input Baru)
-    if (payload.mode === "edit") modeColor = 0x3b82f6; // blue-500 (Update Data)
+    if (payload.mode === "edit")
+      modeColor = 0x3b82f6; // blue-500 (Update Data)
     else if (payload.mode === "update") modeColor = 0x8b5cf6; // violet-500 (Tambah Total)
 
     let modeText = "INPUT BARU";
     if (payload.mode === "edit") modeText = "UPDATE DATA";
     else if (payload.mode === "update") modeText = "TAMBAH TOTAL";
 
-    const desc = 
-`\`Nama   :\` **${payload.nama || "-"}**
+    const desc = `\`Nama   :\` **${payload.nama || "-"}**
 \`Jenis  :\` **${payload.jenis || "-"}**
 \`Jumlah :\` **${payload.jumlahTotal != null ? fmtNumber(payload.jumlahTotal) : "-"} items**`;
 
@@ -6266,16 +6673,16 @@ async function sendDrugsEntryToDiscord(payload) {
         {
           name: "🔴  Duit Merah",
           value: `\`\`\`diff\n- ${fmt(payload.duitMerahTotal || 0)}\n\`\`\``,
-          inline: false
+          inline: false,
         },
         {
           name: "🟢  Gaji Putih",
           value: `\`\`\`diff\n+ ${fmt(payload.upahPutihTotal || 0)}\n\`\`\``,
-          inline: false
-        }
+          inline: false,
+        },
       ],
       footer: { text: `Periode: ${periodeLabel}` },
-      timestamp: ts
+      timestamp: ts,
     };
 
     await postToDiscordEmbed(embed, hook);
@@ -6338,19 +6745,22 @@ async function sendDrugsTotalsToDiscord() {
     prev.uang_merah += parseFloat(r.uang_merah) || 0;
     prev.upah_putih += parseFloat(r.upah_putih) || 0;
     prev.uang_rage += parseFloat(r.uang_rage) || 0;
-    if (!prev.waktu || new Date(r.waktu).getTime() > new Date(prev.waktu).getTime()) {
+    if (
+      !prev.waktu ||
+      new Date(r.waktu).getTime() > new Date(prev.waktu).getTime()
+    ) {
       prev.waktu = r.waktu;
     }
     map.set(key, prev);
   });
 
   const periode = decodeOrderanke(parseInt(currentDrugsBatch, 10));
-  
+
   let desc = "Berikut adalah total gaji karyawan untuk batch ini:\n";
   desc += "```yaml\n";
   desc += "NAMA               GAJI PUTIH \n";
   desc += "------------------------------\n";
-  
+
   Array.from(map.values())
     .sort((a, b) => String(a.nama).localeCompare(String(b.nama)))
     .forEach((r) => {
@@ -6365,7 +6775,7 @@ async function sendDrugsTotalsToDiscord() {
     color: 0x10b981, // Emerald-500
     description: desc,
     footer: { text: `ID Periode: #${periode.raw}` },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 
   try {
@@ -6383,7 +6793,8 @@ async function loadDrugsTable() {
   const filter = document.getElementById("drugsBatchFilter");
   if (!body) return;
 
-  body.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
+  body.innerHTML =
+    '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
 
   let query = supabase
     .from("drugs_sales")
@@ -6430,14 +6841,18 @@ async function loadDrugsTable() {
     prev.uang_merah += parseFloat(r.uang_merah) || 0;
     prev.upah_putih += parseFloat(r.upah_putih) || 0;
     prev.uang_rage += parseFloat(r.uang_rage) || 0;
-    if (!prev.waktu || new Date(r.waktu).getTime() > new Date(prev.waktu).getTime()) {
+    if (
+      !prev.waktu ||
+      new Date(r.waktu).getTime() > new Date(prev.waktu).getTime()
+    ) {
       prev.waktu = r.waktu;
     }
     grouped.set(key, prev);
   });
 
   const rows = Array.from(grouped.values()).sort(
-    (a, b) => new Date(b.waktu || 0).getTime() - new Date(a.waktu || 0).getTime()
+    (a, b) =>
+      new Date(b.waktu || 0).getTime() - new Date(a.waktu || 0).getTime()
   );
 
   body.innerHTML = rows
@@ -6481,12 +6896,16 @@ async function loadDrugsTable() {
       const row = rows.find((r) => String(r.primaryId || "").trim() === id);
       if (!row) return;
       if ((row.ids || []).length > 1) {
-        showAlert("Data gabungan lama belum bisa diedit langsung. Hapus lalu input ulang jika perlu.", "warning");
+        showAlert(
+          "Data gabungan lama belum bisa diedit langsung. Hapus lalu input ulang jika perlu.",
+          "warning"
+        );
         return;
       }
       startEditDrugsRow(row);
       const nameInput = document.getElementById("drugsNama");
-      if (nameInput) nameInput.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (nameInput)
+        nameInput.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   });
 
@@ -6500,22 +6919,25 @@ async function loadDrugsTable() {
       if (!ids.length) return;
 
       const result = await Swal.fire({
-        title: 'Hapus data ini?',
+        title: "Hapus data ini?",
         text: "Data gaji drugs akan dihapus permanen!",
-        icon: 'warning',
+        icon: "warning",
         showCancelButton: true,
-        confirmButtonText: 'Ya, hapus!',
-        cancelButtonText: 'Batal',
+        confirmButtonText: "Ya, hapus!",
+        cancelButtonText: "Batal",
         customClass: {
-          popup: 'rage-modal-popup',
-          title: 'rage-modal-title',
-          confirmButton: 'rage-modal-confirm !bg-red-600',
-          cancelButton: 'rage-modal-cancel'
-        }
+          popup: "rage-modal-popup",
+          title: "rage-modal-title",
+          confirmButton: "rage-modal-confirm !bg-red-600",
+          cancelButton: "rage-modal-cancel",
+        },
       });
 
       if (result.isConfirmed) {
-        const { error } = await supabase.from("drugs_sales").delete().in("id", ids);
+        const { error } = await supabase
+          .from("drugs_sales")
+          .delete()
+          .in("id", ids);
         if (error) {
           showAlert("Gagal menghapus: " + error.message, "error");
         } else {
@@ -6539,7 +6961,8 @@ async function initRageCash() {
   const refreshBtn = document.getElementById("rageCashRefresh");
 
   if (submitBtn) submitBtn.addEventListener("click", submitRageCash);
-  if (refreshBtn) refreshBtn.addEventListener("click", () => loadRageCashTable());
+  if (refreshBtn)
+    refreshBtn.addEventListener("click", () => loadRageCashTable());
 
   await ensureRageCashTable();
   loadRageCashTable();
@@ -6551,11 +6974,13 @@ async function ensureRageCashTable() {
     rageCashTableOk = false;
     return rageCashTableOk;
   }
-  const { error } = await supabase
-    .from("rage_cash_logs")
-    .select("id")
-    .limit(1);
-  if (error && String(error.message || "").toLowerCase().includes("relation")) {
+  const { error } = await supabase.from("rage_cash_logs").select("id").limit(1);
+  if (
+    error &&
+    String(error.message || "")
+      .toLowerCase()
+      .includes("relation")
+  ) {
     rageCashTableOk = false;
     showAlert("Tabel 'rage_cash_logs' belum ada di Supabase", "error");
     return rageCashTableOk;
@@ -6573,10 +6998,17 @@ async function submitRageCash() {
   if (!ok) return;
 
   const type = (document.getElementById("rageCashType") || {}).value || "";
-  const amount = parseFloat((document.getElementById("rageCashAmount") || {}).value) || 0;
-  const category = String((document.getElementById("rageCashCategory") || {}).value || "").trim();
-  const note = String((document.getElementById("rageCashNote") || {}).value || "").trim();
-  const timeVal = String((document.getElementById("rageCashTime") || {}).value || "").trim();
+  const amount =
+    parseFloat((document.getElementById("rageCashAmount") || {}).value) || 0;
+  const category = String(
+    (document.getElementById("rageCashCategory") || {}).value || ""
+  ).trim();
+  const note = String(
+    (document.getElementById("rageCashNote") || {}).value || ""
+  ).trim();
+  const timeVal = String(
+    (document.getElementById("rageCashTime") || {}).value || ""
+  ).trim();
 
   if (!type || (type !== "IN" && type !== "OUT")) {
     showAlert("Pilih tipe transaksi", "error");
@@ -6591,7 +7023,9 @@ async function submitRageCash() {
     return;
   }
 
-  const waktu = timeVal ? new Date(timeVal).toISOString() : new Date().toISOString();
+  const waktu = timeVal
+    ? new Date(timeVal).toISOString()
+    : new Date().toISOString();
   const row = { type, amount, category, note, waktu };
   const { error } = await supabase.from("rage_cash_logs").insert(row);
   if (error) {
@@ -6634,7 +7068,8 @@ async function sendRageCashToDiscord(payload) {
     balance == null
       ? null
       : { name: "SALDO TOTAL", value: `\`${fmt(balance)}\``, inline: false };
-  const actor = currentMember && currentMember.nama ? String(currentMember.nama) : "";
+  const actor =
+    currentMember && currentMember.nama ? String(currentMember.nama) : "";
 
   const embed = {
     title: `${dot}  ${typeLabel}`,
@@ -6685,7 +7120,8 @@ async function loadRageCashTable() {
   const balEl = document.getElementById("rageCashBalance");
   if (!body || !empty) return;
 
-  body.innerHTML = '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
+  body.innerHTML =
+    '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
 
   const { data, error } = await supabase
     .from("rage_cash_logs")
@@ -6757,7 +7193,10 @@ async function initRekap() {
 async function loadRekapData() {
   if (!supabase) return;
   const currentMember = window.__currentMember || null;
-  const memberId = currentMember && currentMember.id ? parseInt(String(currentMember.id), 10) : NaN;
+  const memberId =
+    currentMember && currentMember.id
+      ? parseInt(String(currentMember.id), 10)
+      : NaN;
 
   const periodeEl = document.getElementById("rekapPeriodeLabel");
   const orderLabel = document.getElementById("rekapOrderLabel");
@@ -6780,8 +7219,13 @@ async function loadRekapData() {
   const storanScrap = document.getElementById("rekapStoranScrap");
 
   const kasSaldo = document.getElementById("rekapKasSaldo");
-  const needsStoran =
-    !!(storanLabel || storanDone || storanPending || storanCash || storanScrap);
+  const needsStoran = !!(
+    storanLabel ||
+    storanDone ||
+    storanPending ||
+    storanCash ||
+    storanScrap
+  );
   const needsKas = !!kasSaldo;
 
   const [activeOrderWin, activeDrugsWin] = await Promise.all([
@@ -6789,8 +7233,12 @@ async function loadRekapData() {
     fetchActiveOrderWindow(null, "drugs"),
   ]);
   const [latestOrderWin, latestDrugsWin] = await Promise.all([
-    activeOrderWin ? Promise.resolve(activeOrderWin) : fetchLatestOrderWindow("order"),
-    activeDrugsWin ? Promise.resolve(activeDrugsWin) : fetchLatestOrderWindow("drugs"),
+    activeOrderWin
+      ? Promise.resolve(activeOrderWin)
+      : fetchLatestOrderWindow("order"),
+    activeDrugsWin
+      ? Promise.resolve(activeDrugsWin)
+      : fetchLatestOrderWindow("drugs"),
   ]);
   const orderWin = activeOrderWin || latestOrderWin || null;
   const drugsWin = activeDrugsWin || latestDrugsWin || null;
@@ -6798,18 +7246,24 @@ async function loadRekapData() {
   const isDrugsFallback = !activeDrugsWin && !!drugsWin;
 
   if (periodeEl) {
-    const orderLabelText = orderWin && orderWin.orderanke
-      ? (() => {
-          const { m, w, raw } = decodeOrderanke(parseInt(orderWin.orderanke, 10));
-          return `${isOrderFallback ? "Periode Order Terakhir" : "Periode Order"}: M${m}-W${w} (#${raw})`;
-        })()
-      : "Tidak ada periode order";
-    const drugsLabelText = drugsWin && drugsWin.orderanke
-      ? (() => {
-          const { m, w, raw } = decodeOrderanke(parseInt(drugsWin.orderanke, 10));
-          return `${isDrugsFallback ? "Batch Drugs Terakhir" : "Batch Drugs"}: M${m}-W${w} (#${raw})`;
-        })()
-      : "Tidak ada batch drugs";
+    const orderLabelText =
+      orderWin && orderWin.orderanke
+        ? (() => {
+            const { m, w, raw } = decodeOrderanke(
+              parseInt(orderWin.orderanke, 10)
+            );
+            return `${isOrderFallback ? "Periode Order Terakhir" : "Periode Order"}: M${m}-W${w} (#${raw})`;
+          })()
+        : "Tidak ada periode order";
+    const drugsLabelText =
+      drugsWin && drugsWin.orderanke
+        ? (() => {
+            const { m, w, raw } = decodeOrderanke(
+              parseInt(drugsWin.orderanke, 10)
+            );
+            return `${isDrugsFallback ? "Batch Drugs Terakhir" : "Batch Drugs"}: M${m}-W${w} (#${raw})`;
+          })()
+        : "Tidak ada batch drugs";
     periodeEl.textContent = `${orderLabelText} • ${drugsLabelText}`;
   }
 
@@ -6824,49 +7278,58 @@ async function loadRekapData() {
       if (orderItems) orderItems.textContent = "0";
       if (orderTotal) orderTotal.textContent = "$ 0";
       if (orderScrap) orderScrap.textContent = "0";
-      if (topItemsEl) topItemsEl.innerHTML = '<div class="text-slate-500 dark:text-amber-200/60">Akun belum terhubung ke member</div>';
+      if (topItemsEl)
+        topItemsEl.innerHTML =
+          '<div class="text-slate-500 dark:text-amber-200/60">Akun belum terhubung ke member</div>';
     } else {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("order_id,qty,subtotal,item")
-      .eq("orderanke", v)
-      .eq("member_id", memberId)
-      .order("waktu", { ascending: false })
-      .limit(5000);
+      const { data, error } = await supabase
+        .from("orders")
+        .select("order_id,qty,subtotal,item")
+        .eq("orderanke", v)
+        .eq("member_id", memberId)
+        .order("waktu", { ascending: false })
+        .limit(5000);
 
-    if (error) {
-      if (orderCount) orderCount.textContent = "0";
-      if (orderItems) orderItems.textContent = "0";
-      if (orderTotal) orderTotal.textContent = "$ 0";
-      if (orderScrap) orderScrap.textContent = "0";
-      if (topItemsEl) topItemsEl.textContent = "Gagal memuat order: " + error.message;
-    } else {
-      const rows = data || [];
-      const orderIds = new Set(rows.map((r) => r.order_id).filter(Boolean));
-      const totalQty = rows.reduce((a, r) => a + (r.qty || 0), 0);
-      const totalMoney = rows.reduce((a, r) => a + (r.subtotal || 0), 0);
-      const totalScr = rows.reduce((a, r) => a + getCatalogScrap(r.item) * (r.qty || 0), 0);
-      if (orderCount) orderCount.textContent = String(orderIds.size);
-      if (orderItems) orderItems.textContent = String(totalQty);
-      if (orderTotal) orderTotal.textContent = fmt(totalMoney);
-      if (orderScrap) orderScrap.textContent = String(totalScr);
+      if (error) {
+        if (orderCount) orderCount.textContent = "0";
+        if (orderItems) orderItems.textContent = "0";
+        if (orderTotal) orderTotal.textContent = "$ 0";
+        if (orderScrap) orderScrap.textContent = "0";
+        if (topItemsEl)
+          topItemsEl.textContent = "Gagal memuat order: " + error.message;
+      } else {
+        const rows = data || [];
+        const orderIds = new Set(rows.map((r) => r.order_id).filter(Boolean));
+        const totalQty = rows.reduce((a, r) => a + (r.qty || 0), 0);
+        const totalMoney = rows.reduce((a, r) => a + (r.subtotal || 0), 0);
+        const totalScr = rows.reduce(
+          (a, r) => a + getCatalogScrap(r.item) * (r.qty || 0),
+          0
+        );
+        if (orderCount) orderCount.textContent = String(orderIds.size);
+        if (orderItems) orderItems.textContent = String(totalQty);
+        if (orderTotal) orderTotal.textContent = fmt(totalMoney);
+        if (orderScrap) orderScrap.textContent = String(totalScr);
 
-      const byItem = {};
-      rows.forEach((r) => {
-        const k = r.item || "-";
-        byItem[k] = (byItem[k] || 0) + (r.qty || 0);
-      });
-      const top = Object.entries(byItem)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6);
-      if (topItemsEl) {
-        topItemsEl.innerHTML = top.length
-          ? top
-              .map(([name, qty]) => `<div class="flex justify-between gap-4"><span class="truncate">${name}</span><span class="font-mono font-bold">${fmtNumber(qty)}</span></div>`)
-              .join("")
-          : '<div class="text-slate-500 dark:text-amber-200/60">Belum ada order</div>';
+        const byItem = {};
+        rows.forEach((r) => {
+          const k = r.item || "-";
+          byItem[k] = (byItem[k] || 0) + (r.qty || 0);
+        });
+        const top = Object.entries(byItem)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 6);
+        if (topItemsEl) {
+          topItemsEl.innerHTML = top.length
+            ? top
+                .map(
+                  ([name, qty]) =>
+                    `<div class="flex justify-between gap-4"><span class="truncate">${name}</span><span class="font-mono font-bold">${fmtNumber(qty)}</span></div>`
+                )
+                .join("")
+            : '<div class="text-slate-500 dark:text-amber-200/60">Belum ada order</div>';
+        }
       }
-    }
     }
   } else {
     if (orderLabel) orderLabel.textContent = "Tidak ada data";
@@ -6874,7 +7337,9 @@ async function loadRekapData() {
     if (orderItems) orderItems.textContent = "0";
     if (orderTotal) orderTotal.textContent = "$ 0";
     if (orderScrap) orderScrap.textContent = "0";
-    if (topItemsEl) topItemsEl.innerHTML = '<div class="text-slate-500 dark:text-amber-200/60">Tidak ada periode</div>';
+    if (topItemsEl)
+      topItemsEl.innerHTML =
+        '<div class="text-slate-500 dark:text-amber-200/60">Tidak ada periode</div>';
   }
 
   if (drugsWin && drugsWin.orderanke) {
@@ -6883,7 +7348,7 @@ async function loadRekapData() {
     if (drugsLabel) {
       drugsLabel.textContent = `${isDrugsFallback ? "Terakhir • " : ""}M${m}-W${w} (#${raw})`;
     }
-    
+
     if (Number.isNaN(memberId) || !memberId) {
       if (drugsMerah) drugsMerah.textContent = "$ 0";
       if (drugsGaji) drugsGaji.textContent = "$ 0";
@@ -6904,9 +7369,18 @@ async function loadRekapData() {
         if (drugsCount) drugsCount.textContent = "0";
       } else {
         const rows = data || [];
-        const totalMerah = rows.reduce((a, r) => a + (parseFloat(r.uang_merah) || 0), 0);
-        const totalGaji = rows.reduce((a, r) => a + (parseFloat(r.upah_putih) || 0), 0);
-        const totalRage = rows.reduce((a, r) => a + (parseFloat(r.uang_rage) || 0), 0);
+        const totalMerah = rows.reduce(
+          (a, r) => a + (parseFloat(r.uang_merah) || 0),
+          0
+        );
+        const totalGaji = rows.reduce(
+          (a, r) => a + (parseFloat(r.upah_putih) || 0),
+          0
+        );
+        const totalRage = rows.reduce(
+          (a, r) => a + (parseFloat(r.uang_rage) || 0),
+          0
+        );
         if (drugsMerah) drugsMerah.textContent = fmt(totalMerah);
         if (drugsGaji) drugsGaji.textContent = fmt(totalGaji);
         if (drugsRage) drugsRage.textContent = fmt(totalRage);
@@ -6926,18 +7400,18 @@ async function loadRekapData() {
     const { m, w, raw } = decodeOrderanke(v);
     if (storanLabel) storanLabel.textContent = `M${m}-W${w} (#${raw})`;
 
-    const [{ data: logs, error: logErr }, { count: memberCount, error: memErr }] =
-      await Promise.all([
-        supabase
-          .from("storan_logs")
-          .select("member_id,status,waktu,periode_orderanke")
-          .eq("periode_orderanke", v)
-          .order("waktu", { ascending: true })
-          .limit(5000),
-        supabase
-          .from("members")
-          .select("*", { count: "exact", head: true }),
-      ]);
+    const [
+      { data: logs, error: logErr },
+      { count: memberCount, error: memErr },
+    ] = await Promise.all([
+      supabase
+        .from("storan_logs")
+        .select("member_id,status,waktu,periode_orderanke")
+        .eq("periode_orderanke", v)
+        .order("waktu", { ascending: true })
+        .limit(5000),
+      supabase.from("members").select("*", { count: "exact", head: true }),
+    ]);
     if (logErr || memErr) {
       if (storanDone) storanDone.textContent = "0";
       if (storanPending) storanPending.textContent = "0";
@@ -6957,7 +7431,9 @@ async function loadRekapData() {
         const tCur = new Date(r.waktu || 0).getTime();
         if (tCur >= tPrev) latestByMember[key] = r;
       });
-      const done = Object.values(latestByMember).filter((r) => String(r.status || "") === "SUDAH").length;
+      const done = Object.values(latestByMember).filter(
+        (r) => String(r.status || "") === "SUDAH"
+      ).length;
       const totalMembers = memberCount || 0;
       const pending = Math.max(0, totalMembers - done);
       if (storanDone) storanDone.textContent = String(done);
@@ -7065,4 +7541,3 @@ async function deleteRageCashEntry(id) {
   showAlert("Catatan berhasil dihapus", "success");
   loadRageCashTable();
 }
-
