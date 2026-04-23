@@ -1516,11 +1516,14 @@ async function initAdminActivityPage() {
   const titleEl = document.getElementById("actTitle");
   const headEl = document.getElementById("actHead");
   const bodyEl = document.getElementById("actBody");
+  const paginationEl = document.getElementById("actPagination");
   const activeCountEl = document.getElementById("activeSessionsCount");
   if (!typeEl || !bodyEl || !headEl) return;
 
   let auto = true;
   let timer = null;
+  const PAGE_SIZE = 10;
+  let currentPage = 1;
 
   const setAutoLabel = () => {
     if (autoBtn) autoBtn.textContent = auto ? "Auto: ON" : "Auto: OFF";
@@ -1536,6 +1539,32 @@ async function initAdminActivityPage() {
     bodyEl.innerHTML =
       rowsHtml ||
       `<tr><td colspan="${headCells.length}" class="px-3 py-8 text-center text-slate-400">Tidak ada data</td></tr>`;
+  };
+
+  const renderPagination = (totalRows, onPageChange) => {
+    if (!paginationEl) return;
+    const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (totalRows <= PAGE_SIZE) {
+      paginationEl.innerHTML = "";
+      return;
+    }
+    paginationEl.innerHTML = `
+      <div>Menampilkan ${Math.min((currentPage - 1) * PAGE_SIZE + 1, totalRows)}-${Math.min(currentPage * PAGE_SIZE, totalRows)} dari ${totalRows} data</div>
+      <div class="flex items-center gap-2">
+        <button type="button" data-act-page="prev" class="px-3 py-1.5 rounded-lg border border-amber-200/70 dark:border-[#3d342d] text-amber-800 dark:text-amber-100 hover:bg-amber-50 dark:hover:bg-[#2a1b13] transition ${currentPage <= 1 ? "opacity-50 cursor-not-allowed" : ""}" ${currentPage <= 1 ? "disabled" : ""}>Prev</button>
+        <span class="text-slate-600 dark:text-amber-200/80">Hal ${currentPage}/${totalPages}</span>
+        <button type="button" data-act-page="next" class="px-3 py-1.5 rounded-lg border border-amber-200/70 dark:border-[#3d342d] text-amber-800 dark:text-amber-100 hover:bg-amber-50 dark:hover:bg-[#2a1b13] transition ${currentPage >= totalPages ? "opacity-50 cursor-not-allowed" : ""}" ${currentPage >= totalPages ? "disabled" : ""}>Next</button>
+      </div>
+    `;
+    paginationEl.querySelectorAll("[data-act-page]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const dir = btn.getAttribute("data-act-page");
+        if (dir === "prev" && currentPage > 1) currentPage -= 1;
+        if (dir === "next" && currentPage < totalPages) currentPage += 1;
+        onPageChange();
+      });
+    });
   };
 
   const resolveUserNames = async (rows) => {
@@ -1629,6 +1658,7 @@ async function initAdminActivityPage() {
         .order("last_seen_at", { ascending: false })
         .limit(80);
       if (error) {
+        if (paginationEl) paginationEl.innerHTML = "";
         render(
           ["Waktu", "Nama User", "Auth UID", "Member", "Device", "Status"],
           `<tr><td colspan="6" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`
@@ -1643,9 +1673,11 @@ async function initAdminActivityPage() {
           `${userName} ${r.auth_user_id || ""} ${r.member_id || ""} ${r.device_id || ""}`.toLowerCase();
         return hay.includes(term);
       });
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const pageRows = rows.slice(start, start + PAGE_SIZE);
       render(
         ["Last Seen", "Nama User", "Auth UID", "Member", "Device", "Status"],
-        rows
+        pageRows
           .map((r) => {
             const userName = getUserName(r);
             const active =
@@ -1662,6 +1694,7 @@ async function initAdminActivityPage() {
           })
           .join("")
       );
+      renderPagination(rows.length, load);
       await refreshActiveCount();
       return;
     }
@@ -1675,6 +1708,7 @@ async function initAdminActivityPage() {
         .order("access_time", { ascending: false })
         .limit(120);
       if (error) {
+        if (paginationEl) paginationEl.innerHTML = "";
         render(
           ["Waktu", "Nama User", "Auth UID", "Halaman", "Durasi"],
           `<tr><td colspan="5" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`
@@ -1689,9 +1723,11 @@ async function initAdminActivityPage() {
           `${userName} ${r.auth_user_id || ""} ${r.member_id || ""} ${r.page_url || ""}`.toLowerCase();
         return hay.includes(term);
       });
+      const start = (currentPage - 1) * PAGE_SIZE;
+      const pageRows = rows.slice(start, start + PAGE_SIZE);
       render(
         ["Waktu", "Nama User", "Auth UID", "Halaman", "Durasi"],
-        rows
+        pageRows
           .map((r) => {
             const userName = getUserName(r);
             const d =
@@ -1706,6 +1742,7 @@ async function initAdminActivityPage() {
           })
           .join("")
       );
+      renderPagination(rows.length, load);
       await refreshActiveCount();
       return;
     }
@@ -1716,6 +1753,7 @@ async function initAdminActivityPage() {
       .order("attempt_time", { ascending: false })
       .limit(120);
     if (error) {
+      if (paginationEl) paginationEl.innerHTML = "";
       render(
         ["Waktu", "Username", "Reason"],
         `<tr><td colspan="3" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`
@@ -1727,9 +1765,11 @@ async function initAdminActivityPage() {
       const hay = `${r.username || ""} ${r.failure_reason || ""}`.toLowerCase();
       return hay.includes(term);
     });
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageRows = rows.slice(start, start + PAGE_SIZE);
     render(
       ["Waktu", "Username", "Reason"],
-      rows
+      pageRows
         .map((r) => {
           return `<tr class="hover:bg-white/5 transition-colors">
   <td class="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">${fmtDateTime(r.attempt_time)}</td>
@@ -1739,11 +1779,24 @@ async function initAdminActivityPage() {
         })
         .join("")
     );
+    renderPagination(rows.length, load);
     await refreshActiveCount();
   };
 
-  if (reloadBtn) reloadBtn.addEventListener("click", () => load());
-  if (typeEl) typeEl.addEventListener("change", () => load());
+  if (reloadBtn)
+    reloadBtn.addEventListener("click", () => {
+      currentPage = 1;
+      load();
+    });
+  if (typeEl)
+    typeEl.addEventListener("change", () => {
+      currentPage = 1;
+      load();
+    });
+  if (userEl)
+    userEl.addEventListener("input", () => {
+      currentPage = 1;
+    });
   if (autoBtn) {
     autoBtn.addEventListener("click", () => {
       auto = !auto;
