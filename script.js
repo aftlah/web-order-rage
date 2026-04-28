@@ -38,7 +38,7 @@ const CATALOG = {
     { name: "Extended Pistol Clip", price: 4000, scrap: 5 },
     { name: "Extended SMG Clip", price: 7000, scrap: 5 },
     { name: "Extended Rifle Clip", price: 20000, scrap: 5 },
-    // { name: "SMG Drum", price: 13000, scrap: 5 }, // nonaktif sementara
+    // { name: "SMG Drum", price: 13000, scrap: 5 }, // 
     { name: "Rifle Drum", price: 26000, scrap: 5 },
     { name: "Macro Scope", price: 4000, scrap: 5 },
     { name: "Medium Scope", price: 4000, scrap: 5 },
@@ -4602,6 +4602,18 @@ async function expireOrderWindows() {
     localStorage.setItem("closed_announced", JSON.stringify(Array.from(set)));
   } catch (e) {}
 }
+async function hasDuplicateOrderWindow(orderanke, excludeId) {
+  if (!supabase || !orderanke) return false;
+  let query = supabase
+    .from("order_windows")
+    .select("id")
+    .eq("orderanke", orderanke)
+    .limit(1);
+  if (excludeId) query = query.neq("id", excludeId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return Array.isArray(data) && data.length > 0;
+}
 async function createOrderWindow() {
   const s = document.getElementById("winStart");
   const e = document.getElementById("winEnd");
@@ -4612,6 +4624,27 @@ async function createOrderWindow() {
   const w = ww ? parseInt(ww.value, 10) : NaN;
   const orderanke =
     !Number.isNaN(m) && !Number.isNaN(w) && m && w ? m * 10 + w : null;
+  if (orderanke) {
+    try {
+      const duplicated = await hasDuplicateOrderWindow(
+        orderanke,
+        window.__editingWindowId || null
+      );
+      if (duplicated) {
+        showAlert(
+          `Periode M${m}-W${w} sudah pernah dibuat. Pilih periode lain.`,
+          "error"
+        );
+        return;
+      }
+    } catch (err) {
+      showAlert(
+        "Gagal memvalidasi periode. Coba lagi sebentar.",
+        "error"
+      );
+      return;
+    }
+  }
 
   const row = {
     start_time: new Date(s.value).toISOString(),
@@ -6285,6 +6318,19 @@ async function openCreateBatchModal() {
     }
 
     const orderanke = 1000 + (m * 10 + w);
+    try {
+      const duplicated = await hasDuplicateOrderWindow(orderanke);
+      if (duplicated) {
+        showAlert(`Batch Drugs M${m}-W${w} sudah pernah dibuat`, "error");
+        return;
+      }
+    } catch (err) {
+      showAlert(
+        "Gagal memvalidasi batch drugs. Coba lagi sebentar.",
+        "error"
+      );
+      return;
+    }
     const now = new Date();
     const end = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // Default 7 hari
 
