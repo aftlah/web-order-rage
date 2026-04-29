@@ -76,7 +76,7 @@ const ITEM_MAX_LIMITS = {
   "TECH 9": 25,
   "MINI SMG": 25,
   "MICRO SMG": 25,
-  "AMMO 9MM": 300,
+  "AMMO 9MM": 1000,
   "AMMO .50": 300,
   "VEST MEDIUM": 75,
   "PISTOL X17": 25,
