@@ -5542,7 +5542,7 @@ async function loadMemberListInModal() {
       </td>
       <td class="px-5 py-3 relative">
         <div class="relative role-dropdown-container">
-            <button onclick="toggleRoleDropdown('${m.id}')" 
+            <button data-role-trigger="${m.id}" onclick="toggleRoleDropdown('${m.id}')" 
                 class="w-36 px-3 py-1.5 rounded-lg border ${btnClass} text-xs font-bold flex items-center justify-between transition-all shadow-sm group/btn">
                 <div class="flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full ${dotClass}"></span>
@@ -5553,7 +5553,7 @@ async function loadMemberListInModal() {
                 </svg>
             </button>
             
-            <div id="dropdown-${m.id}" class="role-dropdown-menu hidden absolute top-full left-0 mt-2 w-40 bg-white dark:bg-[#1a1410] rounded-xl border border-slate-200 dark:border-[#3d342d] shadow-xl z-50 overflow-hidden ring-1 ring-black/5 dark:ring-white/10 origin-top-left animate-in fade-in zoom-in-95 duration-100">
+            <div id="dropdown-${m.id}" class="role-dropdown-menu hidden w-40 bg-white dark:bg-[#1a1410] rounded-xl border border-slate-200 dark:border-[#3d342d] shadow-xl overflow-hidden ring-1 ring-black/5 dark:ring-white/10 origin-top-left animate-in fade-in zoom-in-95 duration-100">
                 <div class="py-1">
                     ${roles
                       .map((r) => {
@@ -5598,16 +5598,62 @@ async function loadMemberListInModal() {
 }
 
 // Global functions for custom dropdown
-window.toggleRoleDropdown = function (id) {
-  // Close other dropdowns first
-  const allDropdowns = document.querySelectorAll(".role-dropdown-menu");
-  allDropdowns.forEach((d) => {
-    if (d.id !== `dropdown-${id}`) d.classList.add("hidden");
-  });
+const ROLE_DROPDOWN_LAYER_ID = "roleDropdownLayer";
 
+function getRoleDropdownLayer() {
+  let layer = document.getElementById(ROLE_DROPDOWN_LAYER_ID);
+  if (layer) return layer;
+
+  layer = document.createElement("div");
+  layer.id = ROLE_DROPDOWN_LAYER_ID;
+  layer.className = "fixed inset-0 z-[250] pointer-events-none";
+  layer.innerHTML = '<div class="role-dropdown-floating pointer-events-auto hidden"></div>';
+  document.body.appendChild(layer);
+  return layer;
+}
+
+function closeRoleDropdownLayer() {
+  const layer = document.getElementById(ROLE_DROPDOWN_LAYER_ID);
+  if (!layer) return;
+  const floating = layer.querySelector(".role-dropdown-floating");
+  if (!floating) return;
+  floating.classList.add("hidden");
+  floating.innerHTML = "";
+}
+
+window.toggleRoleDropdown = function (id) {
+  const floatingId = `floating-dropdown-${id}`;
+  const layer = getRoleDropdownLayer();
+  const floating = layer.querySelector(".role-dropdown-floating");
+  if (floating && floating.getAttribute("data-current-id") === id && !floating.classList.contains("hidden")) {
+    closeRoleDropdownLayer();
+    if (window.event) window.event.stopPropagation();
+    return;
+  }
+
+  // Close inline and floating dropdowns first
+  document
+    .querySelectorAll(".role-dropdown-menu")
+    .forEach((d) => d.classList.add("hidden"));
+  closeRoleDropdownLayer();
+
+  const trigger = document.querySelector(`[data-role-trigger="${id}"]`);
   const dropdown = document.getElementById(`dropdown-${id}`);
-  if (dropdown) {
-    dropdown.classList.toggle("hidden");
+  if (dropdown && trigger && floating) {
+    const rect = trigger.getBoundingClientRect();
+    const width = Math.max(160, Math.round(rect.width));
+
+    floating.id = floatingId;
+    floating.setAttribute("data-current-id", id);
+    floating.className =
+      "role-dropdown-floating pointer-events-auto absolute bg-white dark:bg-[#1a1410] rounded-xl border border-slate-200 dark:border-[#3d342d] shadow-xl overflow-hidden ring-1 ring-black/5 dark:ring-white/10 origin-top-left animate-in fade-in zoom-in-95 duration-100";
+    floating.style.minWidth = `${width}px`;
+    floating.style.width = `${width}px`;
+    floating.style.maxWidth = "220px";
+    floating.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - width - 8))}px`;
+    floating.style.top = `${Math.min(rect.bottom + 8, window.innerHeight - 8)}px`;
+    floating.innerHTML = dropdown.innerHTML;
+    floating.classList.remove("hidden");
   }
 
   // Stop propagation to prevent immediate closing
@@ -5618,15 +5664,20 @@ window.selectMemberRole = function (id, role) {
   updateMemberRole(id, role);
   const dropdown = document.getElementById(`dropdown-${id}`);
   if (dropdown) dropdown.classList.add("hidden");
+  closeRoleDropdownLayer();
   if (window.event) window.event.stopPropagation();
 };
 
 // Close dropdowns when clicking outside
 window.addEventListener("click", function (e) {
-  if (!e.target.closest(".role-dropdown-container")) {
+  if (
+    !e.target.closest(".role-dropdown-container") &&
+    !e.target.closest(".role-dropdown-floating")
+  ) {
     document
       .querySelectorAll(".role-dropdown-menu")
       .forEach((d) => d.classList.add("hidden"));
+    closeRoleDropdownLayer();
   }
 });
 
