@@ -11,6 +11,7 @@ const CATALOG = {
     { name: "TECH 9", price: 26000 },
     { name: "MINI SMG", price: 30000 },
     { name: "MICRO SMG", price: 30000 },
+    { name: "Micro SMG Full Attachment", price: 0 },
     // { name: "SMG", price: 40000 }, // nonaktif sementara
     { name: "SHOTGUN", price: 65000 }, // to BOA
     { name: "NAVY REVOLVER", price: 72000 }, // to BOA
@@ -49,12 +50,25 @@ const CATALOG = {
     { name: "LOCKPICK", price: 1500 },
   ],
 };
+const MICRO_FULL_ATTACHMENT_BUNDLE_NAME = "Micro SMG Full Attachment";
+const MICRO_FULL_ATTACHMENT_COMPONENTS = [
+  { name: "MICRO SMG", kategori: "Gun" },
+  { name: "Tactical Suppressor", kategori: "Attachment" },
+  { name: "Extended SMG Clip", kategori: "Attachment" },
+];
 
 function getEffectivePrice(kategori, basePrice) {
   if (kategori === "Gun" || kategori === "Attachment") {
     return Math.round(basePrice * 1.1);
   }
   return basePrice;
+}
+function getMicroFullAttachmentBundlePrice() {
+  return MICRO_FULL_ATTACHMENT_COMPONENTS.reduce((sum, entry) => {
+    const found = (CATALOG[entry.kategori] || []).find((i) => i.name === entry.name);
+    if (!found) return sum;
+    return sum + getEffectivePrice(entry.kategori, found.price);
+  }, 0);
 }
 const ITEM_MAX_LIMITS = {
   "PISTOL .50": 25,
@@ -2029,7 +2043,11 @@ function populateItems() {
   CATALOG[kategori].forEach((it) => {
     const o = document.createElement("option");
     o.value = it.name;
-    o.textContent = `${it.name} (${fmt(getEffectivePrice(kategori, it.price))})`;
+    const displayPrice =
+      it.name === MICRO_FULL_ATTACHMENT_BUNDLE_NAME
+        ? getMicroFullAttachmentBundlePrice()
+        : getEffectivePrice(kategori, it.price);
+    o.textContent = `${it.name} (${fmt(displayPrice)})`;
     itemEl.appendChild(o);
   });
 }
@@ -2141,6 +2159,59 @@ async function addToCart() {
   const nItem = itemName.toUpperCase();
   const isLeo = nama.toLowerCase() === "leo";
   const perms = getRolePermissions(role);
+
+  if (itemName === MICRO_FULL_ATTACHMENT_BUNDLE_NAME) {
+    const canBuyItem = (name) => {
+      if (isLeo || perms.allowed === "ALL") return true;
+      return perms.allowed.has(name.toUpperCase());
+    };
+
+    for (const entry of MICRO_FULL_ATTACHMENT_COMPONENTS) {
+      if (!canBuyItem(entry.name)) {
+        showAlert(`${role} tidak diperbolehkan membeli ${entry.name}`, "error");
+        return;
+      }
+    }
+
+    for (const entry of MICRO_FULL_ATTACHMENT_COMPONENTS) {
+      const max = getItemMax(entry.name);
+      if (typeof max === "number") {
+        const norm = normItemName(entry.name);
+        const usedDb = (window.__itemTotals || {})[norm] || 0;
+        const usedCart = state.cart
+          .filter((c) => normItemName(c.item) === norm)
+          .reduce((a, c) => a + (c.qty || 0), 0);
+        const willBe = usedDb + usedCart + qty;
+        if (willBe > max) {
+          const remain = Math.max(0, max - usedDb - usedCart);
+          showAlert(`Maks ${entry.name} ${max}. Tersisa ${remain}.`, "error");
+          return;
+        }
+      }
+    }
+
+    for (const entry of MICRO_FULL_ATTACHMENT_COMPONENTS) {
+      const itemInCatalog = (CATALOG[entry.kategori] || []).find(
+        (i) => i.name === entry.name
+      );
+      if (!itemInCatalog) continue;
+      const existing = state.cart.find(
+        (c) => c.item === entry.name && c.kategori === entry.kategori
+      );
+      if (existing) existing.qty += qty;
+      else
+        state.cart.push({
+          item: entry.name,
+          kategori: entry.kategori,
+          price: getEffectivePrice(entry.kategori, itemInCatalog.price),
+          qty,
+          scrap: itemInCatalog.scrap || 0,
+        });
+    }
+
+    renderCart();
+    return;
+  }
 
   // 1. Check allowed items
   if (!isLeo && perms.allowed !== "ALL") {
@@ -5630,8 +5701,7 @@ window.toggleRoleDropdown = function (id) {
     if (window.event) window.event.stopPropagation();
     return;
   }
-
-  // Close inline and floating dropdowns first
+  
   document
     .querySelectorAll(".role-dropdown-menu")
     .forEach((d) => d.classList.add("hidden"));
