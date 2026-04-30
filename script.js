@@ -1907,15 +1907,20 @@ async function initAdminCatalogPage() {
           const items = byCat[cat];
           if (!items.length) return "";
           return `
-          <div class="glass-card overflow-hidden">
-            <div class="bg-amber-500/10 px-6 py-4 border-b border-amber-500/20 flex items-center justify-between">
+          <div class="glass-card overflow-hidden" data-category="${cat}">
+            <div class="bg-amber-500/10 px-6 py-4 border-b border-amber-500/20 flex items-center justify-between cursor-pointer category-header">
               <h3 class="font-black text-amber-500 uppercase tracking-widest text-sm flex items-center gap-2">
                 <div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
                 ${cat}
               </h3>
-              <span class="text-[10px] text-amber-500/60 font-bold tracking-widest uppercase bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md">${items.length} Items</span>
+              <div class="flex items-center gap-3">
+                <span class="text-[10px] text-amber-500/60 font-bold tracking-widest uppercase bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md">${items.length} Items</span>
+                <svg class="w-5 h-5 text-amber-500/60 category-toggle-icon transition-transform duration-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto category-content">
               <table class="w-full text-sm">
                 <thead class="bg-[#120a06] text-slate-400/80 border-b border-amber-500/10">
                   <tr>
@@ -1999,6 +2004,18 @@ async function initAdminCatalogPage() {
           </div>`;
         })
         .join("");
+
+      // Bind category toggle
+      listEl.querySelectorAll(".category-header").forEach((header) => {
+        header.addEventListener("click", () => {
+          const card = header.closest(".glass-card");
+          const content = card.querySelector(".category-content");
+          const icon = card.querySelector(".category-toggle-icon");
+          
+          content.classList.toggle("hidden");
+          icon.classList.toggle("rotate-180");
+        });
+      });
 
       // Bind actions
       listEl.querySelectorAll(".edit-item").forEach((btn) => {
