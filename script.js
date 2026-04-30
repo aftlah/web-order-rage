@@ -2006,6 +2006,12 @@ async function initAdminCatalogPage() {
       html: content,
       showCancelButton: true,
       confirmButtonText: "Simpan",
+      customClass: {
+        popup: "rage-modal-popup",
+        title: "rage-modal-title",
+        confirmButton: "rage-modal-confirm",
+        cancelButton: "rage-modal-cancel",
+      },
       didOpen: () => {
         if (item) {
           document.getElementById("modalKategori").value = item.kategori;
