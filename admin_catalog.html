@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>R.A.G.E - Admin Katalog</title>
+    <link rel="icon" href="images/LOGO_RAGE.png" type="image/png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="antialiased">
+    <!-- Header -->
+    <header class="shadow-xl sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2.5">
+        <div class="flex items-center justify-between">
+          <div class="logo-container">
+            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-11 sm:w-12" />
+            <div class="brand-title">
+              <h1>R.A.G.E</h1>
+              <p class="brand-subtitle">Order System</p>
+            </div>
+          </div>
+          <nav id="mainNav" class="hidden lg:flex items-center gap-2"></nav>
+          <div class="flex items-center gap-3">
+            <div id="logoutBtn" class="hidden lg:block">
+              <button class="btn-logout">Logout</button>
+            </div>
+            <button id="mobileMenuBtn" class="lg:hidden" onclick="toggleMobileMenu()">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="mobile-menu hidden lg:hidden">
+      <div class="flex flex-col p-4 gap-2">
+        <button id="mobileLogoutBtn" class="mobile-nav-link text-red-400 mt-2 border-t border-white/5 pt-4">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+          </svg>
+          Logout
+        </button>
+      </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto p-4 sm:p-6 relative z-10">
+      <div class="glass-card p-6 sm:p-8 mb-8">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl sm:text-3xl font-black text-amber-500 mb-2">Manajemen Katalog</h2>
+            <p class="text-slate-400 text-sm">Update harga dan kelola item yang muncul di form order.</p>
+          </div>
+          <div class="flex gap-2">
+            <button id="refreshCatalog" class="px-5 py-2.5 rounded-xl border border-amber-500/30 text-amber-500 font-bold text-sm hover:bg-amber-500/10 transition">Refresh</button>
+            <button id="addNewItem" class="px-5 py-2.5 rounded-xl bg-amber-500 text-[#1a1410] font-bold text-sm hover:bg-amber-400 transition">Tambah Item</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-6" id="catalogLists">
+        <!-- Will be populated by categories -->
+        <div class="flex justify-center py-20" id="loadingCatalog">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Modal Tambah/Edit Item -->
+    <template id="itemModalTemplate">
+      <div class="text-left space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Kategori</label>
+          <select id="modalKategori" class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40">
+            <option value="Gun">Gun</option>
+            <option value="Ammo">Ammo</option>
+            <option value="Attachment">Attachment</option>
+            <option value="Others">Others</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Nama Item</label>
+          <input id="modalName" type="text" class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40" placeholder="Contoh: PISTOL .50" />
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Harga Dasar</label>
+            <input id="modalPrice" type="number" class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40" placeholder="0" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Scrap (Opsional)</label>
+            <input id="modalScrap" type="number" step="0.1" class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40" placeholder="0" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Catatan (Metadata)</label>
+          <input id="modalNote" type="text" class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-500/40" placeholder="Contoh: to BOA" />
+        </div>
+      </div>
+    </template>
+
+    <script>
+      function toggleMobileMenu() { document.getElementById("mobileMenu").classList.toggle("hidden"); }
+    </script>
+    <script src="config.js?v=20260417a"></script>
+    <script type="module" src="script.js?v=20260417a"></script>
+    <script src="interactive.js"></script>
+  </body>
+</html>

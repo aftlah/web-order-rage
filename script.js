@@ -4,7 +4,7 @@ const supabase =
     ? createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
     : null;
 
-const CATALOG = {
+let CATALOG = {
   Gun: [
     { name: "PISTOL .50", price: 9500 },
     { name: "CERAMIC PISTOL", price: 26000 },
@@ -12,8 +12,7 @@ const CATALOG = {
     { name: "MINI SMG", price: 30000 },
     { name: "MICRO SMG", price: 30000 },
     { name: "Micro SMG Full Attachment", price: 0 },
-    // { name: "SMG", price: 40000 }, // nonaktif sementara
-    { name: "SHOTGUN", price: 65000 }, // to BOA
+    // { name: "SHOTGUN", price: 65000 }, // to BOA
     { name: "NAVY REVOLVER", price: 72000 }, // to BOA
     { name: "PISTOL X17", price: 33000 }, // to BOA
     { name: "X17 + Attachment", price: 65000 }, // to BOA, sebelum markup Gun
@@ -50,6 +49,35 @@ const CATALOG = {
     { name: "LOCKPICK", price: 1500 },
   ],
 };
+
+async function fetchCatalog() {
+  if (!supabase) return;
+  try {
+    const { data, error } = await supabase
+      .from("catalog_items")
+      .select("*")
+      .eq("is_active", true);
+    if (error) throw error;
+    if (!data || !data.length) return;
+
+    // Reset CATALOG
+    const newCatalog = { Gun: [], Ammo: [], Attachment: [], Others: [] };
+    data.forEach((item) => {
+      const cat = item.kategori;
+      if (newCatalog[cat]) {
+        newCatalog[cat].push({
+          name: item.name,
+          price: item.price,
+          scrap: item.scrap,
+          metadata: item.metadata,
+        });
+      }
+    });
+    CATALOG = newCatalog;
+  } catch (e) {
+    console.error("Gagal mengambil katalog:", e);
+  }
+}
 const MICRO_FULL_ATTACHMENT_BUNDLE_NAME = "Micro SMG Full Attachment";
 const MICRO_FULL_ATTACHMENT_COMPONENTS = [
   { name: "MICRO SMG", kategori: "Gun" },
@@ -529,6 +557,7 @@ function applyAdminNav(member) {
     "kas.html",
     "admin_users.html",
     "admin_activity.html",
+    "admin_catalog.html",
   ];
   adminOnlyHrefs.forEach((href) => {
     document.querySelectorAll(`a[href="${href}"]`).forEach((a) => {
@@ -809,6 +838,7 @@ function ensureProfileNavLinks(member) {
     { href: "profile.html", label: "Profile", isVisible: true },
     { href: "admin_users.html", label: "Users", isVisible: isAdmin },
     { href: "admin_activity.html", label: "Monitor", isVisible: isAdmin },
+    { href: "admin_catalog.html", label: "Katalog", isVisible: isAdmin },
   ].filter((x) => x.isVisible);
 
   const isActive = items.some((it) =>
@@ -1824,6 +1854,195 @@ async function initAdminActivityPage() {
   timer = setInterval(load, 5000);
 }
 
+async function initAdminCatalogPage() {
+  if (!supabase) return;
+  const listEl = document.getElementById("catalogLists");
+  const refreshBtn = document.getElementById("refreshCatalog");
+  const addBtn = document.getElementById("addNewItem");
+
+  const load = async () => {
+    if (listEl)
+      listEl.innerHTML = `<div class="flex justify-center py-20"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div></div>`;
+    const { data, error } = await supabase
+      .from("catalog_items")
+      .select("*")
+      .order("kategori", { ascending: true })
+      .order("name", { ascending: true });
+    if (error) {
+      if (listEl)
+        listEl.innerHTML = `<div class="p-8 text-center text-red-400">${error.message}</div>`;
+      return;
+    }
+
+    const byCat = { Gun: [], Ammo: [], Attachment: [], Others: [] };
+    data.forEach((r) => {
+      if (byCat[r.kategori]) byCat[r.kategori].push(r);
+      else {
+        if (!byCat[r.kategori]) byCat[r.kategori] = [];
+        byCat[r.kategori].push(r);
+      }
+    });
+
+    if (listEl) {
+      listEl.innerHTML = Object.keys(byCat)
+        .map((cat) => {
+          const items = byCat[cat];
+          if (!items.length) return "";
+          return `
+          <div class="glass-card overflow-hidden">
+            <div class="bg-amber-500/10 px-6 py-4 border-b border-amber-500/20">
+              <h3 class="font-black text-amber-500 uppercase tracking-widest text-sm">${cat}</h3>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-[#1a0f0a] text-slate-500">
+                  <tr>
+                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Nama Item</th>
+                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Pajak (%)</th>
+                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Harga Dasar</th>
+                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Harga Jual (+Pajak)</th>
+                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Scrap</th>
+                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Status</th>
+                    <th class="px-6 py-3 text-right font-bold uppercase tracking-tighter text-[10px]">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5">
+                  ${items
+                    .map((it) => {
+                      const afterTax = getEffectivePrice(cat, it.price);
+                      return `
+                    <tr class="hover:bg-white/5 transition-colors group">
+                      <td class="px-6 py-4">
+                        <div class="font-bold text-amber-50">${it.name}</div>
+                        ${it.metadata?.note ? `<div class="text-[10px] text-slate-500">${it.metadata.note}</div>` : ""}
+                      </td>
+                      <td class="px-6 py-4 font-mono text-slate-400">
+                        ${cat === "Gun" || cat === "Attachment" ? "10%" : "0%"}
+                      </td>
+                      <td class="px-6 py-4 font-mono text-slate-400">${fmt(it.price)}</td>
+                      <td class="px-6 py-4 font-mono text-amber-200/80 font-bold">${fmt(afterTax)}</td>
+                      <td class="px-6 py-4 font-mono text-slate-400">${it.scrap || "-"}</td>
+                      <td class="px-6 py-4">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${it.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}">
+                          ${it.is_active ? "AKTIF" : "OFF"}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 text-right">
+                        <div class="flex justify-end gap-2">
+                          <button class="p-2 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition edit-item" data-id="${it.id}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                            </svg>
+                          </button>
+                          <button class="p-2 rounded-lg ${it.is_active ? "bg-red-500/10 text-red-500 hover:bg-red-500/20" : "bg-green-500/10 text-green-500 hover:bg-green-500/20"} transition toggle-item" data-id="${it.id}" data-active="${it.is_active}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                              <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1 0 12.728 0M12 3v9" />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>`;
+                    })
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+        })
+        .join("");
+
+      // Bind actions
+      listEl.querySelectorAll(".edit-item").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-id");
+          const it = data.find((x) => x.id === id);
+          if (it) openItemModal(it);
+        });
+      });
+
+      listEl.querySelectorAll(".toggle-item").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const id = btn.getAttribute("data-id");
+          const cur = btn.getAttribute("data-active") === "true";
+          const { error } = await supabase
+            .from("catalog_items")
+            .update({ is_active: !cur })
+            .eq("id", id);
+          if (error) showAlert(error.message, "error");
+          else {
+            showAlert(`Item ${!cur ? "diaktifkan" : "dinonaktifkan"}`, "success");
+            load();
+          }
+        });
+      });
+    }
+  };
+
+  const openItemModal = (item = null) => {
+    const template = document.getElementById("itemModalTemplate");
+    if (!template) return;
+    const content = template.innerHTML;
+
+    Swal.fire({
+      title: item ? "Edit Item" : "Tambah Item Baru",
+      html: content,
+      showCancelButton: true,
+      confirmButtonText: "Simpan",
+      didOpen: () => {
+        if (item) {
+          document.getElementById("modalKategori").value = item.kategori;
+          document.getElementById("modalName").value = item.name;
+          document.getElementById("modalPrice").value = item.price;
+          document.getElementById("modalScrap").value = item.scrap || "";
+          document.getElementById("modalNote").value = item.metadata?.note || "";
+        }
+      },
+      preConfirm: () => {
+        return {
+          kategori: document.getElementById("modalKategori").value,
+          name: document.getElementById("modalName").value.trim(),
+          price: parseInt(document.getElementById("modalPrice").value || "0", 10),
+          scrap: document.getElementById("modalScrap").value
+            ? parseFloat(document.getElementById("modalScrap").value)
+            : null,
+          note: document.getElementById("modalNote").value.trim(),
+        };
+      },
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        const payload = {
+          kategori: result.value.kategori,
+          name: result.value.name,
+          price: result.value.price,
+          scrap: result.value.scrap,
+          metadata: { note: result.value.note },
+        };
+
+        let res;
+        if (item) {
+          res = await supabase
+            .from("catalog_items")
+            .update(payload)
+            .eq("id", item.id);
+        } else {
+          res = await supabase.from("catalog_items").insert([payload]);
+        }
+
+        if (res.error) showAlert(res.error.message, "error");
+        else {
+          showAlert("Berhasil disimpan", "success");
+          load();
+        }
+      }
+    });
+  };
+
+  if (refreshBtn) refreshBtn.addEventListener("click", () => load());
+  if (addBtn) addBtn.addEventListener("click", () => openItemModal());
+
+  await load();
+}
+
 async function init() {
   console.log("R.A.G.E script initializing...");
   // document.documentElement.classList.add("dark"); // Allow system/user preference
@@ -1854,6 +2073,7 @@ async function init() {
   const isProfile = !!document.getElementById("profileSection");
   const isAdminUsers = !!document.getElementById("adminUsersSection");
   const isAdminActivity = !!document.getElementById("adminActivitySection");
+  const isAdminCatalog = !!document.getElementById("catalogLists");
   const needsAuth =
     isOrder ||
     isDashboard ||
@@ -1863,11 +2083,15 @@ async function init() {
     isRekap ||
     isProfile ||
     isAdminUsers ||
-    isAdminActivity;
+    isAdminActivity ||
+    isAdminCatalog;
   if (needsAuth) {
     const ok = await guardApp();
     if (!ok) return;
   }
+
+  // Load dynamic catalog before UI starts populating
+  await fetchCatalog();
 
   let currentMember = null;
   if (
@@ -1879,7 +2103,8 @@ async function init() {
     isRekap ||
     isProfile ||
     isAdminUsers ||
-    isAdminActivity
+    isAdminActivity ||
+    isAdminCatalog
   ) {
     currentMember = await resolveCurrentMember();
     window.__currentMember = currentMember;
@@ -1903,7 +2128,8 @@ async function init() {
       isDrugs ||
       isKas ||
       isAdminUsers ||
-      isAdminActivity)
+      isAdminActivity ||
+      isAdminCatalog)
   ) {
     showAlert("Menu ini hanya untuk Admin", "error");
     location.href = "index.html";
@@ -1976,6 +2202,9 @@ async function init() {
   }
   if (isAdminActivity) {
     initAdminActivityPage();
+  }
+  if (isAdminCatalog) {
+    initAdminCatalogPage();
   }
 
   // Global Logout & Mobile Menu
