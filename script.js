@@ -70,6 +70,7 @@ async function fetchCatalog() {
           price: item.price,
           scrap: item.scrap,
           metadata: item.metadata,
+          max_limit: item.max_limit,
         });
       }
     });
@@ -139,6 +140,23 @@ const ITEM_MAX_LIMITS = {
 
 function getItemMax(name) {
   const n = name || "";
+  
+  // Cari di semua kategori di CATALOG
+  for (const kategori in CATALOG) {
+    const items = CATALOG[kategori];
+    if (!Array.isArray(items)) continue;
+    
+    const item = items.find((i) => {
+      const itemName = i.name || "";
+      return itemName.toLowerCase() === n.toLowerCase();
+    });
+    
+    if (item && item.max_limit) {
+      return item.max_limit;
+    }
+  }
+  
+  // Fallback ke ITEM_MAX_LIMITS jika tidak ada di database
   if (Object.prototype.hasOwnProperty.call(ITEM_MAX_LIMITS, n))
     return ITEM_MAX_LIMITS[n];
   const upper = n.toUpperCase();
@@ -1901,11 +1919,12 @@ async function initAdminCatalogPage() {
               <table class="w-full text-sm">
                 <thead class="bg-[#120a06] text-slate-400/80 border-b border-amber-500/10">
                   <tr>
-                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px] w-1/3">Nama Item</th>
+                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px] w-1/4">Nama Item</th>
                     <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px]">Pajak</th>
                     <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px]">Harga Dasar</th>
                     <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px]">Harga Jual</th>
                     <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px]">Scrap</th>
+                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px]">Limit Order</th>
                     <th class="px-6 py-4 text-center font-bold uppercase tracking-wider text-[11px]">Status</th>
                     <th class="px-6 py-4 text-right font-bold uppercase tracking-wider text-[11px]">Aksi</th>
                   </tr>
@@ -1946,6 +1965,11 @@ async function initAdminCatalogPage() {
                           ${it.scrap}
                           ` : '<span class="text-slate-600">-</span>'}
                         </div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <span class="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-[#1a1410] border border-white/5 text-amber-400">
+                          ${it.max_limit ? fmtNumber(it.max_limit) : '-'}
+                        </span>
                       </td>
                       <td class="px-6 py-4 text-center">
                         <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${it.is_active ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}">
@@ -2025,10 +2049,16 @@ async function initAdminCatalogPage() {
           document.getElementById("modalName").value = item.name;
           document.getElementById("modalPrice").value = item.price;
           document.getElementById("modalScrap").value = item.scrap || "";
+          document.getElementById("modalMaxLimit").value = item.max_limit || "";
           document.getElementById("modalNote").value = item.metadata?.note || "";
         }
       },
       preConfirm: () => {
+        const maxLimit = document.getElementById("modalMaxLimit").value;
+        if (!maxLimit || parseInt(maxLimit, 10) < 1) {
+          Swal.showValidationMessage("Limit Order wajib diisi dan minimal 1");
+          return false;
+        }
         return {
           kategori: document.getElementById("modalKategori").value,
           name: document.getElementById("modalName").value.trim(),
@@ -2036,6 +2066,7 @@ async function initAdminCatalogPage() {
           scrap: document.getElementById("modalScrap").value
             ? parseFloat(document.getElementById("modalScrap").value)
             : null,
+          max_limit: parseInt(maxLimit, 10),
           note: document.getElementById("modalNote").value.trim(),
         };
       },
@@ -2046,6 +2077,7 @@ async function initAdminCatalogPage() {
           name: result.value.name,
           price: result.value.price,
           scrap: result.value.scrap,
+          max_limit: result.value.max_limit,
           metadata: { note: result.value.note },
         };
 
