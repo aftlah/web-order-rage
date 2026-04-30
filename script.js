@@ -1913,7 +1913,14 @@ async function initAdminCatalogPage() {
                 <tbody class="divide-y divide-white/5 bg-[#0a0604]/30">
                   ${items
                     .map((it) => {
-                      const afterTax = getEffectivePrice(cat, it.price);
+                      let displayPrice = it.price;
+                      let afterTax = getEffectivePrice(cat, displayPrice);
+                      
+                      if (it.name === MICRO_FULL_ATTACHMENT_BUNDLE_NAME) {
+                        afterTax = getMicroFullAttachmentBundlePrice();
+                        displayPrice = Math.round(afterTax / 1.1);
+                      }
+                      
                       return `
                     <tr class="hover:bg-amber-500/5 transition-colors group">
                       <td class="px-6 py-4">
@@ -1928,7 +1935,7 @@ async function initAdminCatalogPage() {
                           ${cat === "Gun" || cat === "Attachment" ? "10%" : "0%"}
                         </span>
                       </td>
-                      <td class="px-6 py-4 font-mono text-slate-400 text-xs">${fmt(it.price)}</td>
+                      <td class="px-6 py-4 font-mono text-slate-400 text-xs">${fmt(displayPrice)}</td>
                       <td class="px-6 py-4 font-mono text-amber-400 font-bold text-xs bg-amber-500/5 group-hover:bg-transparent transition-colors">${fmt(afterTax)}</td>
                       <td class="px-6 py-4">
                         <div class="flex items-center gap-1.5 font-mono text-slate-400 text-xs">
