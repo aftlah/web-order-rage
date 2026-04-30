@@ -1890,52 +1890,70 @@ async function initAdminCatalogPage() {
           if (!items.length) return "";
           return `
           <div class="glass-card overflow-hidden">
-            <div class="bg-amber-500/10 px-6 py-4 border-b border-amber-500/20">
-              <h3 class="font-black text-amber-500 uppercase tracking-widest text-sm">${cat}</h3>
+            <div class="bg-amber-500/10 px-6 py-4 border-b border-amber-500/20 flex items-center justify-between">
+              <h3 class="font-black text-amber-500 uppercase tracking-widest text-sm flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
+                ${cat}
+              </h3>
+              <span class="text-[10px] text-amber-500/60 font-bold tracking-widest uppercase bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md">${items.length} Items</span>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
-                <thead class="bg-[#1a0f0a] text-slate-500">
+                <thead class="bg-[#120a06] text-slate-400/80 border-b border-amber-500/10">
                   <tr>
-                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Nama Item</th>
-                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Pajak (%)</th>
-                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Harga Dasar</th>
-                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Harga Jual (+Pajak)</th>
-                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Scrap</th>
-                    <th class="px-6 py-3 text-left font-bold uppercase tracking-tighter text-[10px]">Status</th>
-                    <th class="px-6 py-3 text-right font-bold uppercase tracking-tighter text-[10px]">Aksi</th>
+                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px] w-1/3">Nama Item</th>
+                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px]">Pajak</th>
+                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px]">Harga Dasar</th>
+                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px]">Harga Jual</th>
+                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px]">Scrap</th>
+                    <th class="px-6 py-4 text-center font-bold uppercase tracking-wider text-[11px]">Status</th>
+                    <th class="px-6 py-4 text-right font-bold uppercase tracking-wider text-[11px]">Aksi</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-white/5">
+                <tbody class="divide-y divide-white/5 bg-[#0a0604]/30">
                   ${items
                     .map((it) => {
                       const afterTax = getEffectivePrice(cat, it.price);
                       return `
-                    <tr class="hover:bg-white/5 transition-colors group">
+                    <tr class="hover:bg-amber-500/5 transition-colors group">
                       <td class="px-6 py-4">
-                        <div class="font-bold text-amber-50">${it.name}</div>
-                        ${it.metadata?.note ? `<div class="text-[10px] text-slate-500">${it.metadata.note}</div>` : ""}
+                        <div class="font-bold text-amber-50/90 flex items-center gap-2">
+                          <div class="w-1.5 h-1.5 rounded-full ${it.is_active ? 'bg-amber-500/80' : 'bg-slate-600'}"></div>
+                          ${it.name}
+                        </div>
+                        ${it.metadata?.note ? `<div class="text-[10px] text-amber-500/50 mt-1.5 ml-3.5 font-medium tracking-wide"><span class="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">${it.metadata.note}</span></div>` : ""}
                       </td>
-                      <td class="px-6 py-4 font-mono text-slate-400">
-                        ${cat === "Gun" || cat === "Attachment" ? "10%" : "0%"}
-                      </td>
-                      <td class="px-6 py-4 font-mono text-slate-400">${fmt(it.price)}</td>
-                      <td class="px-6 py-4 font-mono text-amber-200/80 font-bold">${fmt(afterTax)}</td>
-                      <td class="px-6 py-4 font-mono text-slate-400">${it.scrap || "-"}</td>
                       <td class="px-6 py-4">
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${it.is_active ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}">
+                        <span class="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-[#1a1410] border border-white/5 text-slate-400">
+                          ${cat === "Gun" || cat === "Attachment" ? "10%" : "0%"}
+                        </span>
+                      </td>
+                      <td class="px-6 py-4 font-mono text-slate-400 text-xs">${fmt(it.price)}</td>
+                      <td class="px-6 py-4 font-mono text-amber-400 font-bold text-xs bg-amber-500/5 group-hover:bg-transparent transition-colors">${fmt(afterTax)}</td>
+                      <td class="px-6 py-4">
+                        <div class="flex items-center gap-1.5 font-mono text-slate-400 text-xs">
+                          ${it.scrap ? `
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-amber-500/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                          </svg>
+                          ${it.scrap}
+                          ` : '<span class="text-slate-600">-</span>'}
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 text-center">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${it.is_active ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}">
                           ${it.is_active ? "AKTIF" : "OFF"}
                         </span>
                       </td>
-                      <td class="px-6 py-4 text-right">
-                        <div class="flex justify-end gap-2">
-                          <button class="p-2 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition edit-item" data-id="${it.id}">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                      <td class="px-6 py-4">
+                        <div class="flex justify-end gap-2 opacity-70 group-hover:opacity-100 transition-opacity">
+                          <button class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-[#1a1410] hover:shadow-[0_0_10px_rgba(245,158,11,0.3)] hover:-translate-y-0.5 transition-all duration-300 edit-item" data-id="${it.id}" title="Edit Item">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
                               <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                             </svg>
                           </button>
-                          <button class="p-2 rounded-lg ${it.is_active ? "bg-red-500/10 text-red-500 hover:bg-red-500/20" : "bg-green-500/10 text-green-500 hover:bg-green-500/20"} transition toggle-item" data-id="${it.id}" data-active="${it.is_active}">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                          <button class="p-2 rounded-xl border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg ${it.is_active ? "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white hover:shadow-[0_0_10px_rgba(239,68,68,0.2)]" : "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500 hover:text-white hover:shadow-[0_0_10px_rgba(34,197,94,0.2)]"} toggle-item" data-id="${it.id}" data-active="${it.is_active}" title="${it.is_active ? 'Nonaktifkan' : 'Aktifkan'}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1 0 12.728 0M12 3v9" />
                             </svg>
                           </button>
