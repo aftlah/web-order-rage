@@ -7419,12 +7419,15 @@ async function loadDrugsTable() {
       upah_putih: 0,
       uang_rage: 0,
       waktu: null,
+      is_paid: r.is_paid || false,
     };
     prev.ids.push(r.id);
     prev.jumlah += parseFloat(r.jumlah) || 0;
     prev.uang_merah += parseFloat(r.uang_merah) || 0;
     prev.upah_putih += parseFloat(r.upah_putih) || 0;
     prev.uang_rage += parseFloat(r.uang_rage) || 0;
+    // If grouped, use the latest is_paid status or handle as needed
+    if (r.is_paid) prev.is_paid = true;
     if (
       !prev.waktu ||
       new Date(r.waktu).getTime() > new Date(prev.waktu).getTime()
@@ -7459,6 +7462,12 @@ async function loadDrugsTable() {
         <td class="px-4 py-3 text-green-600 dark:text-green-400 font-semibold">${fmt(r.upah_putih)}</td>
         <td class="px-4 py-3 text-blue-600 dark:text-blue-400">${fmt(r.uang_rage)}</td>
         <td class="px-4 py-3 text-xs text-slate-400">${fmtDateTime(r.waktu)}</td>
+        <td class="px-4 py-3 text-center">
+          <button data-toggle-drugs-paid="${r.primaryId}" data-current="${r.is_paid}" 
+            class="badge ${r.is_paid ? 'badge-green' : 'badge-red'} hover:scale-105 transition-transform cursor-pointer">
+            ${r.is_paid ? 'LUNAS' : 'BELUM'}
+          </button>
+        </td>
         <td class="px-4 py-3 text-center">
           <div class="flex items-center justify-center gap-2">
             <button class="px-3 py-1 rounded bg-amber-600/20 text-amber-300 border border-amber-600/30 text-[10px] font-bold uppercase hover:bg-amber-600/30 transition ${r.ids.length > 1 ? "opacity-50 cursor-not-allowed" : ""}" ${r.ids.length > 1 ? "disabled" : ""} data-edit-drugs-row="${r.primaryId || ""}">
@@ -7531,6 +7540,37 @@ async function loadDrugsTable() {
       }
     });
   });
+
+  body.querySelectorAll("[data-toggle-drugs-paid]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = btn.getAttribute("data-toggle-drugs-paid");
+      const current = btn.getAttribute("data-current") === "true";
+      await toggleDrugsPaidStatus(id, !current);
+    });
+  });
+}
+
+async function toggleDrugsPaidStatus(id, nextStatus) {
+  if (!supabase || !id) return;
+  try {
+    const { error } = await supabase
+      .from("drugs_sales")
+      .update({ is_paid: nextStatus })
+      .eq("id", id);
+
+    if (error) {
+      if (error.message.includes("column \"is_paid\" does not exist")) {
+        showAlert("Kolom 'is_paid' belum ada di database drugs_sales.", "error");
+      } else {
+        showAlert("Gagal update status: " + error.message, "error");
+      }
+      return;
+    }
+    showAlert(nextStatus ? "Ditandai LUNAS" : "Ditandai BELUM LUNAS", "success");
+    loadDrugsTable();
+  } catch (e) {
+    showAlert("Gagal update status (network)", "error");
+  }
 }
 
 let rageCashTableOk = null;
