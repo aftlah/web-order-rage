@@ -6978,7 +6978,7 @@ async function submitDrugsData() {
   if (!adminMode && nameEl && currentMember && currentMember.nama)
     nameEl.value = String(currentMember.nama);
   if (!jenis) {
-    showAlert("Pilih jenis jualan (Weed/Meth)", "error");
+    showAlert("Pilih jenis jualan (Weed/Meth/Opium)", "error");
     return;
   }
   if (jumlah <= 0) {
