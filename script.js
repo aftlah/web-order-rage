@@ -4497,9 +4497,26 @@ function renderDashboard(groups) {
 }
 
 function setupChatListeners() {
-  // Logic moved to index.html for robustness
-  // This function is kept for backward compatibility if needed
-  // or to re-attach if DOM changes dynamically
+  const toggleBtn = document.getElementById("toggleChatBtn");
+  const closeBtn = document.getElementById("closeChatBtn");
+  const windowEl = document.getElementById("aiChatWindow");
+
+  if (toggleBtn && windowEl) {
+    toggleBtn.addEventListener("click", () => {
+      const isHidden = windowEl.classList.contains("scale-0");
+      if (isHidden) {
+        windowEl.classList.remove("scale-0", "opacity-0");
+      } else {
+        windowEl.classList.add("scale-0", "opacity-0");
+      }
+    });
+  }
+
+  if (closeBtn && windowEl) {
+    closeBtn.addEventListener("click", () => {
+      windowEl.classList.add("scale-0", "opacity-0");
+    });
+  }
 }
 
 window.handleChatKey = function (e) {
@@ -4547,17 +4564,20 @@ function addChatMessage(role, text, isTemp = false, id = null) {
   div.className = `flex ${role === "user" ? "justify-end" : "justify-start"}`;
 
   const bubble = document.createElement("div");
-  const baseCls =
-    "p-3 rounded-2xl max-w-[85%] text-sm shadow-sm animate-fade-in";
+  const baseCls = "p-3 rounded-2xl max-w-[85%] text-[13px] shadow-sm animate-fade-in leading-relaxed";
 
   if (role === "user") {
     bubble.className = `${baseCls} bg-amber-600 text-white rounded-tr-none`;
+    bubble.textContent = text;
   } else {
-    // Always use dark theme for bot bubbles to ensure white text readability
-    bubble.className = `${baseCls} bg-[#2a201a] border border-yellow-900/10 text-white rounded-tl-none`;
+    bubble.className = `${baseCls} bg-[#1a120c] border border-amber-900/30 text-amber-50/90 rounded-tl-none`;
+    // Simple formatter for bold and newlines
+    let formatted = text
+      .replace(/\*\*(.*?)\*\*/g, '<b class="text-amber-400 font-bold">$1</b>')
+      .replace(/\n/g, "<br>");
+    bubble.innerHTML = formatted;
   }
 
-  bubble.textContent = text;
   div.appendChild(bubble);
   container.appendChild(div);
   container.scrollTop = container.scrollHeight;
@@ -4607,92 +4627,120 @@ function getSystemPrompt() {
   for (const cat in CATALOG) {
     catalogText += `\n[${cat}]\n`;
     CATALOG[cat].forEach((item) => {
-      catalogText += `- ${item.name}: $${item.price} (Scrap: ${
-        item.scrap || 0
-      })\n`;
+      catalogText += `- ${item.name}: $${item.price}${item.scrap ? ` (Scrap: ${item.scrap})` : ""}\n`;
     });
   }
 
-  const ammoCompat = `
-AMMO COMPATIBILITY (Wajib hapal ini!):
-- AMMO .50: PISTOL .50
-- AMMO 9MM: CERAMIC PISTOL, TECH 9, MINI SMG, MICRO SMG, SMG, PISTOL X17
-- AMMO 12 GAUGE: SHOTGUN
-- AMMO 44 MAGNUM: NAVY REVOLVER, BLACK REVOLVER
-- AMMO .45: KVR
-- AMMO 762: Assault Rifle
-- AMMO 556: Virtus#3
+  const compatibility = `
+WEAPON COMPATIBILITY:
+- KVR: Attachment (Tactical Suppressor, Grip, Medium Scope), Ammo (AMMO .45)
+- PISTOL X17: Attachment (Tactical Flashlight), Ammo (AMMO 9MM)
+- PISTOL .50: Attachment (Tactical Suppressor, Extended Pistol Clip), Ammo (AMMO .50)
+- TECH 9: Attachment (SMG Drum, Suppressor), Ammo (AMMO 9MM)
+- MINI SMG: Attachment (Extended SMG Clip), Ammo (AMMO 9MM)
+- MICRO SMG: Attachment (Tactical Suppressor, Tactical Flashlight, Extended SMG Clip, Macro Scope), Ammo (AMMO 9MM)
+- SMG: Attachment (SMG Drum, Suppressor, Tactical Flashlight, Macro Scope), Ammo (AMMO 9MM)
+- SHOTGUN: Attachment (Tactical Suppressor, Tactical Flashlight), Ammo (AMMO 12 GAUGE)
+- Assault Rifle: Attachment (Tactical Flashlight, Grip, Rifle Drum, Extended Rifle Clip, Macro Scope, Tactical Suppressor), Ammo (Ammo 762)
+- CERAMIC PISTOL: Attachment (Extended Pistol Clip, Suppressor), Ammo (AMMO 9MM)
+- Virtus#3: Attachment (Tactical Suppressor, Extended Rifle Clip), Ammo (AMMO 9MM)
 `;
 
   return `You are Deri, a professional and helpful arms dealer assistant for R.A.G.E server.
-Your goal is to help players find items, prices, and ammo information clearly and politely.
+Your goal is to help players find items, prices, ammo info, and attachment compatibility clearly.
+
 You sell items from this catalog:
 ${catalogText}
-${ammoCompat}
+
+${compatibility}
 
 RULES:
 1. Answer in polite and clear Indonesian (Bahasa Indonesia yang baik dan benar).
-2. Use "Saya" to refer to yourself and "Anda" or "Kak" to refer to the customer. NEVER use slang like "gue", "lo", "lu", "gw".
-3. When answering prices, format it nicely (e.g., "$10,000").
-4. Explain requirements clearly. If an item needs scrap, mention it.
-5. Be concise but helpful. Limit answers to 2-3 sentences.
-6. If the item is not found, apologize politely and ask for the correct name.
-7. Use the AMMO COMPATIBILITY list for ammo questions.
-8. Act like a professional shopkeeper/assistant, not a robot.
-9. IF THE USER ASKS FOR TOTAL PRICE: You MUST calculate the total cost.
-   - Extract the quantity and item name from the user's request.
-   - If no quantity is specified, assume 1.
-   - Show the calculation steps: (Price x Qty) + (Price x Qty) = Total.
-   - Example: "Total untuk 2 Pistol .50 ($9,100/unit) adalah $18,200."
-   - Also calculate total Scrap required if applicable.`;
+2. Use "Saya" for yourself and "Anda" or "Kak" for the customer. NO slang like "gue/lo".
+3. Format prices nicely (e.g., "$10,000").
+4. Explain requirements clearly (Scrap, etc.).
+5. Be concise (2-3 sentences).
+6. IF USER ASKS FOR TOTAL PRICE: Calculate it. (Price x Qty) = Total.
+7. Always mention which ammo or attachment fits which gun if asked.
+8. Act like a professional shopkeeper.`;
 }
 
 function generateBotResponse(msg) {
   const lower = msg.toLowerCase();
+  const isAskingPrice = lower.includes("harga") || lower.includes("berapa");
 
   // 1. Greeting
-  if (
-    lower.includes("halo") ||
-    lower.includes("hi") ||
-    lower.includes("pagi") ||
-    lower.includes("malam")
-  ) {
-    return "Selamat datang di website orderan rage! Saya Deri, ada yang bisa saya bantu?";
+  if (lower.includes("halo") || lower.includes("hi") || lower.includes("pagi") || lower.includes("malam")) {
+    return "Selamat datang di R.A.G.E Order System! Saya Deri, ada yang bisa saya bantu mengenai info senjata, ammo, atau attachment?";
   }
 
-  // 2. Tanya Harga
-  if (lower.includes("harga") || lower.includes("berapa")) {
-    const item = findItemInCatalog(lower);
-    if (item) {
-      return `Harga untuk **${item.name}** adalah **$${fmt(item.price)}**${
-        item.scrap ? ` dan memerlukan **${item.scrap} Metal Scrap**` : ""
-      }.`;
+  // 2. Deteksi Item dari Katalog
+  const item = findItemInCatalog(lower);
+  if (item) {
+    let response = `**${item.name}**\n`;
+    
+    // Jika tanya harga atau jika item bukan kategori "Gun"
+    if (isAskingPrice) {
+      response += `Harga: **${fmt(item.price)}**\n`;
+      if (item.scrap) response += `Metal Scrap: **${item.scrap}**\n`;
     }
-    return "Maaf, boleh sebutkan nama barangnya lebih spesifik? Contoh: 'harga vest' atau 'harga ammo 9mm'.";
+
+    const weaponDetails = {
+      "kvr": "Ammo: **AMMO .45**\nAttachment:\n- Tactical Suppressor\n- Grip\n- Medium Scope",
+      "x17": "Ammo: **AMMO 9MM**\nAttachment:\n- Tactical Flashlight",
+      "p50": "Ammo: **AMMO .50**\nAttachment:\n- Tactical Suppressor\n- Extended Pistol Clip",
+      ".50": "Ammo: **AMMO .50**\nAttachment:\n- Tactical Suppressor\n- Extended Pistol Clip",
+      "tech9": "Ammo: **AMMO 9MM**\nAttachment:\n- SMG Drum\n- Suppressor",
+      "tech 9": "Ammo: **AMMO 9MM**\nAttachment:\n- SMG Drum\n- Suppressor",
+      "mini smg": "Ammo: **AMMO 9MM**\nAttachment:\n- Extended SMG Clip",
+      "micro smg": "Ammo: **AMMO 9MM**\nAttachment:\n- Tactical Suppressor\n- Tactical Flash\n- Extended SMG\n- Macro Scope",
+      "smg": "Ammo: **AMMO 9MM**\nAttachment:\n- SMG Drum\n- Suppressor\n- Tactical Flash\n- Macro Scope",
+      "shotgun": "Ammo: **AMMO 12 GAUGE**\nAttachment:\n- Tactical Suppressor\n- Tactical Flashlight",
+      "assault": "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
+      "ak-47": "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
+      "ak47": "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
+      "ceramic": "Ammo: **AMMO 9MM**\nAttachment:\n- Extended Pistol\n- Suppressor",
+      "virtus": "Ammo: **AMMO 9MM**\nAttachment:\n- Tactical Suppressor\n- Extended Rifle Clip"
+    };
+
+    const weaponKey = Object.keys(weaponDetails).find(k => item.name.toLowerCase().includes(k));
+    if (weaponKey) {
+      response += weaponDetails[weaponKey];
+    } else if (!isAskingPrice) {
+      response += `Harga: **${fmt(item.price)}**`;
+    }
+
+    return response;
   }
 
-  // 3. Tanya Scrap
+  // 3. General Ammo Questions
+  if (lower.includes("ammo") || lower.includes("peluru")) {
+    if (lower.includes(".50")) return "Ammo .50 cocok untuk Pistol .50.";
+    if (lower.includes("9mm")) return "Ammo 9mm cocok untuk Ceramic, Tech 9, Mini SMG, Micro SMG, SMG, dan Pistol X17.";
+    if (lower.includes("44") || lower.includes("magnum")) return "Ammo 44 Magnum cocok untuk Navy Revolver dan Black Revolver.";
+    if (lower.includes("45")) return "Ammo .45 cocok untuk KVR.";
+    if (lower.includes("762")) return "Peluru 762 digunakan untuk Assault Rifle (AK-47).";
+    if (lower.includes("556")) return "Peluru 556 digunakan untuk Virtus#3.";
+    return "Kami punya berbagai jenis ammo: 9mm, .50, .45, 44 Magnum, 762, dan 556. Kakak cari untuk senjata apa?";
+  }
+
+  // 4. General Attachment Questions
+  if (lower.includes("attachment") || lower.includes("pasang") || lower.includes("scope") || lower.includes("clip") || lower.includes("suppressor") || lower.includes("flash") || lower.includes("grip")) {
+    return "Tersedia Suppressor, Extended Clip, Scope, Flashlight, dan Grip. Kakak ingin tahu attachment untuk senjata apa? (Contoh: 'attachment kvr')";
+  }
+
+  // 5. Stock/Ready Questions
+  if (lower.includes("ready") || lower.includes("stok") || lower.includes("ada")) {
+    return "Semua barang yang ada di list katalog statusnya **Ready Stock**. Silakan langsung diorder ya Kak.";
+  }
+
+  // 6. Scrap/Metal Questions
   if (lower.includes("scrap") || lower.includes("metal")) {
-    const item = findItemInCatalog(lower);
-    if (item) {
-      return item.scrap
-        ? `Untuk membuat **${item.name}**, Anda memerlukan **${item.scrap} Metal Scrap** per unit.`
-        : `Item **${item.name}** tidak memerlukan Metal Scrap.`;
-    }
-    return "Maaf, Anda menanyakan scrap untuk barang apa? Mohon sebutkan nama itemnya.";
+    return "Banyak item kami memerlukan Metal Scrap. Silakan tanya harga item tertentu (misal: 'harga vest') untuk melihat kebutuhan scrap-nya.";
   }
 
-  // 4. Tanya Stock/Ready
-  if (
-    lower.includes("ready") ||
-    lower.includes("stok") ||
-    lower.includes("ada")
-  ) {
-    return "Semua barang yang ada di list katalog statusnya **Ready Stock**. Silahkan langsung diorder ya Kak.";
-  }
-
-  // 5. Default
-  return "Maaf, saya kurang paham. Bisa tolong ulangi pertanyaan Anda? Anda bisa tanya seperti 'harga vest' atau 'ammo smg'.";
+  // Default
+  return "Maaf, saya kurang paham. Kakak bisa tanya soal harga senjata, jenis ammo, atau kecocokan attachment (contoh: 'harga mini smg' atau 'attachment kvr').";
 }
 
 function findItemInCatalog(text) {
@@ -4702,22 +4750,29 @@ function findItemInCatalog(text) {
     allItems = allItems.concat(CATALOG[cat]);
   }
 
-  // Cari yang match
-  // Prioritas: Exact match > Partial match
-  const words = text.split(" ");
+  const lowerText = text.toLowerCase();
 
-  // Coba cari item yang namanya ada di dalam teks user
+  // 1. Exact or Substring Match (Item name inside text)
   for (const item of allItems) {
     const itemName = item.name.toLowerCase();
-    if (text.includes(itemName)) return item;
+    if (lowerText.includes(itemName)) return item;
   }
 
-  // Coba cari per kata kunci spesifik
-  if (text.includes("vest")) return allItems.find((i) => i.name === "VEST");
-  if (text.includes("9mm")) return allItems.find((i) => i.name === "AMMO 9MM");
-  if (text.includes("ak47") || text.includes("ak-47"))
-    return allItems.find((i) => i.name === "AK-47");
-  if (text.includes(".50")) return allItems.find((i) => i.name === "AMMO .50");
+  // 2. Reverse Substring Match (Text inside Item name)
+  // Useful for "Virtus" -> "Virtus#3"
+  const keywords = ["virtus", "ak", "x17", "tech", "smg", "pistol", "rifle", "vest", "ammo", "clip", "scope", "suppressor"];
+  for (const kw of keywords) {
+    if (lowerText.includes(kw)) {
+      const found = allItems.find(i => i.name.toLowerCase().includes(kw));
+      if (found) return found;
+    }
+  }
+
+  // 3. Manual Overrides / Aliases
+  if (lowerText.includes("ak47") || lowerText.includes("ak-47")) return allItems.find(i => i.name === "Assault Rifle");
+  if (lowerText.includes("ak")) return allItems.find(i => i.name === "Assault Rifle");
+  if (lowerText.includes("p50")) return allItems.find(i => i.name.includes(".50"));
+  if (lowerText.includes("vest")) return allItems.find(i => i.name === "VEST");
 
   return null;
 }

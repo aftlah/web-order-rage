@@ -281,6 +281,57 @@
         }
       });
     </script>
+    <!-- AI Chatbot Floating Widget -->
+    <div id="aiChatWidget" class="fixed bottom-6 right-6 z-[100] flex flex-col items-end pointer-events-none">
+      <!-- Chat Window -->
+      <div id="aiChatWindow" class="bg-[#120a06] border border-amber-500/20 rounded-2xl shadow-[0_0_30px_rgba(245,158,11,0.15)] w-80 sm:w-96 mb-4 flex flex-col overflow-hidden pointer-events-auto transition-all duration-300 origin-bottom-right scale-0 opacity-0 h-[450px]">
+        
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-[#1a0f0a] to-[#2d1b14] p-4 flex justify-between items-center border-b border-amber-500/20 shadow-sm relative overflow-hidden">
+          <div class="absolute -top-10 -right-10 w-24 h-24 bg-amber-500/10 blur-[20px] rounded-full pointer-events-none"></div>
+          <div class="flex items-center gap-3 relative z-10">
+            <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"></div>
+            <div>
+              <h3 class="font-black text-amber-400 text-sm tracking-wide">Deri Assistant</h3>
+              <p class="text-[10px] text-amber-500/60 uppercase tracking-widest font-bold">R.A.G.E AI</p>
+            </div>
+          </div>
+          <button id="closeChatBtn" class="text-stone-400 hover:text-amber-400 transition-colors bg-black/20 p-1.5 rounded-lg border border-white/5 relative z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+
+        <!-- Messages Area -->
+        <div id="chat-messages" class="flex-1 p-4 overflow-y-auto flex flex-col gap-3 scroll-smooth bg-[#0a0604] custom-scrollbar">
+          <!-- Welcome Message -->
+          <div class="flex justify-start">
+            <div class="p-3 rounded-2xl bg-[#1a120c] border border-amber-900/30 text-amber-50/90 text-[13px] shadow-sm rounded-tl-none max-w-[85%] leading-relaxed">
+              Halo! Saya Deri. Ada yang bisa dibantu soal harga barang, ammo, atau attachment senjata?
+            </div>
+          </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-3 bg-[#120a06] border-t border-amber-500/10 relative">
+          <div class="relative flex items-center">
+            <input type="text" id="chat-input" placeholder="Tanya senjata, ammo, harga..." 
+              class="w-full bg-[#1a0f0a] border border-amber-500/20 rounded-xl py-3 pl-4 pr-12 text-[13px] text-amber-50 placeholder-stone-500 focus:outline-none focus:border-amber-500/50 focus:bg-[#20130d] transition-all shadow-inner"
+              onkeypress="window.handleChatKey(event)" autocomplete="off" />
+            <button onclick="window.sendChatMessage()" class="absolute right-2 p-2 bg-gradient-to-r from-amber-600 to-amber-500 text-[#1a1410] rounded-lg hover:brightness-110 transition-all shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 translate-x-0.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+            </button>
+          </div>
+          <p class="text-[9px] text-center text-stone-600 mt-2">AI can make mistakes. Verify important info.</p>
+        </div>
+      </div>
+
+      <!-- Floating Button -->
+      <button id="toggleChatBtn" class="pointer-events-auto bg-gradient-to-r from-amber-600 to-amber-500 text-[#1a1410] w-14 h-14 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:scale-105 hover:shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-all duration-300 relative group">
+        <div class="absolute inset-0 rounded-full border border-white/20"></div>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12.76c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 011.037-.443 48.282 48.282 0 005.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
+      </button>
+    </div>
+
     <script src="config.js?v=20260417a"></script>
     <script type="module" src="script.js?v=20260417a"></script>
     <script src="interactive.js"></script>
