@@ -1307,6 +1307,7 @@ async function initAdminUsersPage() {
 
   const newUsernameEl = document.getElementById("adminNewUsername");
   const reqUsernameBtn = document.getElementById("adminRequestUsernameChange");
+  const resetUsernameBtn = document.getElementById("adminResetUsernameAuto");
   const adminNewPasswordEl = document.getElementById("adminNewPassword");
   const adminConfirmPasswordEl = document.getElementById(
     "adminConfirmPassword"
@@ -1493,6 +1494,11 @@ async function initAdminUsersPage() {
         btn.disabled = false;
       }
     });
+  }
+
+  if (resetUsernameBtn) {
+    resetUsernameBtn.disabled = true;
+    resetUsernameBtn.classList.add("opacity-50", "cursor-not-allowed");
   }
 
   const isStrongPassword = (pw) => String(pw || "").length >= 6;
@@ -7378,7 +7384,7 @@ async function loadDrugsTable() {
   if (!body) return;
 
   body.innerHTML =
-    '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
+    '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
 
   let query = supabase
     .from("drugs_sales")
@@ -7393,7 +7399,7 @@ async function loadDrugsTable() {
   const { data, error } = await query.limit(50);
 
   if (error) {
-    body.innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
     return;
   }
 
@@ -7463,13 +7469,17 @@ async function loadDrugsTable() {
         <td class="px-4 py-3 text-blue-600 dark:text-blue-400">${fmt(r.uang_rage)}</td>
         <td class="px-4 py-3 text-xs text-slate-400">${fmtDateTime(r.waktu)}</td>
         <td class="px-4 py-3 text-center">
-          <button data-toggle-drugs-paid="${r.primaryId}" data-current="${r.is_paid}" 
+          <button data-toggle-drugs-paid="${r.primaryId}" data-ids="${ids}" data-current="${r.is_paid}" 
             class="badge ${r.is_paid ? 'badge-green' : 'badge-red'} hover:scale-105 transition-transform cursor-pointer">
             ${r.is_paid ? 'LUNAS' : 'BELUM'}
           </button>
         </td>
         <td class="px-4 py-3 text-center">
           <div class="flex items-center justify-center gap-2">
+            <button data-toggle-drugs-paid="${r.primaryId}" data-ids="${ids}" data-current="${r.is_paid}"
+              class="px-3 py-1 rounded ${r.is_paid ? "bg-slate-700/20 text-slate-300 border border-slate-700/30 hover:bg-slate-700/30" : "bg-green-700/20 text-green-400 border border-green-700/30 hover:bg-green-700/30"} text-[10px] font-bold uppercase transition">
+              ${r.is_paid ? "Batal" : "Bayar"}
+            </button>
             <button class="px-3 py-1 rounded bg-amber-600/20 text-amber-300 border border-amber-600/30 text-[10px] font-bold uppercase hover:bg-amber-600/30 transition ${r.ids.length > 1 ? "opacity-50 cursor-not-allowed" : ""}" ${r.ids.length > 1 ? "disabled" : ""} data-edit-drugs-row="${r.primaryId || ""}">
               Edit
             </button>
@@ -7545,18 +7555,26 @@ async function loadDrugsTable() {
     btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-toggle-drugs-paid");
       const current = btn.getAttribute("data-current") === "true";
-      await toggleDrugsPaidStatus(id, !current);
+      const rawIds = btn.getAttribute("data-ids") || "";
+      const ids = rawIds
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      await toggleDrugsPaidStatus(ids.length ? ids : id, !current);
     });
   });
 }
 
-async function toggleDrugsPaidStatus(id, nextStatus) {
-  if (!supabase || !id) return;
+async function toggleDrugsPaidStatus(idsOrId, nextStatus) {
+  if (!supabase || !idsOrId) return;
+  const ids = Array.isArray(idsOrId)
+    ? idsOrId.map((x) => String(x).trim()).filter(Boolean)
+    : [String(idsOrId).trim()].filter(Boolean);
+  if (!ids.length) return;
   try {
-    const { error } = await supabase
-      .from("drugs_sales")
-      .update({ is_paid: nextStatus })
-      .eq("id", id);
+    let q = supabase.from("drugs_sales").update({ is_paid: nextStatus });
+    q = ids.length > 1 ? q.in("id", ids) : q.eq("id", ids[0]);
+    const { error } = await q;
 
     if (error) {
       if (error.message.includes("column \"is_paid\" does not exist")) {
