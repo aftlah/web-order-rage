@@ -42,6 +42,9 @@ let CATALOG = {
     { name: "Rifle Drum", price: 26000, scrap: 5 },
     { name: "Macro Scope", price: 4000, scrap: 5 },
     { name: "Medium Scope", price: 4000, scrap: 5 },
+    { name: "Modern Extended Drum", price: 19500, scrap: 5 },
+    { name: "Modern Suppressor Short", price: 13000, scrap: 5 },
+    { name: "Holo Scope", price: 3900, scrap: 5 },
   ],
   Others: [
     { name: "VEST", price: 3000, scrap: 2 },
@@ -136,6 +139,9 @@ const ITEM_MAX_LIMITS = {
   "Rifle Drum": 20,
   "Macro Scope": 20,
   "Medium Scope": 20,
+  "Modern Extended Drum": 20,
+  "Modern Suppressor Short": 20,
+  "Holo Scope": 20,
 };
 
 function getItemMax(name) {
@@ -1884,9 +1890,72 @@ async function initAdminCatalogPage() {
   const refreshBtn = document.getElementById("refreshCatalog");
   const addBtn = document.getElementById("addNewItem");
 
+  const ensureX17AttachmentItems = async () => {
+    if (window.__rageX17AttachmentSeeded) return;
+    window.__rageX17AttachmentSeeded = true;
+    const seeds = [
+      {
+        kategori: "Attachment",
+        name: "Modern Extended Drum",
+        price: 19500,
+        scrap: 5,
+        is_active: true,
+        max_limit: 20,
+        metadata: { note: "Attachment X17" },
+      },
+      {
+        kategori: "Attachment",
+        name: "Modern Suppressor Short",
+        price: 13000,
+        scrap: 5,
+        is_active: true,
+        max_limit: 20,
+        metadata: { note: "Attachment X17" },
+      },
+      {
+        kategori: "Attachment",
+        name: "Holo Scope",
+        price: 3900,
+        scrap: 5,
+        is_active: true,
+        max_limit: 20,
+        metadata: { note: "Attachment X17" },
+      },
+    ];
+    try {
+      const names = seeds.map((s) => s.name);
+      const { data: existing, error } = await supabase
+        .from("catalog_items")
+        .select("name")
+        .eq("kategori", "Attachment")
+        .in("name", names)
+        .limit(50);
+      if (error) return;
+      const exists = new Set((existing || []).map((r) => String(r.name || "")));
+      const missing = seeds.filter((s) => !exists.has(s.name));
+      if (!missing.length) return;
+      const res = await supabase.from("catalog_items").insert(missing);
+      if (
+        res &&
+        res.error &&
+        String(res.error.message || "")
+          .toLowerCase()
+          .includes('column "max_limit"')
+      ) {
+        await supabase.from("catalog_items").insert(
+          missing.map((m) => {
+            const { max_limit, ...rest } = m;
+            return rest;
+          })
+        );
+      }
+    } catch (e) {}
+  };
+
   const load = async () => {
     if (listEl)
       listEl.innerHTML = `<div class="flex justify-center py-20"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div></div>`;
+    await ensureX17AttachmentItems();
     const { data, error } = await supabase
       .from("catalog_items")
       .select("*")
@@ -4640,7 +4709,7 @@ function getSystemPrompt() {
   const compatibility = `
 WEAPON COMPATIBILITY:
 - KVR: Attachment (Tactical Suppressor, Grip, Medium Scope), Ammo (AMMO .45)
-- PISTOL X17: Attachment (Tactical Flashlight), Ammo (AMMO 9MM)
+- PISTOL X17: Attachment (Tactical Flashlight, Modern Extended Drum, Modern Suppressor Short, Holo Scope), Ammo (AMMO 9MM)
 - PISTOL .50: Attachment (Tactical Suppressor, Extended Pistol Clip), Ammo (AMMO .50)
 - TECH 9: Attachment (SMG Drum, Suppressor), Ammo (AMMO 9MM)
 - MINI SMG: Attachment (Extended SMG Clip), Ammo (AMMO 9MM)
@@ -4693,7 +4762,7 @@ function generateBotResponse(msg) {
 
     const weaponDetails = {
       "kvr": "Ammo: **AMMO .45**\nAttachment:\n- Tactical Suppressor\n- Grip\n- Medium Scope",
-      "x17": "Ammo: **AMMO 9MM**\nAttachment:\n- Tactical Flashlight",
+      "x17": "Ammo: **AMMO 9MM**\nAttachment:\n- Tactical Flashlight\n- Modern Extended Drum\n- Modern Suppressor Short\n- Holo Scope",
       "p50": "Ammo: **AMMO .50**\nAttachment:\n- Tactical Suppressor\n- Extended Pistol Clip",
       ".50": "Ammo: **AMMO .50**\nAttachment:\n- Tactical Suppressor\n- Extended Pistol Clip",
       "tech9": "Ammo: **AMMO 9MM**\nAttachment:\n- SMG Drum\n- Suppressor",
