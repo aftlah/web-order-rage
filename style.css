@@ -742,6 +742,8 @@ select {
   box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(251,191,36,0.04);
   max-height: 240px;
   overflow-y: auto;
+  position: absolute;
+  z-index: 9999 !important;
 }
 
 .rage-dropdown-item {
