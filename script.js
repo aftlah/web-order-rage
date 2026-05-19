@@ -6404,6 +6404,74 @@ window.deleteMember = async function (id, name) {
 // --- DRUGS SECTION ---
 let currentDrugsBatch = null;
 let drugsSalesHasJenisJumlah = null;
+let drugsBatchList = [];
+
+async function loadDrugsBatchFilterOptions() {
+  if (!supabase) return;
+  const filterEl = document.getElementById("drugsBatchFilter");
+  if (!filterEl) return;
+
+  try {
+    const { data, error } = await supabase
+      .from("order_windows")
+      .select("orderanke,start_time,end_time,is_active")
+      .gte("orderanke", 1000)
+      .order("start_time", { ascending: false })
+      .limit(50);
+    if (error) return;
+
+    const rows = (data || []).filter((r) => r && r.orderanke != null);
+    drugsBatchList = rows.map((r) => ({
+      orderanke: parseInt(r.orderanke, 10),
+      is_active: !!r.is_active,
+      start_time: r.start_time,
+      end_time: r.end_time,
+    }));
+
+    const current = parseInt(currentDrugsBatch || 0, 10) || null;
+    let prev = null;
+    if (current) {
+      const idx = drugsBatchList.findIndex((b) => b.orderanke === current);
+      if (idx >= 0 && idx + 1 < drugsBatchList.length)
+        prev = drugsBatchList[idx + 1].orderanke;
+    }
+    if (!prev && drugsBatchList.length) {
+      prev =
+        drugsBatchList.length > 1 ? drugsBatchList[1].orderanke : drugsBatchList[0].orderanke;
+    }
+
+    const makeLabel = (orderanke, active) => {
+      const { m, w, raw } = decodeOrderanke(orderanke);
+      const a = active ? " (aktif)" : "";
+      return `M${m}-W${w} (#${raw})${a}`;
+    };
+
+    const selected = String(filterEl.value || "current");
+    const opts = [];
+    opts.push({ value: "current", label: "Batch Aktif" });
+    opts.push({ value: "previous", label: "Prebatch (Sebelumnya)" });
+    opts.push({ value: "all", label: "Semua Batch" });
+    drugsBatchList.forEach((b) => {
+      if (!b.orderanke) return;
+      opts.push({
+        value: `orderanke:${b.orderanke}`,
+        label: makeLabel(b.orderanke, b.is_active),
+      });
+    });
+
+    filterEl.innerHTML = opts
+      .map((o) => `<option value="${o.value}">${o.label}</option>`)
+      .join("");
+
+    if (selected === "current" || selected === "all" || selected === "previous") {
+      filterEl.value = selected;
+      return;
+    }
+    if (opts.some((o) => o.value === selected)) filterEl.value = selected;
+    else if (prev) filterEl.value = `orderanke:${prev}`;
+    else filterEl.value = "all";
+  } catch (e) {}
+}
 
 async function initDrugs(member) {
   console.log("Initializing Drugs section...");
@@ -6424,6 +6492,8 @@ async function initDrugs(member) {
   } catch (e) {
     console.error("Gagal ambil periode drugs:", e);
   }
+
+  await loadDrugsBatchFilterOptions();
 
   const adminMode = isAdminMember(member);
   if (adminMode) {
@@ -7461,8 +7531,30 @@ async function loadDrugsTable() {
     .gte("periode_orderanke", 1000) // Hanya ambil data Drugs
     .order("waktu", { ascending: false });
 
-  if (filter && filter.value === "current" && currentDrugsBatch) {
-    query = query.eq("periode_orderanke", currentDrugsBatch);
+  if (filter) {
+    const v = String(filter.value || "");
+    if (v === "current" && currentDrugsBatch) {
+      query = query.eq("periode_orderanke", currentDrugsBatch);
+    } else if (v === "previous") {
+      const current = parseInt(currentDrugsBatch || 0, 10) || null;
+      let prev = null;
+      if (current) {
+        const idx = drugsBatchList.findIndex((b) => b.orderanke === current);
+        if (idx >= 0 && idx + 1 < drugsBatchList.length)
+          prev = drugsBatchList[idx + 1].orderanke;
+      }
+      if (!prev && drugsBatchList.length) {
+        prev =
+          drugsBatchList.length > 1
+            ? drugsBatchList[1].orderanke
+            : drugsBatchList[0].orderanke;
+      }
+      if (prev) query = query.eq("periode_orderanke", prev);
+    } else if (v.startsWith("orderanke:")) {
+      const raw = v.split(":")[1] || "";
+      const picked = parseInt(raw, 10);
+      if (!Number.isNaN(picked) && picked) query = query.eq("periode_orderanke", picked);
+    }
   }
 
   const { data, error } = await query.limit(50);
@@ -7545,10 +7637,6 @@ async function loadDrugsTable() {
         </td>
         <td class="px-4 py-3 text-center">
           <div class="flex items-center justify-center gap-2">
-            <button data-toggle-drugs-paid="${r.primaryId}" data-ids="${ids}" data-current="${r.is_paid}"
-              class="px-3 py-1 rounded ${r.is_paid ? "bg-slate-700/20 text-slate-300 border border-slate-700/30 hover:bg-slate-700/30" : "bg-green-700/20 text-green-400 border border-green-700/30 hover:bg-green-700/30"} text-[10px] font-bold uppercase transition">
-              ${r.is_paid ? "Batal" : "Bayar"}
-            </button>
             <button class="px-3 py-1 rounded bg-amber-600/20 text-amber-300 border border-amber-600/30 text-[10px] font-bold uppercase hover:bg-amber-600/30 transition ${r.ids.length > 1 ? "opacity-50 cursor-not-allowed" : ""}" ${r.ids.length > 1 ? "disabled" : ""} data-edit-drugs-row="${r.primaryId || ""}">
               Edit
             </button>
