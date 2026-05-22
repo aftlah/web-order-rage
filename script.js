@@ -6411,6 +6411,7 @@ async function loadDrugsBatchFilterOptions() {
   const filterEl = document.getElementById("drugsBatchFilter");
   if (!filterEl) return;
 
+  let list = [];
   try {
     const { data, error } = await supabase
       .from("order_windows")
@@ -6418,59 +6419,87 @@ async function loadDrugsBatchFilterOptions() {
       .gte("orderanke", 1000)
       .order("start_time", { ascending: false })
       .limit(50);
-    if (error) return;
 
-    const rows = (data || []).filter((r) => r && r.orderanke != null);
-    drugsBatchList = rows.map((r) => ({
-      orderanke: parseInt(r.orderanke, 10),
-      is_active: !!r.is_active,
-      start_time: r.start_time,
-      end_time: r.end_time,
-    }));
-
-    const current = parseInt(currentDrugsBatch || 0, 10) || null;
-    let prev = null;
-    if (current) {
-      const idx = drugsBatchList.findIndex((b) => b.orderanke === current);
-      if (idx >= 0 && idx + 1 < drugsBatchList.length)
-        prev = drugsBatchList[idx + 1].orderanke;
+    if (!error) {
+      const rows = (data || []).filter((r) => r && r.orderanke != null);
+      list = rows.map((r) => ({
+        orderanke: parseInt(r.orderanke, 10),
+        is_active: !!r.is_active,
+        start_time: r.start_time,
+        end_time: r.end_time,
+      }));
     }
-    if (!prev && drugsBatchList.length) {
-      prev =
-        drugsBatchList.length > 1 ? drugsBatchList[1].orderanke : drugsBatchList[0].orderanke;
-    }
-
-    const makeLabel = (orderanke, active) => {
-      const { m, w, raw } = decodeOrderanke(orderanke);
-      const a = active ? " (aktif)" : "";
-      return `M${m}-W${w} (#${raw})${a}`;
-    };
-
-    const selected = String(filterEl.value || "current");
-    const opts = [];
-    opts.push({ value: "current", label: "Batch Aktif" });
-    opts.push({ value: "previous", label: "Prebatch (Sebelumnya)" });
-    opts.push({ value: "all", label: "Semua Batch" });
-    drugsBatchList.forEach((b) => {
-      if (!b.orderanke) return;
-      opts.push({
-        value: `orderanke:${b.orderanke}`,
-        label: makeLabel(b.orderanke, b.is_active),
-      });
-    });
-
-    filterEl.innerHTML = opts
-      .map((o) => `<option value="${o.value}">${o.label}</option>`)
-      .join("");
-
-    if (selected === "current" || selected === "all" || selected === "previous") {
-      filterEl.value = selected;
-      return;
-    }
-    if (opts.some((o) => o.value === selected)) filterEl.value = selected;
-    else if (prev) filterEl.value = `orderanke:${prev}`;
-    else filterEl.value = "all";
   } catch (e) {}
+
+  if (!list.length) {
+    try {
+      const { data, error } = await supabase
+        .from("drugs_sales")
+        .select("periode_orderanke")
+        .gte("periode_orderanke", 1000)
+        .order("periode_orderanke", { ascending: false })
+        .limit(200);
+
+      if (!error) {
+        const seen = new Set();
+        list = (data || [])
+          .map((r) => parseInt(r && r.periode_orderanke, 10))
+          .filter((v) => !Number.isNaN(v) && v)
+          .filter((v) => (seen.has(v) ? false : (seen.add(v), true)))
+          .map((v) => ({
+            orderanke: v,
+            is_active: currentDrugsBatch ? v === currentDrugsBatch : false,
+            start_time: null,
+            end_time: null,
+          }));
+      }
+    } catch (e) {}
+  }
+
+  drugsBatchList = list;
+
+  const current = parseInt(currentDrugsBatch || 0, 10) || null;
+  let prev = null;
+  if (current) {
+    const idx = drugsBatchList.findIndex((b) => b.orderanke === current);
+    if (idx >= 0 && idx + 1 < drugsBatchList.length)
+      prev = drugsBatchList[idx + 1].orderanke;
+  }
+  if (!prev && drugsBatchList.length) {
+    prev =
+      drugsBatchList.length > 1 ? drugsBatchList[1].orderanke : drugsBatchList[0].orderanke;
+  }
+
+  const makeLabel = (orderanke, active) => {
+    const { m, w, raw } = decodeOrderanke(orderanke);
+    const a = active ? " (aktif)" : "";
+    return `M${m}-W${w} (#${raw})${a}`;
+  };
+
+  const selected = String(filterEl.value || "current");
+  const opts = [];
+  opts.push({ value: "current", label: "Batch Aktif" });
+  opts.push({ value: "previous", label: "Prebatch (Sebelumnya)" });
+  opts.push({ value: "all", label: "Semua Batch" });
+  drugsBatchList.forEach((b) => {
+    if (!b.orderanke) return;
+    opts.push({
+      value: `orderanke:${b.orderanke}`,
+      label: makeLabel(b.orderanke, b.is_active),
+    });
+  });
+
+  filterEl.innerHTML = opts
+    .map((o) => `<option value="${o.value}">${o.label}</option>`)
+    .join("");
+
+  if (selected === "current" || selected === "all" || selected === "previous") {
+    filterEl.value = selected;
+    return;
+  }
+  if (opts.some((o) => o.value === selected)) filterEl.value = selected;
+  else if (prev) filterEl.value = `orderanke:${prev}`;
+  else filterEl.value = "all";
 }
 
 async function initDrugs(member) {
