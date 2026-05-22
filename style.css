@@ -961,6 +961,28 @@ select option:active {
   border: 1px solid #3d342d;
   scrollbar-width: thin;
   scrollbar-color: #3d342d #0a0805;
+  position: relative;
+}
+
+.scroll-table table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.scroll-table th:first-child,
+.scroll-table td:first-child {
+  position: sticky;
+  left: 0;
+  background: #0a0805;
+  z-index: 1;
+}
+
+.scroll-table thead th:first-child {
+  z-index: 2;
+}
+
+.scroll-table td:first-child {
+  box-shadow: 10px 0 16px -14px rgba(0, 0, 0, 0.9);
 }
 
 /* ===== Empty State ===== */

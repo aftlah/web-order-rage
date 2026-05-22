@@ -6406,6 +6406,25 @@ let currentDrugsBatch = null;
 let drugsSalesHasJenisJumlah = null;
 let drugsBatchList = [];
 
+async function hydrateDrugsBatchFilter() {
+  if (!supabase) return;
+  const filterEl = document.getElementById("drugsBatchFilter");
+  if (!filterEl) return;
+  const already =
+    filterEl.dataset && filterEl.dataset.hydrated === "1" && filterEl.options.length > 2;
+  if (already) return;
+
+  if (!currentDrugsBatch) {
+    try {
+      const win = await fetchActiveOrderWindow(null, "drugs");
+      if (win && win.orderanke) currentDrugsBatch = parseInt(win.orderanke, 10);
+    } catch (e) {}
+  }
+
+  await loadDrugsBatchFilterOptions();
+  if (filterEl.dataset) filterEl.dataset.hydrated = "1";
+}
+
 async function loadDrugsBatchFilterOptions() {
   if (!supabase) return;
   const filterEl = document.getElementById("drugsBatchFilter");
@@ -6522,7 +6541,7 @@ async function initDrugs(member) {
     console.error("Gagal ambil periode drugs:", e);
   }
 
-  await loadDrugsBatchFilterOptions();
+  await hydrateDrugsBatchFilter();
 
   const adminMode = isAdminMember(member);
   if (adminMode) {
@@ -7550,6 +7569,8 @@ async function loadDrugsTable() {
   const empty = document.getElementById("drugsEmptyState");
   const filter = document.getElementById("drugsBatchFilter");
   if (!body) return;
+
+  await hydrateDrugsBatchFilter();
 
   body.innerHTML =
     '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
