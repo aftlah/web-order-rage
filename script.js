@@ -297,6 +297,19 @@ async function restoreSoftDeletedById(tableName, id) {
   return { ok: true, error: null };
 }
 
+// Delete rows that have been in the archive for more than 3 days
+async function purgeOldArchives(tableName) {
+  if (!supabase) return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from(tableName)
+    .delete()
+    .lt("deleted_at", threeDaysAgo)
+    .select("id");
+  if (error) return { ok: false, error };
+  return { ok: true, deletedCount: data ? data.length : 0 };
+}
+
 async function postToDiscord(message, overrideUrl) {
   try {
     const url = overrideUrl || (window && window.DISCORD_WEBHOOK_URL) || "";
@@ -2585,6 +2598,50 @@ async function initAdminArchivePage() {
       return "";
     }).join("");
 
+    // Restore all button handler
+    const restoreAllBtn = document.getElementById("restoreAllBtn");
+    if (restoreAllBtn) {
+      restoreAllBtn.addEventListener("click", async () => {
+        const ids = Array.from(body.querySelectorAll("[data-restore-id]")).
+          map(btn => parseInt(btn.getAttribute("data-restore-id") || "", 10)).
+          filter(id => id);
+        if (!ids.length) {
+          await Swal.fire({
+            title: "Tidak ada data untuk dipulihkan",
+            icon: "info",
+            background: "#1f1410",
+            color: "#fef3c7"
+          });
+          return;
+        }
+        const result = await Swal.fire({
+          title: "Pulihkan semua data?",
+          text: `Akan memulihkan ${ids.length} item.`,
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonColor: "#d97706",
+          cancelButtonColor: "#3d342d",
+          confirmButtonText: "Ya, pulihkan semua!",
+          cancelButtonText: "Batal",
+          background: "#1f1410",
+          color: "#fef3c7"
+        });
+        if (!result.isConfirmed) return;
+        try {
+          for (const id of ids) {
+            const { ok, error } = await restoreSoftDeletedById(currentTab, id);
+            if (!ok) {
+              showAlert(`Gagal memulihkan id ${id}: ${error.message || "Unknown error"}`, "error");
+            }
+          }
+          showAlert("Semua data berhasil dipulihkan", "success");
+          await loadArchiveData();
+        } catch (e) {
+          showAlert("Gagal memulihkan semua data", "error");
+        }
+      });
+    }
+
     body.querySelectorAll("[data-restore-id]").forEach(btn => {
       btn.addEventListener("click", async () => {
         const id = parseInt(btn.getAttribute("data-restore-id") || "", 10);
@@ -3309,8 +3366,29 @@ function renderMyOrders(rows, useOrderanke) {
           );
           return;
         }
-        showAlert("Item dipindahkan ke arsip", "success");
         await loadMyOrdersForSelection();
+        Swal.fire({
+          title: "Order Diarsipkan",
+          text: "Item dipindahkan ke arsip.",
+          icon: "success",
+          showCancelButton: true,
+          confirmButtonColor: "#3d342d",
+          cancelButtonColor: "#d97706",
+          confirmButtonText: "Tutup",
+          cancelButtonText: "Batalkan (Undo)",
+          background: "#1f1410",
+          color: "#fef3c7"
+        }).then(async (res) => {
+          if (res.dismiss === Swal.DismissReason.cancel) {
+            const undoRes = await restoreSoftDeletedById("orders", id);
+            if (undoRes.ok) {
+              showAlert("Penghapusan dibatalkan", "success");
+              await loadMyOrdersForSelection();
+            } else {
+              showAlert("Gagal memulihkan order: " + undoRes.error.message, "error");
+            }
+          }
+        });
       } catch (e) {
         showAlert("Gagal menghapus (network)", "error");
       }
@@ -8330,8 +8408,31 @@ async function loadDrugsTable() {
           showAlert("Gagal menghapus: " + error.message, "error");
           return;
         }
-        showAlert("Data dipindahkan ke arsip", "success");
         loadDrugsTable();
+        Swal.fire({
+          title: "Data Drugs Diarsipkan",
+          text: "Data dipindahkan ke arsip.",
+          icon: "success",
+          showCancelButton: true,
+          confirmButtonColor: "#3d342d",
+          cancelButtonColor: "#d97706",
+          confirmButtonText: "Tutup",
+          cancelButtonText: "Batalkan (Undo)",
+          background: "#1f1410",
+          color: "#fef3c7"
+        }).then(async (res) => {
+          if (res.dismiss === Swal.DismissReason.cancel) {
+            const promises = ids.map(id => restoreSoftDeletedById("drugs_sales", id));
+            const results = await Promise.all(promises);
+            const failed = results.filter(r => !r.ok);
+            if (failed.length === 0) {
+              showAlert("Penghapusan dibatalkan", "success");
+              loadDrugsTable();
+            } else {
+              showAlert("Gagal memulihkan beberapa data", "error");
+            }
+          }
+        });
       }
     });
   });
@@ -8946,6 +9047,27 @@ async function deleteRageCashEntry(id) {
     showAlert("Gagal menghapus: " + delErr.message, "error");
     return;
   }
-  showAlert("Catatan dipindahkan ke arsip", "success");
   loadRageCashTable();
+  Swal.fire({
+    title: "Catatan Diarsipkan",
+    text: "Catatan dipindahkan ke arsip.",
+    icon: "success",
+    showCancelButton: true,
+    confirmButtonColor: "#3d342d",
+    cancelButtonColor: "#d97706",
+    confirmButtonText: "Tutup",
+    cancelButtonText: "Batalkan (Undo)",
+    background: "#1f1410",
+    color: "#fef3c7"
+  }).then(async (res) => {
+    if (res.dismiss === Swal.DismissReason.cancel) {
+      const undoRes = await restoreSoftDeletedById("rage_cash_logs", id);
+      if (undoRes.ok) {
+        showAlert("Penghapusan dibatalkan", "success");
+        loadRageCashTable();
+      } else {
+        showAlert("Gagal memulihkan catatan: " + undoRes.error.message, "error");
+      }
+    }
+  });
 }
