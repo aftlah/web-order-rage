@@ -8960,6 +8960,7 @@ async function loadRekapData() {
         .select("order_id,qty,subtotal,item")
         .eq("orderanke", v)
         .eq("member_id", memberId)
+        .is("deleted_at", null)
         .order("waktu", { ascending: false })
         .limit(5000);
 
@@ -9033,6 +9034,7 @@ async function loadRekapData() {
         .select("uang_merah,upah_putih,uang_rage,periode_orderanke")
         .eq("periode_orderanke", v)
         .eq("member_id", memberId)
+        .is("deleted_at", null)
         .order("waktu", { ascending: false })
         .limit(5000);
       if (error) {
