@@ -173,7 +173,7 @@ function getItemMax(name) {
 }
 
 const state = { cart: [] };
-const dashboardCache = { orders: null, lastFetch: 0 };
+const dashboardCache = { orders: null, lastFetch: 0, filtered: {} };
 const __openAnnounceLock = new Set();
 const __closeAnnounceLock = new Set();
 const DASH_CACHE_KEY = "dashboardOrdersCacheV2";
@@ -187,6 +187,44 @@ function loadStoredDashboard() {
   } catch (e) {
     return null;
   }
+}
+
+async function confirmDeletePin() {
+  const pin = (window && window.ADMIN_DELETE_PIN) || "";
+  if (pin) {
+    const { value: typed } = await Swal.fire({
+      title: "Masukkan PIN delete",
+      input: "password",
+      inputPlaceholder: "Masukkan PIN",
+      showCancelButton: true,
+      confirmButtonText: "Konfirmasi",
+      cancelButtonText: "Batal",
+      customClass: {
+        popup: "rage-modal-popup",
+        title: "rage-modal-title",
+        confirmButton: "rage-modal-confirm !bg-red-600",
+        cancelButton: "rage-modal-cancel",
+        input: "rage-modal-input",
+      },
+    });
+    return !!typed && typed === pin;
+  }
+  const { value: typed } = await Swal.fire({
+    title: "Ketik DELETE untuk konfirmasi",
+    input: "text",
+    inputPlaceholder: "DELETE",
+    showCancelButton: true,
+    confirmButtonText: "Konfirmasi",
+    cancelButtonText: "Batal",
+    customClass: {
+      popup: "rage-modal-popup",
+      title: "rage-modal-title",
+      confirmButton: "rage-modal-confirm !bg-red-600",
+      cancelButton: "rage-modal-cancel",
+      input: "rage-modal-input",
+    },
+  });
+  return (typed || "").toUpperCase() === "DELETE";
 }
 
 async function postToDiscord(message, overrideUrl) {
@@ -2845,6 +2883,12 @@ function renderMyOrders(rows, useOrderanke) {
       });
       if (!result.isConfirmed) return;
 
+      const pinOk = await confirmDeletePin();
+      if (!pinOk) {
+        showAlert("Konfirmasi hapus tidak valid", "error");
+        return;
+      }
+
       try {
         const { error } = await supabase.from("orders").delete().eq("id", id);
         if (error) {
@@ -3911,6 +3955,58 @@ async function fetchOrdersSafe(limit = 500) {
   return { data: data || [], error: error || null };
 }
 
+function normalizeDashNameFilter(raw) {
+  const v = String(raw || "").trim();
+  if (!v) return "";
+  if (v.toLowerCase() === "semua") return "";
+  return v;
+}
+
+async function fetchOrdersForDashboard({ month, weekVal, nameVal }) {
+  if (!supabase) return { data: [], error: null };
+
+  const cols =
+    "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered,paid,scrap_given";
+
+  const m = !Number.isNaN(parseInt(month, 10)) ? parseInt(month, 10) : NaN;
+  const w = weekVal !== "" ? parseInt(weekVal, 10) : NaN;
+  const name = normalizeDashNameFilter(nameVal);
+
+  const pageSize = 1000;
+  const maxPages = 30;
+  const out = [];
+
+  for (let page = 0; page < maxPages; page++) {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+
+    let q = supabase
+      .from("orders")
+      .select(cols)
+      .lt("orderanke", 1000)
+      .order("waktu", { ascending: false });
+
+    if (!Number.isNaN(m) && m) {
+      if (!Number.isNaN(w) && weekVal !== "") {
+        q = q.eq("orderanke", m * 10 + w);
+      } else {
+        q = q.gte("orderanke", m * 10).lt("orderanke", m * 10 + 10);
+      }
+    }
+
+    if (name) q = q.ilike("nama", name);
+
+    const { data, error } = await q.range(from, to);
+    if (error) return { data: out, error };
+
+    const rows = data || [];
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+
+  return { data: out, error: null };
+}
+
 function setupCustomerSearch() {
   const input = document.getElementById("nama");
   const dd = document.getElementById("namaDropdown");
@@ -4552,6 +4648,12 @@ function renderDashboard(groups) {
       });
       if (!result.isConfirmed) return;
 
+      const pinOk = await confirmDeletePin();
+      if (!pinOk) {
+        showAlert("Konfirmasi hapus tidak valid", "error");
+        return;
+      }
+
       try {
         const { error } = await supabase.from("orders").delete().eq("id", id);
         if (error) {
@@ -4857,64 +4959,58 @@ async function loadDashboard(force = false) {
   const mSel = document.getElementById("dashMonth");
   const wSel = document.getElementById("dashWeek");
   const nameInput = document.getElementById("dashNameInput");
-  let data = null;
+  const month = mSel ? parseInt(mSel.value, 10) : NaN;
+  const weekVal = wSel ? String(wSel.value || "") : "";
+  const nameVal = nameInput ? nameInput.value.trim() : "";
+
+  const filterKey =
+    (Number.isNaN(month) ? "" : String(month)) +
+    "|" +
+    String(weekVal || "") +
+    "|" +
+    normalizeDashNameFilter(nameVal).toLowerCase();
+
+  let filtered = null;
   if (!force) {
-    if (dashboardCache.orders) {
-      data = dashboardCache.orders;
-    } else {
-      const stored = loadStoredDashboard();
-      if (stored) {
-        // Auto refresh if cache is older than 30 minutes
-        const age = Date.now() - (stored.ts || 0);
-        if (age < 30 * 60 * 1000) {
-          data = stored.data;
-          dashboardCache.orders = data;
-          dashboardCache.lastFetch = stored.ts;
-        }
-      }
+    const cached = dashboardCache.filtered[filterKey] || null;
+    const age = cached ? Date.now() - (cached.ts || 0) : Infinity;
+    if (cached && Array.isArray(cached.data) && age < 5 * 60 * 1000) {
+      filtered = cached.data;
     }
-    if (!data) {
-      const { data: fetched, error } = await fetchOrdersSafe();
-      if (error) {
-        showAlert("Gagal memuat dashboard", "error");
-        renderDashboard({});
-        return;
-      }
-      data = fetched || [];
-      dashboardCache.orders = data;
-      dashboardCache.lastFetch = Date.now();
-      saveStoredDashboard(data);
-    }
-  } else {
-    const { data: fetched, error } = await fetchOrdersSafe();
+  }
+
+  if (!filtered) {
+    const { data: fetched, error } = await fetchOrdersForDashboard({
+      month,
+      weekVal,
+      nameVal,
+    });
     if (error) {
       showAlert("Gagal memuat dashboard", "error");
+      renderDashboard({});
       return;
     }
-    data = fetched || [];
-    dashboardCache.orders = data;
-    dashboardCache.lastFetch = Date.now();
-    saveStoredDashboard(data);
+    filtered = fetched || [];
+    dashboardCache.filtered[filterKey] = { ts: Date.now(), data: filtered };
+  }
+
+  if (!dashboardCache.orders || force) {
+    const stored = loadStoredDashboard();
+    const age = stored ? Date.now() - (stored.ts || 0) : Infinity;
+    if (!force && stored && age < 30 * 60 * 1000) {
+      dashboardCache.orders = stored.data || [];
+      dashboardCache.lastFetch = stored.ts || 0;
+    } else {
+      const { data: fetched, error } = await fetchOrdersSafe(5000);
+      if (!error) {
+        dashboardCache.orders = fetched || [];
+        dashboardCache.lastFetch = Date.now();
+        saveStoredDashboard(dashboardCache.orders);
+      }
+    }
   }
   updateDashNameSuggestions();
-  const month = mSel ? parseInt(mSel.value, 10) : NaN;
-  const weekVal = wSel ? wSel.value : "";
-  const nameVal = nameInput ? nameInput.value.trim() : "";
-  const nameIsAll = nameVal.toLowerCase() === "semua";
-  const filtered = (data || []).filter((r) => {
-    if ((r.orderanke || 0) >= 1000) return false; // Abaikan periode Drugs di dashboard Order
-    const m = Math.floor((r.orderanke || 0) / 10);
-    const w = (r.orderanke || 0) % 10;
-    if (month && m !== month) return false;
-    if (weekVal && String(w) !== String(weekVal)) return false;
-    if (
-      nameVal &&
-      !nameIsAll &&
-      String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()
-    )
-      return false;
-    return true;
-  });
+
   let groups = groupOrdersByBatch(filtered);
   try {
     const { data: wins } = await fetchOrderWindows();
@@ -5588,30 +5684,15 @@ async function shareDashboardToDiscord() {
   const month = mSel ? parseInt(mSel.value, 10) : NaN;
   const weekVal = wSel ? wSel.value : "";
   const nameVal = nameInput ? nameInput.value.trim() : "";
-  const nameIsAll = nameVal.toLowerCase() === "semua";
-  let data = dashboardCache.orders;
-  if (!data) {
-    const { data: fetched, error } = await fetchOrders();
-    if (error) {
-      showAlert("Gagal memuat data", "error");
-      return;
-    }
-    data = fetched || [];
-    dashboardCache.orders = data;
-  }
-  const filtered = (data || []).filter((r) => {
-    const m = Math.floor((r.orderanke || 0) / 10);
-    const w = (r.orderanke || 0) % 10;
-    if (month && m !== month) return false;
-    if (weekVal && String(w) !== String(weekVal)) return false;
-    if (
-      nameVal &&
-      !nameIsAll &&
-      String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()
-    )
-      return false;
-    return true;
+  const { data: filtered, error } = await fetchOrdersForDashboard({
+    month,
+    weekVal,
+    nameVal,
   });
+  if (error) {
+    showAlert("Gagal memuat data", "error");
+    return;
+  }
   if (!filtered.length) {
     showAlert("Tidak ada data untuk dikirim", "error");
     return;
@@ -5629,7 +5710,7 @@ async function shareDashboardToDiscord() {
       lines.push(`Periode: M${month}`);
     }
   }
-  if (nameVal && !nameIsAll) lines.push(`Nama: ${nameVal}`);
+  if (normalizeDashNameFilter(nameVal)) lines.push(`Nama: ${nameVal}`);
   const groupTotals = {
     "ORDER KE HIGH TABEL": 0,
     "ORDER KE ALLSTAR": 0,
@@ -5760,33 +5841,15 @@ async function sharePaymentStatusToDiscord() {
   const month = mSel ? parseInt(mSel.value, 10) : NaN;
   const weekVal = wSel ? wSel.value : "";
   const nameVal = nameInput ? nameInput.value.trim() : "";
-  const nameIsAll = nameVal.toLowerCase() === "semua";
-
-  let data = dashboardCache.orders;
-  if (!data) {
-    const { data: fetched, error } = await fetchOrdersSafe(5000);
-    if (error) {
-      showAlert("Gagal memuat data", "error");
-      return;
-    }
-    data = fetched || [];
-    dashboardCache.orders = data;
-  }
-
-  const filtered = (data || []).filter((r) => {
-    const m = Math.floor((r.orderanke || 0) / 10);
-    const w = (r.orderanke || 0) % 10;
-    if (month && m !== month) return false;
-    if (weekVal && String(w) !== String(weekVal)) return false;
-    if (
-      nameVal &&
-      !nameIsAll &&
-      String(r.nama || "").toLowerCase() !== nameVal.toLowerCase()
-    ) {
-      return false;
-    }
-    return true;
+  const { data: filtered, error } = await fetchOrdersForDashboard({
+    month,
+    weekVal,
+    nameVal,
   });
+  if (error) {
+    showAlert("Gagal memuat data", "error");
+    return;
+  }
 
   if (!filtered.length) {
     showAlert("Tidak ada data pembayaran untuk dikirim", "error");
@@ -6314,6 +6377,12 @@ window.deleteMember = async function (id, name) {
     });
 
     if (!result.isConfirmed) return;
+
+    const pinOk = await confirmDeletePin();
+    if (!pinOk) {
+      showAlert("Konfirmasi hapus tidak valid", "error");
+      return;
+    }
 
     const deletions = [
       { table: "orders", label: "history order" },
