@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>R.A.G.E - Arsip Data</title>
+    <link rel="icon" href="images/LOGO_RAGE.png" type="image/png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="antialiased">
+    <!-- Header -->
+    <header class="shadow-xl sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2.5">
+        <div class="flex items-center justify-between">
+          <div class="logo-container">
+            <img src="images/LOGO_RAGE.png" alt="R.A.G.E Logo" class="w-11 sm:w-12" />
+            <div class="brand-title">
+              <h1>R.A.G.E</h1>
+              <p class="brand-subtitle text-[10px] uppercase font-bold tracking-wider">Order System</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 lg:gap-6">
+            <!-- Desktop Nav -->
+            <nav id="mainNav" class="hidden md:flex items-center gap-1">
+              <a href="index.html" class="nav-link">Order</a>
+              <a href="dashboard.html" class="nav-link">Dashboard</a>
+              <a href="storan.html" class="nav-link">Storan</a>
+              <a href="drugs.html" class="nav-link">Drugs</a>
+              <a href="kas.html" class="nav-link">Kas</a>
+              <a href="rekap.html" class="nav-link">Rekap</a>
+            </nav>
+
+            <button id="logoutBtn" class="btn-logout hidden md:block">Logout</button>
+
+            <!-- Hamburger -->
+            <button id="mobileMenuBtn" class="md:hidden" onclick="toggleMobileMenu()">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Menu -->
+      <div id="mobileMenu" class="mobile-menu absolute top-full left-0 w-full hidden z-50">
+        <div class="flex flex-col p-3 gap-0.5">
+          <a href="index.html" class="mobile-nav-link">Order</a>
+          <a href="dashboard.html" class="mobile-nav-link">Dashboard</a>
+          <a href="storan.html" class="mobile-nav-link">Storan</a>
+          <a href="drugs.html" class="mobile-nav-link">Drugs</a>
+          <a href="kas.html" class="mobile-nav-link">Kas</a>
+          <a href="rekap.html" class="mobile-nav-link">Rekap</a>
+          <div class="my-1 mx-2" style="height:1px;background:linear-gradient(to right,transparent,#3d342d,transparent)"></div>
+          <button id="mobileLogoutBtn" class="mobile-nav-link text-red-500">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main id="adminArchiveSection" class="max-w-7xl mx-auto px-4 sm:px-6 py-8 relative z-10">
+      <!-- Welcome/Header Card -->
+      <div class="glass-card p-6 sm:p-8 mb-8 relative overflow-hidden group">
+        <!-- Background decorative light -->
+        <div class="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/20 blur-[50px] rounded-full group-hover:bg-amber-500/30 transition duration-500 pointer-events-none"></div>
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+          <div>
+            <h2 class="text-2xl sm:text-3xl font-black text-amber-500 mb-2 tracking-tight">Arsip Data</h2>
+            <p class="text-slate-400 text-sm font-medium">Pulihkan (restore) atau kelola data yang telah diarsipkan sebelumnya dari berbagai kategori database.</p>
+          </div>
+          <div>
+            <button id="refreshArchive" class="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-amber-500/30 text-amber-500 font-bold text-sm hover:bg-amber-500/10 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] transition-all duration-300">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+              </svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Layout -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Sidebar Controls -->
+        <div class="lg:col-span-1 flex flex-col gap-6">
+          <!-- Filter/Search Panel -->
+          <div class="glass-card p-5 flex flex-col gap-4 relative overflow-hidden group">
+            <h3 class="text-base font-bold text-amber-400">Kontrol Arsip</h3>
+            
+            <!-- Tab Buttons Container -->
+            <div id="archiveTabs" class="flex flex-col gap-2">
+              <button data-tab="orders" class="w-full text-left px-4 py-3 rounded-xl bg-amber-600 text-[#1a1410] font-bold text-sm tracking-wide transition active:scale-[0.98]">
+                📦 Orderan
+              </button>
+              <button data-tab="members" class="w-full text-left px-4 py-3 rounded-xl bg-[#0a0604]/60 text-amber-500 border border-amber-500/10 font-bold text-sm tracking-wide transition hover:bg-amber-500/10 active:scale-[0.98]">
+                👥 Anggota (Members)
+              </button>
+              <button data-tab="drugs_sales" class="w-full text-left px-4 py-3 rounded-xl bg-[#0a0604]/60 text-amber-500 border border-amber-500/10 font-bold text-sm tracking-wide transition hover:bg-amber-500/10 active:scale-[0.98]">
+                🧪 Penjualan Drugs
+              </button>
+              <button data-tab="rage_cash_logs" class="w-full text-left px-4 py-3 rounded-xl bg-[#0a0604]/60 text-amber-500 border border-amber-500/10 font-bold text-sm tracking-wide transition hover:bg-amber-500/10 active:scale-[0.98]">
+                💰 Log Kas
+              </button>
+            </div>
+
+            <hr class="border-[#3d342d]/50 my-1" />
+
+            <!-- Real-time Text Filter -->
+            <div class="flex flex-col gap-2">
+              <label class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Pencarian Real-time</label>
+              <div class="relative">
+                <input id="archiveSearch" type="text" placeholder="Cari data..." autocomplete="off"
+                  class="w-full pl-4 pr-10 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-amber-600 transition" />
+                <div class="absolute right-3.5 top-3.5 text-stone-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.637 10.637Z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data List Panel -->
+        <div class="lg:col-span-3">
+          <div class="glass-card p-6 min-h-[400px] flex flex-col relative overflow-hidden group">
+            <h3 class="text-lg font-bold text-amber-400 mb-4">Daftar Arsip</h3>
+            
+            <!-- Table Container -->
+            <div class="scroll-table flex-1 rounded-xl overflow-hidden border border-amber-500/10 bg-[#0a0604]/40">
+              <table class="w-full text-sm text-left border-collapse table-mobile">
+                <thead id="archiveTableHead" class="bg-[#120a06] text-amber-500/60 uppercase text-[10px] tracking-widest border-b border-amber-500/10">
+                  <!-- Will be populated dynamically based on active tab -->
+                </thead>
+                <tbody id="archiveTableBody" class="divide-y divide-amber-500/5 text-amber-50/90">
+                  <!-- Will be populated dynamically -->
+                </tbody>
+              </table>
+
+              <!-- Empty State -->
+              <div id="archiveTableEmpty" class="empty-state hidden py-16 flex flex-col items-center justify-center text-center">
+                <div class="w-16 h-16 rounded-full bg-amber-500/5 border border-amber-500/10 flex items-center justify-center mb-4 text-amber-500/40">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.75 7.5h16.5M5.625 7.5a1.125 1.125 0 01-1.125-1.125v-1.5a1.125 1.125 0 011.125-1.125h12.75c.621 0 1.125.504 1.125 1.125v1.5a1.125 1.125 0 01-1.125 1.125" />
+                  </svg>
+                </div>
+                <p class="text-amber-500 font-bold text-sm">Tidak ada data arsip</p>
+                <span class="text-[10px] text-amber-500/60 uppercase tracking-widest mt-1">untuk kategori ini</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      function toggleMobileMenu() {
+        document.getElementById("mobileMenu").classList.toggle("hidden");
+      }
+      
+      document.addEventListener("DOMContentLoaded", () => {
+        const mobileLogout = document.getElementById("mobileLogoutBtn");
+        if (mobileLogout) {
+          mobileLogout.addEventListener("click", () => {
+            const logoutBtn = document.getElementById("logoutBtn");
+            if (logoutBtn) logoutBtn.click();
+          });
+        }
+      });
+    </script>
+    <script src="config.js?v=20260417a"></script>
+    <script type="module" src="script.js?v=20260417a"></script>
+    <script src="interactive.js"></script>
+  </body>
+</html>

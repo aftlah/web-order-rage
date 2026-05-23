@@ -227,6 +227,76 @@ async function confirmDeletePin() {
   return (typed || "").toUpperCase() === "DELETE";
 }
 
+function isMissingColumnError(err, columnName) {
+  const msg = String((err && err.message) || "").toLowerCase();
+  const col = String(columnName || "").toLowerCase();
+  if (!msg || !col) return false;
+  return msg.includes(col) && (msg.includes("column") || msg.includes("does not exist"));
+}
+
+function getSoftDeleteSql(tableName) {
+  const t = String(tableName || "").trim();
+  if (!t) return "";
+  return `alter table public.${t} add column if not exists deleted_at timestamptz;`;
+}
+
+async function softDeleteById(tableName, id) {
+  if (!supabase) return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from(tableName)
+    .update({ deleted_at: now })
+    .eq("id", id)
+    .select("id");
+  if (error) return { ok: false, error };
+  if (!data || !data.length)
+    return { ok: false, error: { message: "Tidak bisa menghapus (RLS/policy menolak)" } };
+  return { ok: true, error: null };
+}
+
+async function softDeleteByIds(tableName, ids) {
+  if (!supabase) return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  const list = Array.isArray(ids) ? ids : [ids];
+  const clean = list.map((x) => String(x).trim()).filter(Boolean);
+  if (!clean.length) return { ok: false, error: { message: "ID kosong" } };
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from(tableName)
+    .update({ deleted_at: now })
+    .in("id", clean)
+    .select("id");
+  if (error) return { ok: false, error };
+  if (!data || !data.length)
+    return { ok: false, error: { message: "Tidak bisa menghapus (RLS/policy menolak)" } };
+  return { ok: true, error: null };
+}
+
+async function softDeleteByMemberId(tableName, memberId) {
+  if (!supabase) return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  const id = parseInt(String(memberId || ""), 10);
+  if (!id) return { ok: false, error: { message: "ID member tidak valid" } };
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from(tableName)
+    .update({ deleted_at: now })
+    .eq("member_id", id);
+  if (error) return { ok: false, error };
+  return { ok: true, error: null };
+}
+
+async function restoreSoftDeletedById(tableName, id) {
+  if (!supabase) return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  const { data, error } = await supabase
+    .from(tableName)
+    .update({ deleted_at: null })
+    .eq("id", id)
+    .select("id");
+  if (error) return { ok: false, error };
+  if (!data || !data.length)
+    return { ok: false, error: { message: "Tidak bisa memulihkan data (RLS/policy menolak)" } };
+  return { ok: true, error: null };
+}
+
 async function postToDiscord(message, overrideUrl) {
   try {
     const url = overrideUrl || (window && window.DISCORD_WEBHOOK_URL) || "";
@@ -620,6 +690,7 @@ function applyAdminNav(member) {
     "admin_users.html",
     "admin_activity.html",
     "admin_catalog.html",
+    "admin_archive.html",
   ];
   adminOnlyHrefs.forEach((href) => {
     document.querySelectorAll(`a[href="${href}"]`).forEach((a) => {
@@ -901,6 +972,7 @@ function ensureProfileNavLinks(member) {
     { href: "admin_users.html", label: "Users", isVisible: isAdmin },
     { href: "admin_activity.html", label: "Monitor", isVisible: isAdmin },
     { href: "admin_catalog.html", label: "Katalog", isVisible: isAdmin },
+    { href: "admin_archive.html", label: "Arsip", isVisible: isAdmin },
   ].filter((x) => x.isVisible);
 
   const isActive = items.some((it) =>
@@ -2236,6 +2308,321 @@ async function initAdminCatalogPage() {
   await load();
 }
 
+async function initAdminArchivePage() {
+  if (!supabase) return;
+  const refreshBtn = document.getElementById("refreshArchive");
+  const searchInput = document.getElementById("archiveSearch");
+  const tabContainer = document.getElementById("archiveTabs");
+  const body = document.getElementById("archiveTableBody");
+  const empty = document.getElementById("archiveTableEmpty");
+  const tableHead = document.getElementById("archiveTableHead");
+
+  if (!body || !empty || !tableHead) return;
+
+  let currentTab = "orders";
+  let archiveData = {
+    orders: [],
+    members: [],
+    drugs_sales: [],
+    rage_cash_logs: []
+  };
+
+  const setTabActive = (tabName) => {
+    currentTab = tabName;
+    if (tabContainer) {
+      tabContainer.querySelectorAll("[data-tab]").forEach(btn => {
+        const isCurrent = btn.getAttribute("data-tab") === tabName;
+        btn.classList.toggle("bg-amber-600", isCurrent);
+        btn.classList.toggle("text-[#1a1410]", isCurrent);
+        btn.classList.toggle("bg-[#0a0604]/60", !isCurrent);
+        btn.classList.toggle("text-amber-500", !isCurrent);
+        btn.classList.toggle("border-amber-500/10", !isCurrent);
+      });
+    }
+    renderTable();
+  };
+
+  if (tabContainer) {
+    tabContainer.querySelectorAll("[data-tab]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        setTabActive(btn.getAttribute("data-tab"));
+      });
+    });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      renderTable();
+    });
+  }
+
+  if (refreshBtn) {
+    refreshBtn.addEventListener("click", () => {
+      loadArchiveData();
+    });
+  }
+
+  const loadArchiveData = async () => {
+    body.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-slate-400">
+      <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-amber-500 mx-auto mb-2"></div>
+      Memuat data arsip...
+    </td></tr>`;
+    empty.classList.add("hidden");
+
+    try {
+      const [
+        { data: delOrders, error: errOrders },
+        { data: delMembers, error: errMembers },
+        { data: delDrugs, error: errDrugs },
+        { data: delCash, error: errCash }
+      ] = await Promise.all([
+        supabase.from("orders").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
+        supabase.from("members").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
+        supabase.from("drugs_sales").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
+        supabase.from("rage_cash_logs").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false })
+      ]);
+
+      if (errOrders || errMembers || errDrugs || errCash) {
+        console.error("Gagal memuat arsip:", { errOrders, errMembers, errDrugs, errCash });
+        body.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-red-400">Gagal memuat beberapa data dari Supabase. Pastikan RLS / kebijakan mengizinkan.</td></tr>`;
+        return;
+      }
+
+      archiveData.orders = delOrders || [];
+      archiveData.members = delMembers || [];
+      archiveData.drugs_sales = delDrugs || [];
+      archiveData.rage_cash_logs = delCash || [];
+
+      renderTable();
+    } catch (e) {
+      console.error(e);
+      body.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-red-400">Terjadi kesalahan koneksi atau database.</td></tr>`;
+    }
+  };
+
+  const renderTable = () => {
+    const list = archiveData[currentTab] || [];
+    const search = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+    const filtered = list.filter(r => {
+      if (!search) return true;
+      if (currentTab === "orders") {
+        return (
+          String(r.item || "").toLowerCase().includes(search) ||
+          String(r.nama || "").toLowerCase().includes(search) ||
+          String(r.orderanke || "").toLowerCase().includes(search) ||
+          String(r.kategori || "").toLowerCase().includes(search)
+        );
+      } else if (currentTab === "members") {
+        return (
+          String(r.nama || "").toLowerCase().includes(search) ||
+          String(r.role || "").toLowerCase().includes(search) ||
+          String(r.email || "").toLowerCase().includes(search)
+        );
+      } else if (currentTab === "drugs_sales") {
+        return (
+          String(r.nama || "").toLowerCase().includes(search) ||
+          String(r.jenis || "").toLowerCase().includes(search) ||
+          String(r.periode_orderanke || "").toLowerCase().includes(search)
+        );
+      } else if (currentTab === "rage_cash_logs") {
+        return (
+          String(r.category || "").toLowerCase().includes(search) ||
+          String(r.type || "").toLowerCase().includes(search) ||
+          String(r.note || "").toLowerCase().includes(search)
+        );
+      }
+      return false;
+    });
+
+    if (currentTab === "orders") {
+      tableHead.innerHTML = `
+        <tr>
+          <th class="px-5 py-4 font-bold">Waktu Order</th>
+          <th class="px-5 py-4 font-bold">Order No</th>
+          <th class="px-5 py-4 font-bold">Customer</th>
+          <th class="px-5 py-4 font-bold">Item / Kategori</th>
+          <th class="px-5 py-4 text-center font-bold">Qty</th>
+          <th class="px-5 py-4 text-right font-bold">Subtotal</th>
+          <th class="px-5 py-4 font-bold">Waktu Arsip</th>
+          <th class="px-5 py-4 text-center font-bold">Aksi</th>
+        </tr>
+      `;
+    } else if (currentTab === "members") {
+      tableHead.innerHTML = `
+        <tr>
+          <th class="px-5 py-4 font-bold">Nama Member</th>
+          <th class="px-5 py-4 font-bold">Role</th>
+          <th class="px-5 py-4 font-bold">Discord ID</th>
+          <th class="px-5 py-4 font-bold">Email</th>
+          <th class="px-5 py-4 font-bold">Waktu Arsip</th>
+          <th class="px-5 py-4 text-center font-bold">Aksi</th>
+        </tr>
+      `;
+    } else if (currentTab === "drugs_sales") {
+      tableHead.innerHTML = `
+        <tr>
+          <th class="px-5 py-4 font-bold">Waktu Transaksi</th>
+          <th class="px-5 py-4 font-bold">Periode</th>
+          <th class="px-5 py-4 font-bold">Nama</th>
+          <th class="px-5 py-4 font-bold">Drugs</th>
+          <th class="px-5 py-4 text-center font-bold">Qty</th>
+          <th class="px-5 py-4 text-center font-bold">Scrap</th>
+          <th class="px-5 py-4 text-right font-bold">Cash</th>
+          <th class="px-5 py-4 font-bold">Waktu Arsip</th>
+          <th class="px-5 py-4 text-center font-bold">Aksi</th>
+        </tr>
+      `;
+    } else if (currentTab === "rage_cash_logs") {
+      tableHead.innerHTML = `
+        <tr>
+          <th class="px-5 py-4 font-bold">Waktu Kas</th>
+          <th class="px-5 py-4 font-bold">Tipe</th>
+          <th class="px-5 py-4 font-bold">Kategori</th>
+          <th class="px-5 py-4 text-right font-bold">Jumlah</th>
+          <th class="px-5 py-4 font-bold">Catatan</th>
+          <th class="px-5 py-4 font-bold">Waktu Arsip</th>
+          <th class="px-5 py-4 text-center font-bold">Aksi</th>
+        </tr>
+      `;
+    }
+
+    if (!filtered.length) {
+      body.innerHTML = "";
+      empty.classList.remove("hidden");
+      return;
+    }
+
+    empty.classList.add("hidden");
+
+    body.innerHTML = filtered.map((r, idx) => {
+      const delTime = r.deleted_at ? fmtDateTime(r.deleted_at) : "-";
+      const bg = idx % 2 === 0 ? "bg-transparent" : "bg-amber-500/5";
+
+      if (currentTab === "orders") {
+        const orderTime = r.waktu ? fmtDateTime(r.waktu) : "-";
+        const v = parseInt(r.orderanke || 0, 10);
+        const m = Math.floor(v / 10);
+        const w = v % 10;
+        const oNo = v ? `M${m}-W${w} (#${v})` : "-";
+        return `
+          <tr class="transition-colors border-b border-amber-500/5 hover:bg-amber-900/10 ${bg}">
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-stone-400">${orderTime}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap font-mono text-xs font-bold text-amber-500">${oNo}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap font-bold">${r.nama || "-"}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs">
+              <span class="font-bold text-yellow-400">${r.item}</span>
+              <span class="block text-[10px] text-stone-500 uppercase font-black">${r.kategori || "-"}</span>
+            </td>
+            <td class="px-5 py-3.5 text-center font-bold font-mono">${r.qty || 0}</td>
+            <td class="px-5 py-3.5 text-right font-mono font-bold text-green-400">${fmt(r.subtotal || 0)}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-red-400/80">${delTime}</td>
+            <td class="px-5 py-3.5 text-center">
+              <button class="px-3 py-1 rounded bg-yellow-600/20 text-yellow-300 border border-yellow-600/30 text-[10px] font-bold uppercase hover:bg-yellow-600/40 transition" data-restore-id="${r.id}">
+                Pulihkan
+              </button>
+            </td>
+          </tr>
+        `;
+      } else if (currentTab === "members") {
+        return `
+          <tr class="transition-colors border-b border-amber-500/5 hover:bg-amber-900/10 ${bg}">
+            <td class="px-5 py-3.5 whitespace-nowrap font-bold text-amber-400">${r.nama}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap"><span class="px-2 py-0.5 rounded text-xs bg-[#0a0604] text-stone-300 border border-amber-500/10">${r.role || "Hoodlum"}</span></td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-mono">${r.discord_id || "-"}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs">${r.email || "-"}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-red-400/80">${delTime}</td>
+            <td class="px-5 py-3.5 text-center">
+              <button class="px-3 py-1 rounded bg-yellow-600/20 text-yellow-300 border border-yellow-600/30 text-[10px] font-bold uppercase hover:bg-yellow-600/40 transition" data-restore-id="${r.id}">
+                Pulihkan
+              </button>
+            </td>
+          </tr>
+        `;
+      } else if (currentTab === "drugs_sales") {
+        const trTime = r.waktu ? fmtDateTime(r.waktu) : "-";
+        const v = parseInt(r.periode_orderanke || 0, 10);
+        const m = Math.floor((v >= 1000 ? v - 1000 : v) / 10);
+        const w = (v >= 1000 ? v - 1000 : v) % 10;
+        const oNo = v ? `M${m}-W${w} (#${v})` : "-";
+        return `
+          <tr class="transition-colors border-b border-amber-500/5 hover:bg-amber-900/10 ${bg}">
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-stone-400">${trTime}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap font-mono text-xs font-bold text-amber-500">${oNo}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap font-bold">${r.nama || "-"}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs font-bold text-yellow-400">${r.jenis || "-"}</td>
+            <td class="px-5 py-3.5 text-center font-bold font-mono">${r.qty || 0}</td>
+            <td class="px-5 py-3.5 text-center font-bold font-mono text-stone-400">${r.scrap || 0}</td>
+            <td class="px-5 py-3.5 text-right font-mono font-bold text-green-400">${fmt(r.cash || 0)}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-red-400/80">${delTime}</td>
+            <td class="px-5 py-3.5 text-center">
+              <button class="px-3 py-1 rounded bg-yellow-600/20 text-yellow-300 border border-yellow-600/30 text-[10px] font-bold uppercase hover:bg-yellow-600/40 transition" data-restore-id="${r.id}">
+                Pulihkan
+              </button>
+            </td>
+          </tr>
+        `;
+      } else if (currentTab === "rage_cash_logs") {
+        const cashTime = r.waktu ? fmtDateTime(r.waktu) : "-";
+        const t = r.type === "IN" ? "IN" : "OUT";
+        const color = t === "IN" ? "text-green-400" : "text-red-400";
+        return `
+          <tr class="transition-colors border-b border-amber-500/5 hover:bg-amber-900/10 ${bg}">
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-stone-400">${cashTime}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap font-black text-xs ${color}">${t}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap font-bold">${r.category || "-"}</td>
+            <td class="px-5 py-3.5 text-right font-mono font-bold text-green-400">${fmt(r.amount || 0)}</td>
+            <td class="px-5 py-3.5 text-xs text-stone-300 max-w-[200px] truncate" title="${r.note || ""}">${r.note || "-"}</td>
+            <td class="px-5 py-3.5 whitespace-nowrap text-xs text-red-400/80">${delTime}</td>
+            <td class="px-5 py-3.5 text-center">
+              <button class="px-3 py-1 rounded bg-yellow-600/20 text-yellow-300 border border-yellow-600/30 text-[10px] font-bold uppercase hover:bg-yellow-600/40 transition" data-restore-id="${r.id}">
+                Pulihkan
+              </button>
+            </td>
+          </tr>
+        `;
+      }
+      return "";
+    }).join("");
+
+    body.querySelectorAll("[data-restore-id]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const id = parseInt(btn.getAttribute("data-restore-id") || "", 10);
+        if (!id) return;
+
+        const result = await Swal.fire({
+          title: "Pulihkan data ini?",
+          text: "Data akan dipindahkan kembali ke tabel utama.",
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonColor: "#d97706",
+          cancelButtonColor: "#3d342d",
+          confirmButtonText: "Ya, pulihkan!",
+          cancelButtonText: "Batal",
+          background: "#1f1410",
+          color: "#fef3c7"
+        });
+
+        if (!result.isConfirmed) return;
+
+        try {
+          const { ok, error } = await restoreSoftDeletedById(currentTab, id);
+          if (!ok) {
+            showAlert(`Gagal memulihkan data: ${error.message || "Unknown error"}`, "error");
+            return;
+          }
+          showAlert("Data berhasil dipulihkan", "success");
+          await loadArchiveData();
+        } catch (e) {
+          showAlert("Gagal memulihkan data (network/error)", "error");
+        }
+      });
+    });
+  };
+
+  await loadArchiveData();
+}
+
 async function init() {
   console.log("R.A.G.E script initializing...");
   // document.documentElement.classList.add("dark"); // Allow system/user preference
@@ -2267,6 +2654,7 @@ async function init() {
   const isAdminUsers = !!document.getElementById("adminUsersSection");
   const isAdminActivity = !!document.getElementById("adminActivitySection");
   const isAdminCatalog = !!document.getElementById("catalogLists");
+  const isAdminArchive = !!document.getElementById("adminArchiveSection");
   const needsAuth =
     isOrder ||
     isDashboard ||
@@ -2277,7 +2665,8 @@ async function init() {
     isProfile ||
     isAdminUsers ||
     isAdminActivity ||
-    isAdminCatalog;
+    isAdminCatalog ||
+    isAdminArchive;
   if (needsAuth) {
     const ok = await guardApp();
     if (!ok) return;
@@ -2297,7 +2686,8 @@ async function init() {
     isProfile ||
     isAdminUsers ||
     isAdminActivity ||
-    isAdminCatalog
+    isAdminCatalog ||
+    isAdminArchive
   ) {
     currentMember = await resolveCurrentMember();
     window.__currentMember = currentMember;
@@ -2322,7 +2712,8 @@ async function init() {
       isKas ||
       isAdminUsers ||
       isAdminActivity ||
-      isAdminCatalog)
+      isAdminCatalog ||
+      isAdminArchive)
   ) {
     showAlert("Menu ini hanya untuk Admin", "error");
     location.href = "index.html";
@@ -2398,6 +2789,9 @@ async function init() {
   }
   if (isAdminCatalog) {
     initAdminCatalogPage();
+  }
+  if (isAdminArchive) {
+    initAdminArchivePage();
   }
 
   // Global Logout & Mobile Menu
@@ -2773,26 +3167,33 @@ async function loadMyOrdersForSelection() {
     return;
   }
 
-  let query = supabase
-    .from("orders")
-    .select("id,order_id,item,qty,subtotal,orderanke,kategori,harga,waktu")
-    .order("waktu", { ascending: false })
-    .limit(500);
+  const baseSelect = (withSoftDelete) => {
+    let q = supabase
+      .from("orders")
+      .select("id,order_id,item,qty,subtotal,orderanke,kategori,harga,waktu")
+      .order("waktu", { ascending: false })
+      .limit(500);
+    if (withSoftDelete) q = q.is("deleted_at", null);
+    return q;
+  };
 
-  if (hasMemberId) {
-    query = query.eq("member_id", v);
-  } else if (namaText) {
-    query = query.eq("nama", namaText);
-  } else {
+  const applyFilter = (q) => {
+    if (hasMemberId) return q.eq("member_id", v);
+    if (namaText) return q.eq("nama", namaText);
+    return null;
+  };
+  const q0 = applyFilter(baseSelect(true));
+  if (!q0) {
     renderMyOrders([]);
     return;
   }
 
-  const { data, error } = await query;
-  if (error) {
-    renderMyOrders([]);
-    return;
+  let { data, error } = await q0;
+  if (error && isMissingColumnError(error, "deleted_at")) {
+    const q1 = applyFilter(baseSelect(false));
+    ({ data, error } = await q1);
   }
+  if (error) return renderMyOrders([]);
   const all = data || [];
   const periods = Array.from(
     new Set(all.map((r) => parseInt(r.orderanke || 0, 10)).filter((x) => !!x))
@@ -2890,16 +3291,25 @@ function renderMyOrders(rows, useOrderanke) {
       }
 
       try {
-        const { error } = await supabase.from("orders").delete().eq("id", id);
-        if (error) {
-          console.error("Delete error:", error);
+        const { ok, error } = await softDeleteById("orders", id);
+        if (!ok) {
+          if (isMissingColumnError(error, "deleted_at")) {
+            showAlert(
+              `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+                "orders"
+              )}`,
+              "error"
+            );
+            return;
+          }
+          console.error("Soft delete error:", error);
           showAlert(
             `Gagal menghapus item: ${error.message || "Unknown error"}`,
             "error"
           );
           return;
         }
-        showAlert("Item dihapus", "success");
+        showAlert("Item dipindahkan ke arsip", "success");
         await loadMyOrdersForSelection();
       } catch (e) {
         showAlert("Gagal menghapus (network)", "error");
@@ -3515,9 +3925,20 @@ async function submitOrder() {
         .select("qty,item,order_id")
         .eq("nama", nama)
         .eq("orderanke", effectiveOrderanke)
-        .ilike("item", "%VEST%");
+        .ilike("item", "%VEST%")
+        .is("deleted_at", null);
       if (editingId) q = q.neq("order_id", editingId);
-      const { data } = await q;
+      let { data, error } = await q;
+      if (error && isMissingColumnError(error, "deleted_at")) {
+        let q2 = supabase
+          .from("orders")
+          .select("qty,item,order_id")
+          .eq("nama", nama)
+          .eq("orderanke", effectiveOrderanke)
+          .ilike("item", "%VEST%");
+        if (editingId) q2 = q2.neq("order_id", editingId);
+        ({ data } = await q2);
+      }
       existingVest = (data || []).reduce((a, r) => a + (r.qty || 0), 0);
     } catch (e) {}
 
@@ -3550,15 +3971,25 @@ async function submitOrder() {
   const rows = buildOrderRows(orderId, member_id, nama, effectiveOrderanke);
   try {
     if (editingId) {
-      const { error: delErr } = await supabase
+      const nowIso = new Date().toISOString();
+      const { error: softErr } = await supabase
         .from("orders")
-        .delete()
+        .update({ deleted_at: nowIso })
         .eq("order_id", editingId);
-      if (delErr) {
-        showAlert(
-          `Gagal menghapus order lama: ${delErr.message || "unknown"}`,
-          "error"
-        );
+      if (softErr) {
+        if (isMissingColumnError(softErr, "deleted_at")) {
+          showAlert(
+            `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+              "orders"
+            )}`,
+            "error"
+          );
+        } else {
+          showAlert(
+            `Gagal mengarsipkan order lama: ${softErr.message || "unknown"}`,
+            "error"
+          );
+        }
         endLoading();
         return;
       }
@@ -3818,10 +4249,17 @@ function setOrderControlsEnabled(enabled) {
 }
 async function refreshItemTotals(orderanke) {
   if (!supabase || !orderanke) return;
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("orders")
     .select("item,qty,orderanke")
-    .eq("orderanke", orderanke);
+    .eq("orderanke", orderanke)
+    .is("deleted_at", null);
+  if (error && isMissingColumnError(error, "deleted_at")) {
+    ({ data, error } = await supabase
+      .from("orders")
+      .select("item,qty,orderanke")
+      .eq("orderanke", orderanke));
+  }
   if (error) return;
   const map = {};
   (data || []).forEach((r) => {
@@ -3919,40 +4357,56 @@ async function insertOrders(rows) {
   return await supabase.from("orders").insert(rows).select("id");
 }
 async function fetchOrders(limit = 500) {
-  return await supabase
+  const cols =
+    "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered,paid,scrap_given";
+  let res = await supabase
     .from("orders")
-    .select(
-      "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered,paid,scrap_given"
-    )
+    .select(cols)
     .order("waktu", { ascending: false })
+    .is("deleted_at", null)
     .limit(limit);
-}
-async function fetchOrdersSafe(limit = 500) {
-  let { data, error } = await supabase
-    .from("orders")
-    .select(
-      "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered,paid,scrap_given"
-    )
-    .lt("orderanke", 1000) // Hanya ambil orderan reguler
-    .order("waktu", { ascending: false })
-    .limit(limit);
-  if (
-    error &&
-    (String(error.message || "").includes("delivered") ||
-      String(error.message || "").includes("paid") ||
-      String(error.message || "").includes("scrap_given"))
-  ) {
-    const res = await supabase
+  if (res.error && isMissingColumnError(res.error, "deleted_at")) {
+    res = await supabase
       .from("orders")
-      .select(
-        "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal"
-      )
-      .lt("orderanke", 1000) // Hanya ambil orderan reguler
+      .select(cols)
       .order("waktu", { ascending: false })
       .limit(limit);
-    return { data: res.data || [], error: res.error || null };
   }
-  return { data: data || [], error: error || null };
+  return res;
+}
+async function fetchOrdersSafe(limit = 500) {
+  const fullCols =
+    "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered,paid,scrap_given";
+  const liteCols = "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal";
+
+  const selectBase = (cols, withSoftDelete) => {
+    let q = supabase
+      .from("orders")
+      .select(cols)
+      .lt("orderanke", 1000)
+      .order("waktu", { ascending: false })
+      .limit(limit);
+    if (withSoftDelete) q = q.is("deleted_at", null);
+    return q;
+  };
+
+  let res = await selectBase(fullCols, true);
+  if (res.error && isMissingColumnError(res.error, "deleted_at")) {
+    res = await selectBase(fullCols, false);
+  }
+  if (
+    res.error &&
+    (String(res.error.message || "").includes("delivered") ||
+      String(res.error.message || "").includes("paid") ||
+      String(res.error.message || "").includes("scrap_given"))
+  ) {
+    let res2 = await selectBase(liteCols, true);
+    if (res2.error && isMissingColumnError(res2.error, "deleted_at")) {
+      res2 = await selectBase(liteCols, false);
+    }
+    return { data: res2.data || [], error: res2.error || null };
+  }
+  return { data: res.data || [], error: res.error || null };
 }
 
 function normalizeDashNameFilter(raw) {
@@ -3975,6 +4429,7 @@ async function fetchOrdersForDashboard({ month, weekVal, nameVal }) {
   const pageSize = 1000;
   const maxPages = 30;
   const out = [];
+  let useSoftDelete = true;
 
   for (let page = 0; page < maxPages; page++) {
     const from = page * pageSize;
@@ -3985,6 +4440,7 @@ async function fetchOrdersForDashboard({ month, weekVal, nameVal }) {
       .select(cols)
       .lt("orderanke", 1000)
       .order("waktu", { ascending: false });
+    if (useSoftDelete) q = q.is("deleted_at", null);
 
     if (!Number.isNaN(m) && m) {
       if (!Number.isNaN(w) && weekVal !== "") {
@@ -3997,7 +4453,15 @@ async function fetchOrdersForDashboard({ month, weekVal, nameVal }) {
     if (name) q = q.ilike("nama", name);
 
     const { data, error } = await q.range(from, to);
-    if (error) return { data: out, error };
+    if (error) {
+      if (useSoftDelete && isMissingColumnError(error, "deleted_at")) {
+        useSoftDelete = false;
+        out.length = 0;
+        page = -1;
+        continue;
+      }
+      return { data: out, error };
+    }
 
     const rows = data || [];
     out.push(...rows);
@@ -4655,16 +5119,25 @@ function renderDashboard(groups) {
       }
 
       try {
-        const { error } = await supabase.from("orders").delete().eq("id", id);
-        if (error) {
-          console.error("Dashboard delete error:", error);
+        const { ok, error } = await softDeleteById("orders", id);
+        if (!ok) {
+          if (isMissingColumnError(error, "deleted_at")) {
+            showAlert(
+              `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+                "orders"
+              )}`,
+              "error"
+            );
+            return;
+          }
+          console.error("Dashboard soft delete error:", error);
           showAlert(
             `Gagal menghapus item: ${error.message || "Unknown error"}`,
             "error"
           );
           return;
         }
-        showAlert("Item dihapus", "success");
+        showAlert("Item dipindahkan ke arsip", "success");
         loadDashboard(true);
       } catch (e) {
         showAlert("Gagal menghapus (network)", "error");
@@ -6050,10 +6523,17 @@ async function loadMemberListInModal() {
   list.innerHTML =
     '<tr><td colspan="3" class="text-center p-8 text-slate-500 animate-pulse">Loading...</td></tr>';
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("members")
     .select("id,nama,role")
+    .is("deleted_at", null)
     .order("nama", { ascending: true });
+  if (error && isMissingColumnError(error, "deleted_at")) {
+    ({ data, error } = await supabase
+      .from("members")
+      .select("id,nama,role")
+      .order("nama", { ascending: true }));
+  }
 
   if (error || !data) {
     list.innerHTML =
@@ -6323,24 +6803,65 @@ window.deleteMember = async function (id, name) {
       return;
     }
 
-    const [
-      { count: orderCount, error: orderCountErr },
-      { count: storanCount, error: storanCountErr },
-      { count: drugsCount, error: drugsCountErr },
-    ] = await Promise.all([
-      supabase
-        .from("orders")
-        .select("*", { count: "exact", head: true })
-        .eq("member_id", memberId),
-      supabase
-        .from("storan_logs")
-        .select("*", { count: "exact", head: true })
-        .eq("member_id", memberId),
-      supabase
-        .from("drugs_sales")
-        .select("*", { count: "exact", head: true })
-        .eq("member_id", memberId),
-    ]);
+    let orderCount = 0;
+    let storanCount = 0;
+    let drugsCount = 0;
+    let orderCountErr = null;
+    let storanCountErr = null;
+    let drugsCountErr = null;
+
+    {
+      const [o, s, d] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("*", { count: "exact", head: true })
+          .eq("member_id", memberId)
+          .is("deleted_at", null),
+        supabase
+          .from("storan_logs")
+          .select("*", { count: "exact", head: true })
+          .eq("member_id", memberId)
+          .is("deleted_at", null),
+        supabase
+          .from("drugs_sales")
+          .select("*", { count: "exact", head: true })
+          .eq("member_id", memberId)
+          .is("deleted_at", null),
+      ]);
+      orderCount = o.count || 0;
+      storanCount = s.count || 0;
+      drugsCount = d.count || 0;
+      orderCountErr = o.error || null;
+      storanCountErr = s.error || null;
+      drugsCountErr = d.error || null;
+    }
+
+    const missingSoft =
+      (orderCountErr && isMissingColumnError(orderCountErr, "deleted_at")) ||
+      (storanCountErr && isMissingColumnError(storanCountErr, "deleted_at")) ||
+      (drugsCountErr && isMissingColumnError(drugsCountErr, "deleted_at"));
+    if (missingSoft) {
+      const [o, s, d] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("*", { count: "exact", head: true })
+          .eq("member_id", memberId),
+        supabase
+          .from("storan_logs")
+          .select("*", { count: "exact", head: true })
+          .eq("member_id", memberId),
+        supabase
+          .from("drugs_sales")
+          .select("*", { count: "exact", head: true })
+          .eq("member_id", memberId),
+      ]);
+      orderCount = o.count || 0;
+      storanCount = s.count || 0;
+      drugsCount = d.count || 0;
+      orderCountErr = o.error || null;
+      storanCountErr = s.error || null;
+      drugsCountErr = d.error || null;
+    }
 
     if (orderCountErr || storanCountErr || drugsCountErr) {
       showAlert("Gagal cek data member (permission/RLS)", "error");
@@ -6360,7 +6881,7 @@ window.deleteMember = async function (id, name) {
       confirmMsg =
         `Member "${name}" memiliki:\n` +
         parts.map((p) => `- ${p}`).join("\n") +
-        `\n\nMenghapus member ini akan MENGHAPUS SEMUA data tersebut.\n\nApakah Anda yakin ingin melanjutkan?`;
+        `\n\nAksi ini akan MENGARSIPKAN semua data tersebut.\n\nApakah Anda yakin ingin melanjutkan?`;
     }
 
     const result = await Swal.fire({
@@ -6384,87 +6905,46 @@ window.deleteMember = async function (id, name) {
       return;
     }
 
-    const deletions = [
+    const targets = [
       { table: "orders", label: "history order" },
       { table: "storan_logs", label: "log storan" },
       { table: "drugs_sales", label: "data drugs" },
     ];
-    for (const d of deletions) {
-      const { error: delErr } = await supabase
-        .from(d.table)
-        .delete()
-        .eq("member_id", memberId);
-      if (delErr) {
-        showAlert(`Gagal menghapus ${d.label}: ` + delErr.message, "error");
-        return;
-      }
-      const { count: remain, error: remainErr } = await supabase
-        .from(d.table)
-        .select("*", { count: "exact", head: true })
-        .eq("member_id", memberId);
-      if (remainErr) {
-        showAlert(
-          `Gagal verifikasi hapus ${d.label} (permission/RLS)`,
-          "error"
-        );
-        return;
-      }
-      if ((remain || 0) > 0) {
-        let extra = "";
-        try {
-          const { data: sample } = await supabase
-            .from(d.table)
-            .select("id,waktu,nama,penerima")
-            .eq("member_id", memberId)
-            .order("waktu", { ascending: false })
-            .limit(1);
-          const s = (sample || [])[0] || null;
-          if (s && s.id) {
-            const w = s.waktu ? fmtDateTime(s.waktu) : "";
-            const n = s.nama ? String(s.nama) : "";
-            extra = ` (contoh row id: ${s.id}${n ? `, nama: ${n}` : ""}${
-              w ? `, waktu: ${w}` : ""
-            })`;
-          }
-        } catch (e) {}
-        showAlert(
-          `Tidak bisa menghapus ${d.label} (sisa ${remain}). Cek RLS/policy atau hapus manual di Supabase${extra}.`,
-          "error"
-        );
+    for (const d of targets) {
+      const { ok, error } = await softDeleteByMemberId(d.table, memberId);
+      if (!ok) {
+        if (isMissingColumnError(error, "deleted_at")) {
+          showAlert(
+            `Soft delete belum aktif untuk ${d.table}. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+              d.table
+            )}`,
+            "error"
+          );
+          return;
+        }
+        showAlert(`Gagal mengarsipkan ${d.label}: ` + error.message, "error");
         return;
       }
     }
 
-    // 3. Delete member
-    const { error } = await supabase
-      .from("members")
-      .delete()
-      .eq("id", memberId);
-
-    if (error) {
-      showAlert(
-        "Gagal menghapus member dari database: " + error.message,
-        "error"
-      );
-    } else {
-      // 4. Double check deletion
-      const { count: checkCount } = await supabase
-        .from("members")
-        .select("*", { count: "exact", head: true })
-        .eq("id", memberId);
-
-      if (checkCount === 0) {
-        showAlert("Member dan datanya berhasil dihapus permanen.", "success");
-        loadMemberListInModal();
-        updateDashNameSuggestions();
-        loadDashboard(true);
-      } else {
+    const { ok: memOk, error: memErr } = await softDeleteById("members", memberId);
+    if (!memOk) {
+      if (isMissingColumnError(memErr, "deleted_at")) {
         showAlert(
-          "Gagal: Member masih ada di database. Cek permission/RLS.",
+          `Soft delete belum aktif untuk members. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+            "members"
+          )}`,
           "error"
         );
+        return;
       }
+      showAlert("Gagal mengarsipkan member: " + memErr.message, "error");
+      return;
     }
+    showAlert("Member dan datanya berhasil diarsipkan.", "success");
+    loadMemberListInModal();
+    updateDashNameSuggestions();
+    loadDashboard(true);
   } catch (e) {
     showAlert("Gagal menjalankan hapus member (runtime error)", "error");
   }
@@ -6521,12 +7001,21 @@ async function loadDrugsBatchFilterOptions() {
 
   if (!list.length) {
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from("drugs_sales")
         .select("periode_orderanke")
         .gte("periode_orderanke", 1000)
+        .is("deleted_at", null)
         .order("periode_orderanke", { ascending: false })
         .limit(200);
+      if (error && isMissingColumnError(error, "deleted_at")) {
+        ({ data, error } = await supabase
+          .from("drugs_sales")
+          .select("periode_orderanke")
+          .gte("periode_orderanke", 1000)
+          .order("periode_orderanke", { ascending: false })
+          .limit(200));
+      }
 
       if (!error) {
         const seen = new Set();
@@ -6877,7 +7366,7 @@ async function openSelectActiveDrugsBatchModal() {
   if (res.isDenied) {
     const confirm = await Swal.fire({
       title: "Hapus periode drugs ini?",
-      text: "Data periode dan semua pencatatan drugs di periode ini akan dihapus permanen.",
+      text: "Periode akan dihapus, data drugs akan diarsipkan (tidak hilang permanen).",
       icon: "warning",
       showCancelButton: true,
       confirmButtonText: "Lanjut",
@@ -6936,15 +7425,22 @@ async function openSelectActiveDrugsBatchModal() {
 
     const periodeOrderanke = parseInt(picked.orderanke || 0, 10);
     if (periodeOrderanke) {
-      const { error: delSalesErr } = await supabase
+      const nowIso = new Date().toISOString();
+      const { error: softErr } = await supabase
         .from("drugs_sales")
-        .delete()
+        .update({ deleted_at: nowIso })
         .eq("periode_orderanke", periodeOrderanke);
-      if (delSalesErr) {
-        showAlert(
-          "Gagal menghapus data drugs: " + delSalesErr.message,
-          "error"
-        );
+      if (softErr) {
+        if (isMissingColumnError(softErr, "deleted_at")) {
+          showAlert(
+            `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+              "drugs_sales"
+            )}`,
+            "error"
+          );
+          return;
+        }
+        showAlert("Gagal mengarsipkan data drugs: " + softErr.message, "error");
         return;
       }
     }
@@ -7644,39 +8140,46 @@ async function loadDrugsTable() {
   body.innerHTML =
     '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
 
-  let query = supabase
-    .from("drugs_sales")
-    .select("*")
-    .gte("periode_orderanke", 1000) // Hanya ambil data Drugs
-    .order("waktu", { ascending: false });
+  const build = (withSoftDelete) => {
+    let q = supabase
+      .from("drugs_sales")
+      .select("*")
+      .gte("periode_orderanke", 1000)
+      .order("waktu", { ascending: false });
+    if (withSoftDelete) q = q.is("deleted_at", null);
 
-  if (filter) {
-    const v = String(filter.value || "");
-    if (v === "current" && currentDrugsBatch) {
-      query = query.eq("periode_orderanke", currentDrugsBatch);
-    } else if (v === "previous") {
-      const current = parseInt(currentDrugsBatch || 0, 10) || null;
-      let prev = null;
-      if (current) {
-        const idx = drugsBatchList.findIndex((b) => b.orderanke === current);
-        if (idx >= 0 && idx + 1 < drugsBatchList.length)
-          prev = drugsBatchList[idx + 1].orderanke;
+    if (filter) {
+      const v = String(filter.value || "");
+      if (v === "current" && currentDrugsBatch) {
+        q = q.eq("periode_orderanke", currentDrugsBatch);
+      } else if (v === "previous") {
+        const current = parseInt(currentDrugsBatch || 0, 10) || null;
+        let prev = null;
+        if (current) {
+          const idx = drugsBatchList.findIndex((b) => b.orderanke === current);
+          if (idx >= 0 && idx + 1 < drugsBatchList.length)
+            prev = drugsBatchList[idx + 1].orderanke;
+        }
+        if (!prev && drugsBatchList.length) {
+          prev =
+            drugsBatchList.length > 1
+              ? drugsBatchList[1].orderanke
+              : drugsBatchList[0].orderanke;
+        }
+        if (prev) q = q.eq("periode_orderanke", prev);
+      } else if (v.startsWith("orderanke:")) {
+        const raw = v.split(":")[1] || "";
+        const picked = parseInt(raw, 10);
+        if (!Number.isNaN(picked) && picked) q = q.eq("periode_orderanke", picked);
       }
-      if (!prev && drugsBatchList.length) {
-        prev =
-          drugsBatchList.length > 1
-            ? drugsBatchList[1].orderanke
-            : drugsBatchList[0].orderanke;
-      }
-      if (prev) query = query.eq("periode_orderanke", prev);
-    } else if (v.startsWith("orderanke:")) {
-      const raw = v.split(":")[1] || "";
-      const picked = parseInt(raw, 10);
-      if (!Number.isNaN(picked) && picked) query = query.eq("periode_orderanke", picked);
     }
-  }
+    return q;
+  };
 
-  const { data, error } = await query.limit(50);
+  let { data, error } = await build(true).limit(50);
+  if (error && isMissingColumnError(error, "deleted_at")) {
+    ({ data, error } = await build(false).limit(50));
+  }
 
   if (error) {
     body.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
@@ -7813,16 +8316,22 @@ async function loadDrugsTable() {
       });
 
       if (result.isConfirmed) {
-        const { error } = await supabase
-          .from("drugs_sales")
-          .delete()
-          .in("id", ids);
-        if (error) {
+        const { ok, error } = await softDeleteByIds("drugs_sales", ids);
+        if (!ok) {
+          if (isMissingColumnError(error, "deleted_at")) {
+            showAlert(
+              `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+                "drugs_sales"
+              )}`,
+              "error"
+            );
+            return;
+          }
           showAlert("Gagal menghapus: " + error.message, "error");
-        } else {
-          showAlert("Data berhasil dihapus", "success");
-          loadDrugsTable();
+          return;
         }
+        showAlert("Data dipindahkan ke arsip", "success");
+        loadDrugsTable();
       }
     });
   });
@@ -8012,11 +8521,19 @@ async function getRageCashBalance() {
     if (!supabase) return null;
     const ok = await ensureRageCashTable();
     if (!ok) return null;
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("rage_cash_logs")
       .select("type,amount")
+      .is("deleted_at", null)
       .order("waktu", { ascending: false })
       .limit(2000);
+    if (error && isMissingColumnError(error, "deleted_at")) {
+      ({ data, error } = await supabase
+        .from("rage_cash_logs")
+        .select("type,amount")
+        .order("waktu", { ascending: false })
+        .limit(2000));
+    }
     if (error) return null;
     return (data || []).reduce((acc, r) => {
       const a = parseFloat(r.amount) || 0;
@@ -8041,11 +8558,19 @@ async function loadRageCashTable() {
   body.innerHTML =
     '<tr><td colspan="5" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from("rage_cash_logs")
     .select("id,type,amount,category,note,waktu")
+    .is("deleted_at", null)
     .order("waktu", { ascending: false })
     .limit(50);
+  if (error && isMissingColumnError(error, "deleted_at")) {
+    ({ data, error } = await supabase
+      .from("rage_cash_logs")
+      .select("id,type,amount,category,note,waktu")
+      .order("waktu", { ascending: false })
+      .limit(50));
+  }
 
   if (error) {
     body.innerHTML = `<tr><td colspan="5" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
@@ -8401,61 +8926,26 @@ async function deleteRageCashEntry(id) {
   });
   if (!proceed.isConfirmed) return;
 
-  const pin = (window && window.ADMIN_DELETE_PIN) || "";
-  let pinOk = true;
-  if (pin) {
-    const { value: typed } = await Swal.fire({
-      title: "Masukkan PIN delete",
-      input: "password",
-      inputPlaceholder: "Masukkan PIN",
-      showCancelButton: true,
-      confirmButtonText: "Konfirmasi",
-      cancelButtonText: "Batal",
-      customClass: {
-        popup: "rage-modal-popup",
-        title: "rage-modal-title",
-        confirmButton: "rage-modal-confirm !bg-red-600",
-        cancelButton: "rage-modal-cancel",
-        input: "rage-modal-input",
-      },
-    });
-    pinOk = !!typed && typed === pin;
-  } else {
-    const { value: typed } = await Swal.fire({
-      title: "Ketik DELETE untuk konfirmasi",
-      input: "text",
-      inputPlaceholder: "DELETE",
-      showCancelButton: true,
-      confirmButtonText: "Konfirmasi",
-      cancelButtonText: "Batal",
-      customClass: {
-        popup: "rage-modal-popup",
-        title: "rage-modal-title",
-        confirmButton: "rage-modal-confirm !bg-red-600",
-        cancelButton: "rage-modal-cancel",
-        input: "rage-modal-input",
-      },
-    });
-    pinOk = (typed || "").toUpperCase() === "DELETE";
-  }
+  const pinOk = await confirmDeletePin();
   if (!pinOk) {
     showAlert("Konfirmasi hapus tidak valid", "error");
     return;
   }
 
-  const { data, error } = await supabase
-    .from("rage_cash_logs")
-    .delete()
-    .eq("id", id)
-    .select("id");
-  if (error) {
-    showAlert("Gagal menghapus: " + error.message, "error");
+  const { ok: delOk, error: delErr } = await softDeleteById("rage_cash_logs", id);
+  if (!delOk) {
+    if (isMissingColumnError(delErr, "deleted_at")) {
+      showAlert(
+        `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+          "rage_cash_logs"
+        )}`,
+        "error"
+      );
+      return;
+    }
+    showAlert("Gagal menghapus: " + delErr.message, "error");
     return;
   }
-  if (!data || !data.length) {
-    showAlert("Tidak bisa menghapus catatan (RLS/policy menolak)", "error");
-    return;
-  }
-  showAlert("Catatan berhasil dihapus", "success");
+  showAlert("Catatan dipindahkan ke arsip", "success");
   loadRageCashTable();
 }
