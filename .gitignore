@@ -3,3 +3,5 @@ config.js
 node_modules/
 .vscode/
 .trae/
+*.md
+*.sql

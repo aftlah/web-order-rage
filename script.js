@@ -1,8 +1,44 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.2";
+
+const __rageSec =
+  typeof window !== "undefined" && window.RageSecurity
+    ? window.RageSecurity
+    : null;
+if (__rageSec && __rageSec.warnIfServiceRoleExposed) {
+  __rageSec.warnIfServiceRoleExposed();
+}
+
 const supabase =
   window.SUPABASE_URL && window.SUPABASE_ANON_KEY
-    ? createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
+    ? createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: false,
+          storage:
+            __rageSec && __rageSec.createSupabaseAuthStorage
+              ? __rageSec.createSupabaseAuthStorage()
+              : undefined,
+        },
+      })
     : null;
+
+function escapeHtml(value) {
+  if (__rageSec && __rageSec.escapeHtml) return __rageSec.escapeHtml(value);
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function validatePasswordStrength(pw) {
+  if (__rageSec && __rageSec.validatePassword) return __rageSec.validatePassword(pw);
+  const s = String(pw || "");
+  if (s.length < 6) return { ok: false, message: "Password minimal 6 karakter" };
+  return { ok: true, message: "" };
+}
 
 let CATALOG = {
   Gun: [
@@ -190,7 +226,17 @@ function loadStoredDashboard() {
 }
 
 async function confirmDeletePin() {
-  const pin = (window && window.ADMIN_DELETE_PIN) || "";
+  const pin = String((window && window.ADMIN_DELETE_PIN) || "").trim();
+  const pinCheck =
+    __rageSec && __rageSec.validateAdminPin
+      ? __rageSec.validateAdminPin(pin)
+      : pin.length >= 6
+        ? { ok: true }
+        : { ok: false, message: "ADMIN_DELETE_PIN belum diatur" };
+  if (!pinCheck.ok) {
+    showAlert(pinCheck.message || "PIN delete belum dikonfigurasi", "error");
+    return false;
+  }
   if (pin) {
     const { value: typed } = await Swal.fire({
       title: "Masukkan PIN delete",
@@ -209,22 +255,7 @@ async function confirmDeletePin() {
     });
     return !!typed && typed === pin;
   }
-  const { value: typed } = await Swal.fire({
-    title: "Ketik DELETE untuk konfirmasi",
-    input: "text",
-    inputPlaceholder: "DELETE",
-    showCancelButton: true,
-    confirmButtonText: "Konfirmasi",
-    cancelButtonText: "Batal",
-    customClass: {
-      popup: "rage-modal-popup",
-      title: "rage-modal-title",
-      confirmButton: "rage-modal-confirm !bg-red-600",
-      cancelButton: "rage-modal-cancel",
-      input: "rage-modal-input",
-    },
-  });
-  return (typed || "").toUpperCase() === "DELETE";
+  return false;
 }
 
 function isMissingColumnError(err, columnName) {
@@ -605,8 +636,8 @@ async function ensureUserPasswordUpdated() {
       preConfirm: () => {
         const pw1 = (document.getElementById("pw1") || {}).value || "";
         const pw2 = (document.getElementById("pw2") || {}).value || "";
-        if (pw1.length < 6)
-          return Swal.showValidationMessage("Password minimal 6 karakter");
+        const v = validatePasswordStrength(pw1);
+        if (!v.ok) return Swal.showValidationMessage(v.message);
         if (pw1 !== pw2)
           return Swal.showValidationMessage("Password tidak sama");
         return pw1;
@@ -728,14 +759,14 @@ async function showLinkMemberHelpModal() {
     const lines = [];
     if (email)
       lines.push(
-        `<div class="text-xs text-slate-500 dark:text-slate-400">Email</div><div class="font-mono text-sm break-all">${email}</div>`
+        `<div class="text-xs text-slate-500 dark:text-slate-400">Email</div><div class="font-mono text-sm break-all">${escapeHtml(email)}</div>`
       );
     if (uid)
       lines.push(
-        `<div class="mt-3 text-xs text-slate-500 dark:text-slate-400">User ID</div><div class="font-mono text-sm break-all">${uid}</div>`
+        `<div class="mt-3 text-xs text-slate-500 dark:text-slate-400">User ID</div><div class="font-mono text-sm break-all">${escapeHtml(uid)}</div>`
       );
     if (err)
-      lines.push(`<div class="mt-3 text-xs text-red-500">Info: ${err}</div>`);
+      lines.push(`<div class="mt-3 text-xs text-red-500">Info: ${escapeHtml(err)}</div>`);
 
     const html =
       `<div class="text-left">` +
@@ -843,45 +874,8 @@ async function showLinkMemberHelpModal() {
         pickedId = parseInt(String(value), 10);
       }
 
-      const pin = (window && window.ADMIN_DELETE_PIN) || "";
-      let ok = true;
-      if (pin) {
-        const { value: typed } = await Swal.fire({
-          title: "Masukkan PIN",
-          input: "password",
-          inputPlaceholder: "PIN",
-          showCancelButton: true,
-          confirmButtonText: "Konfirmasi",
-          cancelButtonText: "Batal",
-          customClass: {
-            popup: "rage-modal-popup",
-            title: "rage-modal-title",
-            confirmButton: "rage-modal-confirm",
-            cancelButton: "rage-modal-cancel",
-            input: "rage-modal-input",
-          },
-        });
-        ok = !!typed && typed === pin;
-      } else {
-        const { value: typed } = await Swal.fire({
-          title: "Ketik LINK untuk konfirmasi",
-          input: "text",
-          inputPlaceholder: "LINK",
-          showCancelButton: true,
-          confirmButtonText: "Konfirmasi",
-          cancelButtonText: "Batal",
-          customClass: {
-            popup: "rage-modal-popup",
-            title: "rage-modal-title",
-            confirmButton: "rage-modal-confirm",
-            cancelButton: "rage-modal-cancel",
-            input: "rage-modal-input",
-          },
-        });
-        ok = (typed || "").toUpperCase() === "LINK";
-      }
-      if (!ok) {
-        showAlert("Konfirmasi tidak valid", "error");
+      const linkOk = await confirmDeletePin();
+      if (!linkOk) {
         return;
       }
 
@@ -1135,8 +1129,95 @@ function ensureProfileNavLinks(member) {
   }
 }
 
+async function rpcAdminInsertAuditLog(payload) {
+  if (!supabase) return { error: { message: "Supabase tidak terhubung" } };
+  const { error } = await supabase.rpc("rage_admin_insert_audit_log", {
+    p_payload: payload || {},
+  });
+  if (error) {
+    return {
+      error: {
+        message:
+          error.message +
+          " — Jalankan SQL di supabase/migrations/20250523_security_rls.sql",
+      },
+    };
+  }
+  return { data: {} };
+}
+
+async function rpcAdminPatchMember(memberId, patch) {
+  if (!supabase) return { error: { message: "Supabase tidak terhubung" } };
+  const id = parseInt(String(memberId || ""), 10);
+  if (!id) return { error: { message: "member_id tidak valid" } };
+  const { error } = await supabase.rpc("rage_admin_patch_member", {
+    p_member_id: id,
+    p_patch: patch || {},
+  });
+  if (error) {
+    return {
+      error: {
+        message:
+          error.message +
+          " — Jalankan SQL di supabase/migrations/20250523_security_rls.sql",
+      },
+    };
+  }
+  return { data: {} };
+}
+
 function getServiceRoleKey() {
   return String((window && window.SUPABASE_SERVICE_ROLE_KEY) || "").trim();
+}
+
+async function assertCurrentUserIsAdmin() {
+  const member = window.__currentMember || (await resolveCurrentMember());
+  if (!isAdminMember(member)) {
+    return { error: { message: "Hanya Admin yang boleh melakukan ini" } };
+  }
+  return { ok: true };
+}
+
+async function supabaseAdminUpdateUser(targetAuthUserId, updatePayload) {
+  const adminCheck = await assertCurrentUserIsAdmin();
+  if (adminCheck.error) return adminCheck;
+
+  const url = String((window && window.SUPABASE_URL) || "").trim();
+  const key = getServiceRoleKey();
+  if (!url || !key) {
+    return {
+      error: {
+        message:
+          "SUPABASE_SERVICE_ROLE_KEY belum diisi di config.js (diperlukan untuk ganti password/username langsung).",
+      },
+    };
+  }
+  const uid = String(targetAuthUserId || "").trim();
+  if (!uid) return { error: { message: "Target auth_user_id kosong" } };
+
+  const res = await fetch(
+    `${url}/auth/v1/admin/users/${encodeURIComponent(uid)}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify(updatePayload || {}),
+    }
+  );
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return {
+      error: {
+        message:
+          (json && (json.msg || json.message || json.error)) ||
+          `HTTP ${res.status}`,
+      },
+    };
+  }
+  return { data: json };
 }
 
 function getDeviceId() {
@@ -1234,74 +1315,12 @@ function recordPageAccess(member) {
   } catch (e) {}
 }
 
-async function supabaseAdminUpdateUser(targetAuthUserId, updatePayload) {
-  const url = String((window && window.SUPABASE_URL) || "").trim();
-  const key = getServiceRoleKey();
-  if (!url || !key)
-    return { error: { message: "SUPABASE_SERVICE_ROLE_KEY belum diisi" } };
-  const uid = String(targetAuthUserId || "").trim();
-  if (!uid) return { error: { message: "Target auth_user_id kosong" } };
-
-  const res = await fetch(
-    `${url}/auth/v1/admin/users/${encodeURIComponent(uid)}`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify(updatePayload || {}),
-    }
-  );
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok)
-    return {
-      error: {
-        message:
-          (json && (json.msg || json.message || json.error)) ||
-          `HTTP ${res.status}`,
-      },
-    };
-  return { data: json };
-}
-
 async function supabaseServiceRoleUpsertAuditLog(payload) {
-  const url = String((window && window.SUPABASE_URL) || "").trim();
-  const key = getServiceRoleKey();
-  if (!url || !key) return;
-  try {
-    await fetch(`${url}/rest/v1/account_audit_logs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify(payload || {}),
-    });
-  } catch (e) {}
+  await rpcAdminInsertAuditLog(payload || {});
 }
 
 async function supabaseServiceRoleUpdateMembersById(memberId, patch) {
-  const url = String((window && window.SUPABASE_URL) || "").trim();
-  const key = getServiceRoleKey();
-  if (!url || !key) return;
-  const id = String(memberId || "").trim();
-  if (!id) return;
-  try {
-    await fetch(`${url}/rest/v1/members?id=eq.${encodeURIComponent(id)}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify(patch || {}),
-    });
-  } catch (e) {}
+  await rpcAdminPatchMember(memberId, patch || {});
 }
 
 function getUsernameFromEmail(email) {
@@ -1394,8 +1413,9 @@ async function initProfile() {
     savePasswordBtn.addEventListener("click", async () => {
       const pw1 = (newPasswordEl || {}).value || "";
       const pw2 = (confirmPasswordEl || {}).value || "";
-      if (pw1.length < 6) {
-        showAlert("Password minimal 6 karakter", "error");
+      const pv = validatePasswordStrength(pw1);
+      if (!pv.ok) {
+        showAlert(pv.message, "error");
         return;
       }
       if (pw1 !== pw2) {
@@ -1482,13 +1502,14 @@ async function initAdminUsersPage() {
     tableBody.innerHTML = rows
       .map((u) => {
         const id = String(u.id || "");
-        const name = String(u.nama || "-");
-        const role = String(u.role || "-");
+        const name = escapeHtml(u.nama || "-");
+        const role = escapeHtml(u.role || "-");
+        const safeId = escapeHtml(id);
         return `<tr class="hover:bg-white/5 transition-colors">
   <td class="px-3 py-3 text-amber-900 dark:text-amber-100 font-medium">${name}</td>
   <td class="px-3 py-3 text-slate-600 dark:text-amber-200/80">${role}</td>
   <td class="px-3 py-3 text-right">
-    <button class="px-3 py-1 rounded-lg bg-amber-600/20 text-amber-300 border border-amber-600/30 text-[10px] font-bold uppercase hover:bg-amber-600/30 transition" data-admin-user-pick="${id}">
+    <button class="px-3 py-1 rounded-lg bg-amber-600/20 text-amber-300 border border-amber-600/30 text-[10px] font-bold uppercase hover:bg-amber-600/30 transition" data-admin-user-pick="${safeId}">
       Pilih
     </button>
   </td>
@@ -1515,7 +1536,7 @@ async function initAdminUsersPage() {
       .order("nama", { ascending: true })
       .limit(500);
     if (error) {
-      tableBody.innerHTML = `<tr><td colspan="3" class="px-3 py-6 text-center text-red-400">Gagal memuat: ${error.message}</td></tr>`;
+      tableBody.innerHTML = `<tr><td colspan="3" class="px-3 py-6 text-center text-red-400">Gagal memuat: ${escapeHtml(error.message)}</td></tr>`;
       return;
     }
     allUsers = data || [];
@@ -1557,9 +1578,9 @@ async function initAdminUsersPage() {
       .map((r) => {
         return `<tr class="hover:bg-white/5 transition-colors">
   <td class="px-3 py-3 text-xs text-slate-400 whitespace-nowrap">${fmtDateTime(r.created_at)}</td>
-  <td class="px-3 py-3 text-amber-900 dark:text-amber-100 font-semibold">${String(r.action || "-")}</td>
-  <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${String(r.target_auth_user_id || r.target_member_id || "-")}</td>
-  <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${String(r.actor_auth_user_id || "-")}</td>
+  <td class="px-3 py-3 text-amber-900 dark:text-amber-100 font-semibold">${escapeHtml(r.action || "-")}</td>
+  <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${escapeHtml(r.target_auth_user_id || r.target_member_id || "-")}</td>
+  <td class="px-3 py-3 text-xs font-mono text-slate-600 dark:text-amber-200/80 break-all">${escapeHtml(r.actor_auth_user_id || "-")}</td>
 </tr>`;
       })
       .join("");
@@ -1593,21 +1614,22 @@ async function initAdminUsersPage() {
       const btn = reqUsernameBtn;
       btn.disabled = true;
       try {
-        const { error } = await supabaseAdminUpdateUser(
+        const { error: authErr } = await supabaseAdminUpdateUser(
           String(selected.auth_user_id),
-          {
-            email: nextEmail,
-            email_confirm: true,
-          }
+          { email: nextEmail, email_confirm: true }
         );
-        if (error) {
-          showAlert("Gagal: " + error.message, "error");
+        if (authErr) {
+          showAlert("Gagal ubah email login: " + authErr.message, "error");
           return;
         }
-        await supabaseServiceRoleUpdateMembersById(selected.id, {
+        const patchRes = await rpcAdminPatchMember(selected.id, {
           email: nextEmail,
           username,
         });
+        if (patchRes.error) {
+          showAlert("Gagal: " + patchRes.error.message, "error");
+          return;
+        }
         await supabaseServiceRoleUpsertAuditLog({
           actor_auth_user_id: actorUid,
           target_auth_user_id: String(selected.auth_user_id),
@@ -1630,12 +1652,14 @@ async function initAdminUsersPage() {
     resetUsernameBtn.classList.add("opacity-50", "cursor-not-allowed");
   }
 
-  const isStrongPassword = (pw) => String(pw || "").length >= 6;
-
   if (setPwBtn) {
     setPwBtn.addEventListener("click", async () => {
       if (!selected || !selected.id) {
         showAlert("Pilih user terlebih dahulu", "error");
+        return;
+      }
+      if (!selected.auth_user_id) {
+        showAlert("Target belum terhubung ke auth_user_id", "error");
         return;
       }
       const pw1 = (adminNewPasswordEl || {}).value || "";
@@ -1644,13 +1668,14 @@ async function initAdminUsersPage() {
         showAlert("Konfirmasi password tidak sama", "error");
         return;
       }
-      if (!isStrongPassword(pw1)) {
-        showAlert("Password minimal 6 karakter", "error");
+      const pwCheck = validatePasswordStrength(pw1);
+      if (!pwCheck.ok) {
+        showAlert(pwCheck.message, "error");
         return;
       }
       const confirm = await Swal.fire({
         title: "Ganti password user ini?",
-        text: "Password akan langsung diganti oleh Admin. Pastikan ini sudah disetujui.",
+        text: "Password akan langsung diganti oleh Admin.",
         icon: "warning",
         showCancelButton: true,
         confirmButtonText: "Ganti",
@@ -1666,15 +1691,9 @@ async function initAdminUsersPage() {
       const btn = setPwBtn;
       btn.disabled = true;
       try {
-        if (!selected.auth_user_id) {
-          showAlert("Target belum terhubung ke auth_user_id", "error");
-          return;
-        }
         const { error } = await supabaseAdminUpdateUser(
           String(selected.auth_user_id),
-          {
-            password: pw1,
-          }
+          { password: pw1 }
         );
         if (error) {
           showAlert("Gagal: " + error.message, "error");
@@ -2802,6 +2821,7 @@ async function init() {
     const submitBtn = document.getElementById("submitBtn");
     if (addBtn) addBtn.addEventListener("click", addToCart);
     if (submitBtn) submitBtn.addEventListener("click", submitOrder);
+    initMyOrdersModeToggle();
     if (currentMember && currentMember.id) {
       applyCurrentMemberToOrderUI(currentMember);
     } else {
@@ -2858,10 +2878,11 @@ async function init() {
       await supabase.auth.signOut();
     } catch (e) {}
     try {
-      const keys = Object.keys(localStorage || {});
-      keys.forEach((k) => {
-        if (k.startsWith("sb-") && k.endsWith("-auth-token"))
-          localStorage.removeItem(k);
+      [localStorage, sessionStorage].forEach((store) => {
+        if (!store) return;
+        Object.keys(store).forEach((k) => {
+          if (k.startsWith("sb-") && k.endsWith("-auth-token")) store.removeItem(k);
+        });
       });
     } catch (e) {}
     location.href = "login.html";
@@ -3212,7 +3233,89 @@ function renderCart() {
   );
 }
 
+function getMyOrdersMode() {
+  const stored = (() => {
+    try {
+      return localStorage.getItem("myOrdersModeV1") || "";
+    } catch (e) {
+      return "";
+    }
+  })();
+  const raw = String(window.__myOrdersMode || stored || "active").toLowerCase();
+  return raw === "archive" ? "archive" : "active";
+}
+
+function setMyOrdersMode(mode) {
+  const normalized = mode === "archive" ? "archive" : "active";
+  window.__myOrdersMode = normalized;
+  try {
+    localStorage.setItem("myOrdersModeV1", normalized);
+  } catch (e) {}
+  syncMyOrdersModeButtons(normalized);
+}
+
+function syncMyOrdersModeButtons(mode) {
+  const activeBtn = document.getElementById("myOrdersModeActive");
+  const archiveBtn = document.getElementById("myOrdersModeArchive");
+  if (!activeBtn || !archiveBtn) return;
+  const m = mode || getMyOrdersMode();
+  const isArchive = m === "archive";
+
+  activeBtn.classList.toggle("bg-amber-500", !isArchive);
+  activeBtn.classList.toggle("text-[#1a1410]", !isArchive);
+  activeBtn.classList.toggle("text-amber-400", isArchive);
+  activeBtn.classList.toggle("hover:bg-amber-500/20", isArchive);
+  activeBtn.classList.toggle("bg-amber-500/10", isArchive);
+
+  archiveBtn.classList.toggle("bg-amber-500", isArchive);
+  archiveBtn.classList.toggle("text-[#1a1410]", isArchive);
+  archiveBtn.classList.toggle("text-amber-400", !isArchive);
+  archiveBtn.classList.toggle("hover:bg-amber-500/20", !isArchive);
+  archiveBtn.classList.toggle("bg-amber-500/10", !isArchive);
+}
+
+function getMyOrdersSelectedPeriod(mode) {
+  const m = mode === "archive" ? "archive" : "active";
+  const key = m === "archive" ? "myOrdersPeriodArchiveV1" : "myOrdersPeriodActiveV1";
+  const stored = (() => {
+    try {
+      return localStorage.getItem(key) || "";
+    } catch (e) {
+      return "";
+    }
+  })();
+  const val = parseInt(stored || "", 10);
+  return !Number.isNaN(val) && !!val ? val : null;
+}
+
+function setMyOrdersSelectedPeriod(mode, period) {
+  const m = mode === "archive" ? "archive" : "active";
+  const key = m === "archive" ? "myOrdersPeriodArchiveV1" : "myOrdersPeriodActiveV1";
+  try {
+    if (period) localStorage.setItem(key, String(period));
+    else localStorage.removeItem(key);
+  } catch (e) {}
+}
+
+function initMyOrdersModeToggle() {
+  const activeBtn = document.getElementById("myOrdersModeActive");
+  const archiveBtn = document.getElementById("myOrdersModeArchive");
+  if (!activeBtn || !archiveBtn) return;
+  const initial = getMyOrdersMode();
+  setMyOrdersMode(initial);
+
+  activeBtn.addEventListener("click", async () => {
+    setMyOrdersMode("active");
+    await loadMyOrdersForSelection();
+  });
+  archiveBtn.addEventListener("click", async () => {
+    setMyOrdersMode("archive");
+    await loadMyOrdersForSelection();
+  });
+}
+
 async function loadMyOrdersForSelection() {
+  const mode = getMyOrdersMode();
   const hidden = document.getElementById("memberId");
   const nameInput = document.getElementById("nama");
   const v = hidden ? parseInt(hidden.value || "", 10) : NaN;
@@ -3220,17 +3323,21 @@ async function loadMyOrdersForSelection() {
   const namaText = nameInput ? nameInput.value.trim() : "";
 
   if (!supabase) {
-    renderMyOrders([]);
+    renderMyOrders([], null, mode);
     return;
   }
 
-  const baseSelect = (withSoftDelete) => {
+  const baseSelect = (softMode, includeDeletedAt) => {
+    const fields = includeDeletedAt
+      ? "id,order_id,item,qty,subtotal,orderanke,kategori,harga,waktu,deleted_at"
+      : "id,order_id,item,qty,subtotal,orderanke,kategori,harga,waktu";
     let q = supabase
       .from("orders")
-      .select("id,order_id,item,qty,subtotal,orderanke,kategori,harga,waktu")
+      .select(fields)
       .order("waktu", { ascending: false })
       .limit(500);
-    if (withSoftDelete) q = q.is("deleted_at", null);
+    if (softMode === "active") q = q.is("deleted_at", null);
+    if (softMode === "archive") q = q.not("deleted_at", "is", null);
     return q;
   };
 
@@ -3239,47 +3346,69 @@ async function loadMyOrdersForSelection() {
     if (namaText) return q.eq("nama", namaText);
     return null;
   };
-  const q0 = applyFilter(baseSelect(true));
+  const q0 = applyFilter(baseSelect(mode, true));
   if (!q0) {
-    renderMyOrders([]);
+    renderMyOrders([], null, mode);
     return;
   }
 
   let { data, error } = await q0;
   if (error && isMissingColumnError(error, "deleted_at")) {
-    const q1 = applyFilter(baseSelect(false));
+    if (mode === "archive") {
+      showAlert(
+        `Arsip belum tersedia karena kolom deleted_at belum ada. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+          "orders"
+        )}`,
+        "error"
+      );
+      renderMyOrders([], null, mode);
+      return;
+    }
+    const q1 = applyFilter(baseSelect("none", false));
     ({ data, error } = await q1);
   }
-  if (error) return renderMyOrders([]);
+  if (error) return renderMyOrders([], null, mode);
   const all = data || [];
   const periods = Array.from(
     new Set(all.map((r) => parseInt(r.orderanke || 0, 10)).filter((x) => !!x))
   ).sort((a, b) => b - a);
   const sel = document.getElementById("myOrdersPeriodSelect");
   if (sel) {
-    if (!sel.options.length) {
-      sel.innerHTML = periods
-        .map((v) => {
-          const m = Math.floor(v / 10);
-          const w = v % 10;
-          return `<option value="${v}">M${m}-W${w} (#${v})</option>`;
-        })
-        .join("");
-    }
-    sel.onchange = () => renderMyOrders(all, parseInt(sel.value || "", 10));
+    sel.innerHTML = periods
+      .map((v) => {
+        const m = Math.floor(v / 10);
+        const w = v % 10;
+        return `<option value="${v}">M${m}-W${w} (#${v})</option>`;
+      })
+      .join("");
+    const preferred = getMyOrdersSelectedPeriod(mode);
+    const fallback =
+      typeof preferred === "number" && periods.includes(preferred)
+        ? preferred
+        : periods[0] || null;
+    if (fallback) sel.value = String(fallback);
+    sel.onchange = () => {
+      const val = parseInt(sel.value || "", 10);
+      const resolved = !Number.isNaN(val) && !!val ? val : null;
+      setMyOrdersSelectedPeriod(mode, resolved);
+      renderMyOrders(all, resolved, mode);
+    };
   }
   const defaultPeriod =
     sel && sel.value ? parseInt(sel.value, 10) : periods[0] || null;
-  renderMyOrders(all, defaultPeriod);
+  setMyOrdersSelectedPeriod(mode, defaultPeriod);
+  renderMyOrders(all, defaultPeriod, mode);
 }
 
-function renderMyOrders(rows, useOrderanke) {
+function renderMyOrders(rows, useOrderanke, mode) {
   const body = document.getElementById("myOrdersBody");
   const empty = document.getElementById("myOrdersEmpty");
   const totalEl = document.getElementById("myOrdersTotal");
   const periodEl = document.getElementById("myOrdersPeriod");
   const editBtn = document.getElementById("myOrdersEditBtn");
   if (!body || !empty || !totalEl || !periodEl) return;
+  const resolvedMode = mode || getMyOrdersMode();
+  const isArchive = resolvedMode === "archive";
   const items = (rows || []).filter((r) =>
     useOrderanke ? parseInt(r.orderanke || 0, 10) === useOrderanke : true
   );
@@ -3303,25 +3432,84 @@ function renderMyOrders(rows, useOrderanke) {
     .sort((a, b) => new Date(b.waktu).getTime() - new Date(a.waktu).getTime());
   body.innerHTML = list
     .map(
-      (r) =>
+      (r) => {
+        const delTime =
+          isArchive && r.deleted_at ? fmtDateTime(r.deleted_at) : "";
+        const meta = delTime
+          ? `<div class="text-[10px] text-amber-500/60 uppercase tracking-widest mt-1">Arsip: ${delTime}</div>`
+          : "";
+        const actionBtn = isArchive
+          ? `<button class="px-2 py-1 rounded bg-emerald-700 text-white" data-restore-id="${r.id}">Pulihkan</button>`
+          : `<button class="px-2 py-1 rounded bg-red-700 text-white" data-del-id="${r.id}">Hapus</button>`;
         `<tr class="table-row-hover"><td class="px-2 py-2">${
           r.item
-        }</td><td class="px-2 py-2 text-center">${
+        }${meta}</td><td class="px-2 py-2 text-center">${
           r.qty
         }</td><td class="px-2 py-2 text-right">${fmt(
           r.subtotal
-        )}</td><td class="px-2 py-2 text-right"><button class="px-2 py-1 rounded bg-red-700 text-white" data-del-id="${
-          r.id
-        }">Hapus</button></td></tr>`
+        )}</td><td class="px-2 py-2 text-right">${actionBtn}</td></tr>`;
+      }
     )
     .join("");
   const total = list.reduce((a, r) => a + (r.subtotal || 0), 0);
   totalEl.textContent = fmt(total);
   empty.classList.add("hidden");
   if (editBtn) {
-    editBtn.classList.remove("hidden");
-    editBtn.onclick = () => startEditMyOrders();
+    if (isArchive) {
+      editBtn.classList.add("hidden");
+    } else {
+      editBtn.classList.remove("hidden");
+      editBtn.onclick = () => startEditMyOrders();
+    }
   }
+  if (isArchive) {
+    body.querySelectorAll("[data-restore-id]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = parseInt(btn.getAttribute("data-restore-id") || "", 10);
+        if (!id) return;
+
+        const result = await Swal.fire({
+          title: "Pulihkan order dari arsip?",
+          text: "Order akan kembali ke daftar aktif.",
+          icon: "question",
+          showCancelButton: true,
+          confirmButtonColor: "#047857",
+          cancelButtonColor: "#3085d6",
+          confirmButtonText: "Ya, pulihkan",
+          cancelButtonText: "Batal",
+          background: "#1f1410",
+          color: "#fef3c7",
+        });
+        if (!result.isConfirmed) return;
+
+        try {
+          const { ok, error } = await restoreSoftDeletedById("orders", id);
+          if (!ok) {
+            if (isMissingColumnError(error, "deleted_at")) {
+              showAlert(
+                `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+                  "orders"
+                )}`,
+                "error"
+              );
+              return;
+            }
+            showAlert(
+              `Gagal memulihkan item: ${error.message || "Unknown error"}`,
+              "error"
+            );
+            return;
+          }
+          showAlert("Item dipulihkan dari arsip", "success");
+          await loadMyOrdersForSelection();
+        } catch (e) {
+          showAlert("Gagal memulihkan (network)", "error");
+        }
+      });
+    });
+    return;
+  }
+
   body.querySelectorAll("[data-del-id]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = parseInt(btn.getAttribute("data-del-id") || "", 10);
@@ -3377,7 +3565,7 @@ function renderMyOrders(rows, useOrderanke) {
           confirmButtonText: "Tutup",
           cancelButtonText: "Batalkan (Undo)",
           background: "#1f1410",
-          color: "#fef3c7"
+          color: "#fef3c7",
         }).then(async (res) => {
           if (res.dismiss === Swal.DismissReason.cancel) {
             const undoRes = await restoreSoftDeletedById("orders", id);
@@ -3385,7 +3573,10 @@ function renderMyOrders(rows, useOrderanke) {
               showAlert("Penghapusan dibatalkan", "success");
               await loadMyOrdersForSelection();
             } else {
-              showAlert("Gagal memulihkan order: " + undoRes.error.message, "error");
+              showAlert(
+                "Gagal memulihkan order: " + undoRes.error.message,
+                "error"
+              );
             }
           }
         });
@@ -5300,10 +5491,10 @@ function addChatMessage(role, text, isTemp = false, id = null) {
   } else {
     bubble.className = `${baseCls} bg-[#1a120c] border border-amber-900/30 text-amber-50/90 rounded-tl-none`;
     // Simple formatter for bold and newlines
-    let formatted = text
-      .replace(/\*\*(.*?)\*\*/g, '<b class="text-amber-400 font-bold">$1</b>')
-      .replace(/\n/g, "<br>");
-    bubble.innerHTML = formatted;
+    bubble.innerHTML =
+      __rageSec && __rageSec.sanitizeChatHtml
+        ? __rageSec.sanitizeChatHtml(text)
+        : escapeHtml(text).replace(/\n/g, "<br>");
   }
 
   div.appendChild(bubble);
@@ -5313,6 +5504,9 @@ function addChatMessage(role, text, isTemp = false, id = null) {
 }
 
 async function fetchAIResponse(userMsg) {
+  if (!window.AI_API_KEY || String(window.AI_API_KEY).includes("YOUR_")) {
+    throw new Error("AI tidak dikonfigurasi");
+  }
   const systemPrompt = getSystemPrompt();
 
   const body = {
@@ -5935,34 +6129,9 @@ async function deleteOrderWindow(id) {
   });
   if (!proceed.isConfirmed) return;
 
-  const pin = (window && window.ADMIN_DELETE_PIN) || "";
-  let ok = true;
-  if (pin) {
-    const { value: typed } = await Swal.fire({
-      title: "Masukkan PIN delete",
-      input: "password",
-      inputLabel: "PIN diperlukan",
-      inputPlaceholder: "Masukkan PIN",
-      showCancelButton: true,
-      background: "#1f1410",
-      color: "#fef3c7",
-    });
-    ok = !!typed && typed === pin;
-  } else {
-    const { value: typed } = await Swal.fire({
-      title: "Ketik DELETE untuk konfirmasi",
-      input: "text",
-      inputPlaceholder: "DELETE",
-      showCancelButton: true,
-      background: "#1f1410",
-      color: "#fef3c7",
-    });
-    ok = (typed || "").toUpperCase() === "DELETE";
-  }
-  if (!ok) {
-    showAlert("Konfirmasi hapus tidak valid", "error");
-    return;
-  }
+  const pinOk = await confirmDeletePin();
+  if (!pinOk) return;
+
   const { error } = await supabase.from("order_windows").delete().eq("id", id);
   if (error) {
     showAlert("Gagal menghapus jadwal", "error");
@@ -7458,48 +7627,8 @@ async function openSelectActiveDrugsBatchModal() {
     });
     if (!confirm.isConfirmed) return;
 
-    const pin = (window && window.ADMIN_DELETE_PIN) || "";
-    let ok = true;
-    if (pin) {
-      const { value: typed } = await Swal.fire({
-        title: "Masukkan PIN delete",
-        input: "password",
-        inputLabel: "PIN diperlukan",
-        inputPlaceholder: "Masukkan PIN",
-        showCancelButton: true,
-        confirmButtonText: "Konfirmasi",
-        cancelButtonText: "Batal",
-        customClass: {
-          popup: "rage-modal-popup",
-          title: "rage-modal-title",
-          confirmButton: "rage-modal-confirm !bg-red-600",
-          cancelButton: "rage-modal-cancel",
-          input: "rage-modal-input",
-        },
-      });
-      ok = !!typed && typed === pin;
-    } else {
-      const { value: typed } = await Swal.fire({
-        title: "Ketik DELETE untuk konfirmasi",
-        input: "text",
-        inputPlaceholder: "DELETE",
-        showCancelButton: true,
-        confirmButtonText: "Konfirmasi",
-        cancelButtonText: "Batal",
-        customClass: {
-          popup: "rage-modal-popup",
-          title: "rage-modal-title",
-          confirmButton: "rage-modal-confirm !bg-red-600",
-          cancelButton: "rage-modal-cancel",
-          input: "rage-modal-input",
-        },
-      });
-      ok = (typed || "").toUpperCase() === "DELETE";
-    }
-    if (!ok) {
-      showAlert("Konfirmasi hapus tidak valid", "error");
-      return;
-    }
+    const pinOk = await confirmDeletePin();
+    if (!pinOk) return;
 
     const periodeOrderanke = parseInt(picked.orderanke || 0, 10);
     if (periodeOrderanke) {

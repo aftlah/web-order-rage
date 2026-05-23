@@ -313,12 +313,24 @@
       </div>
     </main>
 
-    <script src="config.js?v=20260413b"></script>
+    <script src="security.js?v=20260523"></script>
+    <script src="config.js?v=20260523"></script>
     <script type="module">
       import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.2";
+      const sec = window.RageSecurity || {};
+      if (sec.warnIfServiceRoleExposed) sec.warnIfServiceRoleExposed();
       const supabase =
         window.SUPABASE_URL && window.SUPABASE_ANON_KEY
-          ? createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY)
+          ? createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+              auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: false,
+                storage: sec.createSupabaseAuthStorage
+                  ? sec.createSupabaseAuthStorage()
+                  : undefined,
+              },
+            })
           : null;
 
       // Show/hide password toggle
@@ -387,56 +399,12 @@
         }
       }
 
-      function rateLimitKey(usernameOrEmail) {
-        return "rage_login_rl_v1:" + String(usernameOrEmail || "").trim().toLowerCase();
-      }
-
-      function canAttemptLogin(usernameOrEmail) {
-        try {
-          const key = rateLimitKey(usernameOrEmail);
-          const raw = localStorage.getItem(key);
-          if (!raw) return { ok: true, retryAfterSec: 0 };
-          const obj = JSON.parse(raw);
-          const now = Date.now();
-          const windowMs = 5 * 60 * 1000;
-          const maxFails = 5;
-          const firstAt = typeof obj.firstAt === "number" ? obj.firstAt : now;
-          const fails = typeof obj.fails === "number" ? obj.fails : 0;
-          if (now - firstAt > windowMs) return { ok: true, retryAfterSec: 0 };
-          if (fails >= maxFails) {
-            const retryAfter = Math.ceil((windowMs - (now - firstAt)) / 1000);
-            return { ok: false, retryAfterSec: retryAfter };
-          }
-          return { ok: true, retryAfterSec: 0 };
-        } catch (e) {
-          return { ok: true, retryAfterSec: 0 };
-        }
-      }
-
-      function recordFailedAttempt(usernameOrEmail) {
-        try {
-          const key = rateLimitKey(usernameOrEmail);
-          const now = Date.now();
-          const raw = localStorage.getItem(key);
-          if (!raw) {
-            localStorage.setItem(key, JSON.stringify({ firstAt: now, fails: 1 }));
-            return;
-          }
-          const obj = JSON.parse(raw) || {};
-          const firstAt = typeof obj.firstAt === "number" ? obj.firstAt : now;
-          const fails = typeof obj.fails === "number" ? obj.fails : 0;
-          const windowMs = 5 * 60 * 1000;
-          if (now - firstAt > windowMs) {
-            localStorage.setItem(key, JSON.stringify({ firstAt: now, fails: 1 }));
-          } else {
-            localStorage.setItem(key, JSON.stringify({ firstAt, fails: fails + 1 }));
-          }
-        } catch (e) {}
-      }
-
-      function clearRateLimit(usernameOrEmail) {
-        try { localStorage.removeItem(rateLimitKey(usernameOrEmail)); } catch (e) {}
-      }
+      const canAttemptLogin = (u) =>
+        sec.canAttemptLogin ? sec.canAttemptLogin(u) : { ok: true, retryAfterSec: 0 };
+      const recordFailedAttempt = (u) =>
+        sec.recordFailedAttempt && sec.recordFailedAttempt(u);
+      const clearRateLimit = (u) =>
+        sec.clearRateLimit && sec.clearRateLimit(u);
 
       function logFailedLogin(usernameOrEmail, reason) {
         try {
@@ -452,18 +420,8 @@
       }
 
       async function checkSession() {
-        try {
-          var keys = Object.keys(localStorage || {});
-          var key = keys.find(function(k){return k.startsWith('sb-') && k.endsWith('-auth-token');});
-          var raw = key ? localStorage.getItem(key) : null;
-          if (!raw) return;
-          var obj = JSON.parse(raw);
-          var expSec = 0;
-          if (typeof obj.expires_at === 'number') expSec = obj.expires_at;
-          else if (obj.currentSession && typeof obj.currentSession.expires_at === 'number') expSec = obj.currentSession.expires_at;
-          var hasToken = !!(obj.access_token || (obj.currentSession && obj.currentSession.access_token));
-          if (hasToken && (expSec*1000) > Date.now()) location.href = 'rekap.html';
-        } catch (e) {}
+        const sess = sec.readStoredSession ? sec.readStoredSession() : null;
+        if (sec.isSessionValid && sec.isSessionValid(sess)) location.href = "rekap.html";
       }
 
       async function handleLogin(e) {
@@ -472,8 +430,15 @@
           show("Konfigurasi Supabase belum ada", "error");
           return;
         }
-        const usernameOrEmail = document.getElementById("loginEmail").value.trim();
+        const usernameOrEmail = document
+          .getElementById("loginEmail")
+          .value.trim()
+          .slice(0, 160);
         const password = document.getElementById("loginPassword").value;
+        if (!usernameOrEmail || !password) {
+          show("Username dan password wajib diisi", "warning");
+          return;
+        }
         const rl = canAttemptLogin(usernameOrEmail);
         if (!rl.ok) {
           show(`Terlalu banyak percobaan gagal. Coba lagi dalam ${rl.retryAfterSec} detik.`, "warning");
@@ -515,7 +480,12 @@
           }
           recordFailedAttempt(usernameOrEmail);
           logFailedLogin(usernameOrEmail, (lastError && lastError.message) || "unknown");
-          show(`Gagal login: ${(lastError && lastError.message) || "unknown"}`, "error");
+          show(
+            sec.genericLoginError
+              ? sec.genericLoginError()
+              : "Username atau password salah.",
+            "error"
+          );
           setLoading(false);
         } catch (err) {
           recordFailedAttempt(usernameOrEmail);

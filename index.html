@@ -11,6 +11,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
+    <script src="security.js?v=20260523"></script>
+    <script>RageSecurity && RageSecurity.bootstrapAuthGuard();</script>
   </head>
   <body class="antialiased">
 
@@ -224,6 +226,10 @@
             <h2 class="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600 tracking-tight">Your Orders</h2>
           </div>
           <div class="flex items-center gap-3 bg-[#0a0604]/80 p-1.5 rounded-xl border border-amber-500/10 shadow-inner">
+            <div class="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 rounded-lg p-1">
+              <button id="myOrdersModeActive" class="px-3 py-2 rounded-md text-xs font-black uppercase tracking-widest bg-amber-500 text-[#1a1410] hover:brightness-110 transition">Aktif</button>
+              <button id="myOrdersModeArchive" class="px-3 py-2 rounded-md text-xs font-black uppercase tracking-widest text-amber-400 hover:bg-amber-500/20 transition">Arsip</button>
+            </div>
             <p id="myOrdersPeriod" class="text-[10px] font-black text-amber-500/60 uppercase tracking-widest pl-2"></p>
             <select id="myOrdersPeriodSelect" class="bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 text-xs font-black text-amber-400 uppercase tracking-widest focus:outline-none focus:border-amber-500/50 hover:bg-amber-500/20 transition cursor-pointer"></select>
           </div>
@@ -332,8 +338,8 @@
       </button>
     </div>
 
-    <script src="config.js?v=20260417a"></script>
-    <script type="module" src="script.js?v=20260417a"></script>
+    <script src="config.js?v=20260523"></script>
+    <script type="module" src="script.js?v=20260523"></script>
     <script src="interactive.js"></script>
   </body>
 </html>

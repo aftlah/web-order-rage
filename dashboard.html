@@ -11,22 +11,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
-    <script>
-      (function () {
-        try {
-          var keys = Object.keys(localStorage || {});   
-          var key = keys.find(function (k) { return k.startsWith("sb-") && k.endsWith("-auth-token"); });
-          var raw = key ? localStorage.getItem(key) : null;
-          if (!raw) { window.location.href = "login.html"; return; }
-          var obj = JSON.parse(raw);
-          var expSec = 0;
-          if (typeof obj.expires_at === "number") expSec = obj.expires_at;
-          else if (obj.currentSession && typeof obj.currentSession.expires_at === "number") expSec = obj.currentSession.expires_at;
-          var hasToken = !!(obj.access_token || (obj.currentSession && obj.currentSession.access_token));
-          if (!hasToken || expSec * 1000 < Date.now()) { window.location.href = "login.html"; return; }
-        } catch (e) { window.location.href = "login.html"; }
-      })();
-    </script>
+    <script src="security.js?v=20260523"></script>
+    <script>RageSecurity && RageSecurity.bootstrapAuthGuard();</script>
   </head>
   <body class="transition-colors duration-300">
 
@@ -303,8 +289,8 @@
       <div id="appAlertBox" class="hidden px-4 py-2 rounded-lg bg-red-600 text-white shadow-lg pointer-events-auto"></div>
     </div>
 
-    <script src="config.js?v=20260417a"></script>
-    <script type="module" src="script.js?v=20260417a"></script>
+    <script src="config.js?v=20260523"></script>
+    <script type="module" src="script.js?v=20260523"></script>
     <script src="interactive.js"></script>
   </body>
 </html>
