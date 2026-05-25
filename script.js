@@ -5565,7 +5565,7 @@ WEAPON COMPATIBILITY:
 - SHOTGUN: Attachment (Tactical Suppressor, Tactical Flashlight), Ammo (AMMO 12 GAUGE)
 - Assault Rifle: Attachment (Tactical Flashlight, Grip, Rifle Drum, Extended Rifle Clip, Macro Scope, Tactical Suppressor), Ammo (Ammo 762)
 - CERAMIC PISTOL: Attachment (Extended Pistol Clip, Suppressor), Ammo (AMMO 9MM)
-- Virtus#3: Attachment (Tactical Suppressor, Extended Rifle Clip), Ammo (AMMO 9MM)
+- Virtus#3: Attachment (Tactical Suppressor, Extended Rifle Clip), Ammo (Ammo 556)
 `;
 
   return `You are Deri, a professional and helpful arms dealer assistant for R.A.G.E server.
@@ -5622,7 +5622,7 @@ function generateBotResponse(msg) {
       "ak-47": "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
       "ak47": "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
       "ceramic": "Ammo: **AMMO 9MM**\nAttachment:\n- Extended Pistol\n- Suppressor",
-      "virtus": "Ammo: **AMMO 9MM**\nAttachment:\n- Tactical Suppressor\n- Extended Rifle Clip"
+      "virtus": "Ammo: **Ammo 556**\nAttachment:\n- Tactical Suppressor\n- Extended Rifle Clip"
     };
 
     const weaponKey = Object.keys(weaponDetails).find(k => item.name.toLowerCase().includes(k));

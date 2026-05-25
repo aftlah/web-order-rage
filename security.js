@@ -73,7 +73,7 @@
 
   function readStoredSession() {
     try {
-      const storages = [global.sessionStorage, global.localStorage];
+      const storages = [global.localStorage, global.sessionStorage];
       for (let i = 0; i < storages.length; i++) {
         const store = storages[i];
         if (!store) continue;
@@ -200,8 +200,8 @@
 
   /** Prefer sessionStorage for JWT (cleared when tab closes). */
   function createSupabaseAuthStorage() {
-    const primary = global.sessionStorage;
-    const fallback = global.localStorage;
+    const primary = global.localStorage;
+    const fallback = global.sessionStorage;
     return {
       getItem: function (key) {
         try {
@@ -217,7 +217,6 @@
       setItem: function (key, value) {
         try {
           if (primary) primary.setItem(key, value);
-          if (fallback && fallback.getItem(key)) fallback.removeItem(key);
         } catch (e) {}
       },
       removeItem: function (key) {

@@ -458,6 +458,9 @@
             if (!error) {
               clearRateLimit(usernameOrEmail);
               try {
+                await supabase.auth.getSession();
+              } catch (e) {}
+              try {
                 const { data: userRes } = await supabase.auth.getUser();
                 const uid = userRes && userRes.user && userRes.user.id ? String(userRes.user.id) : "";
                 if (uid) {
