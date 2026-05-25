@@ -8031,92 +8031,25 @@ async function submitDrugsData() {
     loadDrugsTable();
     return;
   }
-  let existing = null;
-  try {
-    const { data: exData, error: exErr } = await supabase
-      .from("drugs_sales")
-      .select("id,uang_merah,upah_putih,uang_rage,waktu,jenis,jumlah")
-      .eq("periode_orderanke", targetBatch)
-      .eq("member_id", memberId)
-      .eq("jenis", jenis)
-      .order("waktu", { ascending: false })
-      .limit(1);
-    if (
-      exErr &&
-      String(exErr.message || "")
-        .toLowerCase()
-        .includes("column")
-    ) {
-      const { data: exData2 } = await supabase
-        .from("drugs_sales")
-        .select("id,uang_merah,upah_putih,uang_rage,waktu")
-        .eq("periode_orderanke", targetBatch)
-        .eq("member_id", memberId)
-        .order("waktu", { ascending: false })
-        .limit(1);
-      existing = (exData2 || [])[0] || null;
-    } else {
-      existing = (exData || [])[0] || null;
-    }
-  } catch (e) {}
-
-  if (existing && existing.id) {
-    const nextUangMerah = (parseFloat(existing.uang_merah) || 0) + duitMerah;
-    const nextUpahPutih = (parseFloat(existing.upah_putih) || 0) + upahPutih;
-    const nextUangRage = (parseFloat(existing.uang_rage) || 0) + uangRage;
-    const nextJumlah = (parseFloat(existing.jumlah) || 0) + jumlah;
-    let updatePayload = {
-      uang_merah: nextUangMerah,
-      upah_putih: nextUpahPutih,
-      uang_rage: nextUangRage,
-      waktu: nowIso,
-      jumlah: nextJumlah,
-      jenis,
-    };
-    let { error } = await supabase
-      .from("drugs_sales")
-      .update(updatePayload)
-      .eq("id", existing.id);
-    if (
-      error &&
-      String(error.message || "")
-        .toLowerCase()
-        .includes("column")
-    ) {
-      updatePayload = {
-        uang_merah: nextUangMerah,
-        upah_putih: nextUpahPutih,
-        uang_rage: nextUangRage,
-        waktu: nowIso,
-      };
-      const res2 = await supabase
-        .from("drugs_sales")
-        .update(updatePayload)
-        .eq("id", existing.id);
-      error = res2.error || null;
-    }
-    if (error) {
-      console.error("Gagal update data drugs:", error);
-      showAlert("Gagal menyimpan data: " + error.message, "error");
-      return;
-    }
-    showAlert("Data ditambahkan ke total batch (nama sama)", "success");
-    await sendDrugsEntryToDiscord({
-      nama,
-      periode_orderanke: targetBatch,
-      jenis,
-      jumlahTotal: nextJumlah,
-      duitMerahDelta: duitMerah,
-      upahPutihDelta: upahPutih,
-      uangRageDelta: uangRage,
-      duitMerahTotal: nextUangMerah,
-      upahPutihTotal: nextUpahPutih,
-      uangRageTotal: nextUangRage,
-      waktu: nowIso,
-      mode: "update",
-    });
-  } else {
-    let insertPayload = {
+  let insertPayload = {
+    member_id: memberId,
+    nama: nama,
+    uang_merah: duitMerah,
+    upah_putih: upahPutih,
+    uang_rage: uangRage,
+    periode_orderanke: targetBatch,
+    waktu: nowIso,
+    jenis,
+    jumlah,
+  };
+  let { error } = await supabase.from("drugs_sales").insert(insertPayload);
+  if (
+    error &&
+    String(error.message || "")
+      .toLowerCase()
+      .includes("column")
+  ) {
+    insertPayload = {
       member_id: memberId,
       nama: nama,
       uang_merah: duitMerah,
@@ -8124,49 +8057,30 @@ async function submitDrugsData() {
       uang_rage: uangRage,
       periode_orderanke: targetBatch,
       waktu: nowIso,
-      jenis,
-      jumlah,
     };
-    let { error } = await supabase.from("drugs_sales").insert(insertPayload);
-    if (
-      error &&
-      String(error.message || "")
-        .toLowerCase()
-        .includes("column")
-    ) {
-      insertPayload = {
-        member_id: memberId,
-        nama: nama,
-        uang_merah: duitMerah,
-        upah_putih: upahPutih,
-        uang_rage: uangRage,
-        periode_orderanke: targetBatch,
-        waktu: nowIso,
-      };
-      const res2 = await supabase.from("drugs_sales").insert(insertPayload);
-      error = res2.error || null;
-    }
-    if (error) {
-      console.error("Gagal simpan data drugs:", error);
-      showAlert("Gagal menyimpan data: " + error.message, "error");
-      return;
-    }
-    showAlert("Data penjualan drugs berhasil disimpan", "success");
-    await sendDrugsEntryToDiscord({
-      nama,
-      periode_orderanke: targetBatch,
-      jenis,
-      jumlahTotal: jumlah,
-      duitMerahDelta: duitMerah,
-      upahPutihDelta: upahPutih,
-      uangRageDelta: uangRage,
-      duitMerahTotal: duitMerah,
-      upahPutihTotal: upahPutih,
-      uangRageTotal: uangRage,
-      waktu: nowIso,
-      mode: "insert",
-    });
+    const res2 = await supabase.from("drugs_sales").insert(insertPayload);
+    error = res2.error || null;
   }
+  if (error) {
+    console.error("Gagal simpan data drugs:", error);
+    showAlert("Gagal menyimpan data: " + error.message, "error");
+    return;
+  }
+  showAlert("Data penjualan drugs berhasil disimpan", "success");
+  await sendDrugsEntryToDiscord({
+    nama,
+    periode_orderanke: targetBatch,
+    jenis,
+    jumlahTotal: jumlah,
+    duitMerahDelta: duitMerah,
+    upahPutihDelta: upahPutih,
+    uangRageDelta: uangRage,
+    duitMerahTotal: duitMerah,
+    upahPutihTotal: upahPutih,
+    uangRageTotal: uangRage,
+    waktu: nowIso,
+    mode: "insert",
+  });
 
   if (adminMode) {
     resetDrugsForm(currentMember);
@@ -8400,43 +8314,20 @@ async function loadDrugsTable() {
   }
 
   empty.classList.add("hidden");
-  const grouped = new Map();
-  (data || []).forEach((r) => {
-    const key = `${r.member_id || r.nama || "-"}|${r.periode_orderanke || ""}|${r.jenis || ""}`;
-    const prev = grouped.get(key) || {
-      ids: [],
-      primaryId: r.id || null,
-      member_id: r.member_id || null,
-      nama: r.nama || "-",
-      periode_orderanke: r.periode_orderanke || null,
-      jenis: r.jenis || "",
-      jumlah: 0,
-      uang_merah: 0,
-      upah_putih: 0,
-      uang_rage: 0,
-      waktu: null,
-      is_paid: r.is_paid || false,
-    };
-    prev.ids.push(r.id);
-    prev.jumlah += parseFloat(r.jumlah) || 0;
-    prev.uang_merah += parseFloat(r.uang_merah) || 0;
-    prev.upah_putih += parseFloat(r.upah_putih) || 0;
-    prev.uang_rage += parseFloat(r.uang_rage) || 0;
-    // If grouped, use the latest is_paid status or handle as needed
-    if (r.is_paid) prev.is_paid = true;
-    if (
-      !prev.waktu ||
-      new Date(r.waktu).getTime() > new Date(prev.waktu).getTime()
-    ) {
-      prev.waktu = r.waktu;
-    }
-    grouped.set(key, prev);
-  });
-
-  const rows = Array.from(grouped.values()).sort(
-    (a, b) =>
-      new Date(b.waktu || 0).getTime() - new Date(a.waktu || 0).getTime()
-  );
+  const rows = (data || []).map((r) => ({
+    primaryId: r.id || null,
+    ids: [r.id].filter(Boolean),
+    member_id: r.member_id || null,
+    nama: r.nama || "-",
+    periode_orderanke: r.periode_orderanke || null,
+    jenis: r.jenis || "",
+    jumlah: parseFloat(r.jumlah) || 0,
+    uang_merah: parseFloat(r.uang_merah) || 0,
+    upah_putih: parseFloat(r.upah_putih) || 0,
+    uang_rage: parseFloat(r.uang_rage) || 0,
+    waktu: r.waktu || null,
+    is_paid: !!r.is_paid,
+  }));
 
   body.innerHTML = rows
     .map((r) => {
@@ -8466,7 +8357,7 @@ async function loadDrugsTable() {
         </td>
         <td class="px-4 py-3 text-center">
           <div class="flex items-center justify-center gap-2">
-            <button class="px-3 py-1 rounded bg-amber-600/20 text-amber-300 border border-amber-600/30 text-[10px] font-bold uppercase hover:bg-amber-600/30 transition ${r.ids.length > 1 ? "opacity-50 cursor-not-allowed" : ""}" ${r.ids.length > 1 ? "disabled" : ""} data-edit-drugs-row="${r.primaryId || ""}">
+            <button class="px-3 py-1 rounded bg-amber-600/20 text-amber-300 border border-amber-600/30 text-[10px] font-bold uppercase hover:bg-amber-600/30 transition" data-edit-drugs-row="${r.primaryId || ""}">
               Edit
             </button>
             <button class="px-3 py-1 rounded bg-red-700/20 text-red-400 border border-red-700/30 text-[10px] font-bold uppercase hover:bg-red-700/40 transition" data-del-drugs-ids="${ids}">
@@ -8484,13 +8375,6 @@ async function loadDrugsTable() {
       const id = String(btn.getAttribute("data-edit-drugs-row") || "").trim();
       const row = rows.find((r) => String(r.primaryId || "").trim() === id);
       if (!row) return;
-      if ((row.ids || []).length > 1) {
-        showAlert(
-          "Data gabungan lama belum bisa diedit langsung. Hapus lalu input ulang jika perlu.",
-          "warning"
-        );
-        return;
-      }
       startEditDrugsRow(row);
       const nameInput = document.getElementById("drugsNama");
       if (nameInput)
