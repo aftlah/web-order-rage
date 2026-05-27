@@ -4986,6 +4986,9 @@ const GROUP_ITEMS = {
     "Rifle Drum",
     "Macro Scope",
     "Medium Scope",
+    "Holo Scope",
+    "Modern Extended Drum",
+    "Modern Suppressor Short",
   ],
 
   "ORDER KE PP": [
