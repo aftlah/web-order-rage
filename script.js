@@ -4967,6 +4967,9 @@ const GROUP_ITEMS = {
     "VEST MEDIUM",
     "PISTOL X17",
     "X17 + Attachment",
+    "Holo Scope",
+    "Modern Extended Drum",
+    "Modern Suppressor Short",
 
     "AMMO 44 MAGNUM",
     "KVR",
@@ -4986,9 +4989,6 @@ const GROUP_ITEMS = {
     "Rifle Drum",
     "Macro Scope",
     "Medium Scope",
-    "Holo Scope",
-    "Modern Extended Drum",
-    "Modern Suppressor Short",
   ],
 
   "ORDER KE PP": [
