@@ -7390,6 +7390,7 @@ async function initDrugs(member) {
   const refreshBtn = document.getElementById("refreshDrugs");
   const batchFilter = document.getElementById("drugsBatchFilter");
   const searchInput = document.getElementById("drugsSearch");
+  const paidFilter = document.getElementById("drugsPaidFilter");
   const addBatchBtn = document.getElementById("addBatchBtn");
   const sendTotalsBtn = document.getElementById("sendDrugsTotals");
   const setActiveBatchBtn = document.getElementById("setActiveBatchBtn");
@@ -7424,6 +7425,9 @@ async function initDrugs(member) {
       renderDrugsTableFromCache();
     }, 120);
     searchInput.addEventListener("input", run);
+  }
+  if (paidFilter) {
+    paidFilter.addEventListener("change", () => renderDrugsTableFromCache());
   }
 
   if (addBatchBtn) {
@@ -8271,10 +8275,21 @@ function getDrugsSearchTerm() {
   return normalizeDrugsSearch(el ? el.value : "");
 }
 
+function getDrugsPaidFilter() {
+  const el = document.getElementById("drugsPaidFilter");
+  const v = String(el ? el.value : "all").toLowerCase();
+  if (v === "paid" || v === "unpaid") return v;
+  return "all";
+}
+
 function filterDrugsRows(rows, term) {
   const t = normalizeDrugsSearch(term);
-  if (!t) return rows || [];
+  const paidFilter = getDrugsPaidFilter();
   return (rows || []).filter((r) => {
+    const isPaid = !!r.is_paid;
+    if (paidFilter === "paid" && !isPaid) return false;
+    if (paidFilter === "unpaid" && isPaid) return false;
+    if (!t) return true;
     const hay =
       normalizeDrugsSearch(r.nama) +
       " " +
@@ -8307,12 +8322,19 @@ function renderDrugsTable(data) {
   if (!body || !empty) return;
 
   const term = getDrugsSearchTerm();
+  const paid = getDrugsPaidFilter();
   const filtered = filterDrugsRows(data || [], term);
 
   if (!filtered.length) {
     body.innerHTML = "";
     empty.classList.remove("hidden");
-    renderDrugsEmptyState(term ? "Tidak ada data yang cocok" : "Belum ada data penjualan");
+    const statusLabel =
+      paid === "paid" ? " (Sudah Dibayar)" : paid === "unpaid" ? " (Belum Dibayar)" : "";
+    renderDrugsEmptyState(
+      term || paid !== "all"
+        ? `Tidak ada data yang cocok${statusLabel}`
+        : "Belum ada data penjualan"
+    );
     return;
   }
 
