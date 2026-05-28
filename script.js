@@ -7389,6 +7389,7 @@ async function initDrugs(member) {
   const cancelEditBtn = document.getElementById("cancelDrugsEdit");
   const refreshBtn = document.getElementById("refreshDrugs");
   const batchFilter = document.getElementById("drugsBatchFilter");
+  const searchInput = document.getElementById("drugsSearch");
   const addBatchBtn = document.getElementById("addBatchBtn");
   const sendTotalsBtn = document.getElementById("sendDrugsTotals");
   const setActiveBatchBtn = document.getElementById("setActiveBatchBtn");
@@ -7417,6 +7418,12 @@ async function initDrugs(member) {
 
   if (batchFilter) {
     batchFilter.addEventListener("change", () => loadDrugsTable());
+  }
+  if (searchInput) {
+    const run = debounce(() => {
+      renderDrugsTableFromCache();
+    }, 120);
+    searchInput.addEventListener("input", run);
   }
 
   if (addBatchBtn) {
@@ -8252,72 +8259,65 @@ async function sendDrugsTotalsToDiscord() {
   }
 }
 
-async function loadDrugsTable() {
-  if (!supabase) return;
+function normalizeDrugsSearch(s) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getDrugsSearchTerm() {
+  const el = document.getElementById("drugsSearch");
+  return normalizeDrugsSearch(el ? el.value : "");
+}
+
+function filterDrugsRows(rows, term) {
+  const t = normalizeDrugsSearch(term);
+  if (!t) return rows || [];
+  return (rows || []).filter((r) => {
+    const hay =
+      normalizeDrugsSearch(r.nama) +
+      " " +
+      normalizeDrugsSearch(r.jenis) +
+      " " +
+      normalizeDrugsSearch(r.periode_orderanke) +
+      " " +
+      normalizeDrugsSearch(r.waktu);
+    return hay.includes(t);
+  });
+}
+
+function renderDrugsEmptyState(message) {
+  const empty = document.getElementById("drugsEmptyState");
+  if (!empty) return;
+  const p = empty.querySelector("p");
+  const s = empty.querySelector("span");
+  if (p) p.textContent = message || "Belum ada data penjualan";
+  if (s) s.textContent = "";
+}
+
+function renderDrugsTableFromCache() {
+  const raw = window.__drugsRowsRaw || [];
+  return renderDrugsTable(raw);
+}
+
+function renderDrugsTable(data) {
   const body = document.getElementById("drugsTableBody");
   const empty = document.getElementById("drugsEmptyState");
-  const filter = document.getElementById("drugsBatchFilter");
-  if (!body) return;
+  if (!body || !empty) return;
 
-  await hydrateDrugsBatchFilter();
+  const term = getDrugsSearchTerm();
+  const filtered = filterDrugsRows(data || [], term);
 
-  body.innerHTML =
-    '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
-
-  const build = (withSoftDelete) => {
-    let q = supabase
-      .from("drugs_sales")
-      .select("*")
-      .gte("periode_orderanke", 1000)
-      .order("waktu", { ascending: false });
-    if (withSoftDelete) q = q.is("deleted_at", null);
-
-    if (filter) {
-      const v = String(filter.value || "");
-      if (v === "current" && currentDrugsBatch) {
-        q = q.eq("periode_orderanke", currentDrugsBatch);
-      } else if (v === "previous") {
-        const current = parseInt(currentDrugsBatch || 0, 10) || null;
-        let prev = null;
-        if (current) {
-          const idx = drugsBatchList.findIndex((b) => b.orderanke === current);
-          if (idx >= 0 && idx + 1 < drugsBatchList.length)
-            prev = drugsBatchList[idx + 1].orderanke;
-        }
-        if (!prev && drugsBatchList.length) {
-          prev =
-            drugsBatchList.length > 1
-              ? drugsBatchList[1].orderanke
-              : drugsBatchList[0].orderanke;
-        }
-        if (prev) q = q.eq("periode_orderanke", prev);
-      } else if (v.startsWith("orderanke:")) {
-        const raw = v.split(":")[1] || "";
-        const picked = parseInt(raw, 10);
-        if (!Number.isNaN(picked) && picked) q = q.eq("periode_orderanke", picked);
-      }
-    }
-    return q;
-  };
-
-  let { data, error } = await build(true).limit(50);
-  if (error && isMissingColumnError(error, "deleted_at")) {
-    ({ data, error } = await build(false).limit(50));
-  }
-
-  if (error) {
-    body.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
-    return;
-  }
-
-  if (!data || data.length === 0) {
+  if (!filtered.length) {
     body.innerHTML = "";
     empty.classList.remove("hidden");
+    renderDrugsEmptyState(term ? "Tidak ada data yang cocok" : "Belum ada data penjualan");
     return;
   }
 
   empty.classList.add("hidden");
-  const rows = (data || []).map((r) => ({
+  const rows = (filtered || []).map((r) => ({
     primaryId: r.id || null,
     ids: [r.id].filter(Boolean),
     member_id: r.member_id || null,
@@ -8354,8 +8354,8 @@ async function loadDrugsTable() {
         <td class="px-4 py-3 text-xs text-slate-400">${fmtDateTime(r.waktu)}</td>
         <td class="px-4 py-3 text-center">
           <button data-toggle-drugs-paid="${r.primaryId}" data-ids="${ids}" data-current="${r.is_paid}" 
-            class="badge ${r.is_paid ? 'badge-green' : 'badge-red'} hover:scale-105 transition-transform cursor-pointer">
-            ${r.is_paid ? 'LUNAS' : 'BELUM'}
+            class="badge ${r.is_paid ? "badge-green" : "badge-red"} hover:scale-105 transition-transform cursor-pointer">
+            ${r.is_paid ? "LUNAS" : "BELUM"}
           </button>
         </td>
         <td class="px-4 py-3 text-center">
@@ -8435,12 +8435,14 @@ async function loadDrugsTable() {
           confirmButtonText: "Tutup",
           cancelButtonText: "Batalkan (Undo)",
           background: "#1f1410",
-          color: "#fef3c7"
+          color: "#fef3c7",
         }).then(async (res) => {
           if (res.dismiss === Swal.DismissReason.cancel) {
-            const promises = ids.map(id => restoreSoftDeletedById("drugs_sales", id));
+            const promises = ids.map((id) =>
+              restoreSoftDeletedById("drugs_sales", id)
+            );
             const results = await Promise.all(promises);
-            const failed = results.filter(r => !r.ok);
+            const failed = results.filter((r) => !r.ok);
             if (failed.length === 0) {
               showAlert("Penghapusan dibatalkan", "success");
               loadDrugsTable();
@@ -8465,6 +8467,68 @@ async function loadDrugsTable() {
       await toggleDrugsPaidStatus(ids.length ? ids : id, !current);
     });
   });
+}
+
+async function loadDrugsTable() {
+  if (!supabase) return;
+  const body = document.getElementById("drugsTableBody");
+  const empty = document.getElementById("drugsEmptyState");
+  const filter = document.getElementById("drugsBatchFilter");
+  if (!body) return;
+
+  await hydrateDrugsBatchFilter();
+
+  body.innerHTML =
+    '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400">Memuat data...</td></tr>';
+
+  const build = (withSoftDelete) => {
+    let q = supabase
+      .from("drugs_sales")
+      .select("*")
+      .gte("periode_orderanke", 1000)
+      .order("waktu", { ascending: false });
+    if (withSoftDelete) q = q.is("deleted_at", null);
+
+    if (filter) {
+      const v = String(filter.value || "");
+      if (v === "current" && currentDrugsBatch) {
+        q = q.eq("periode_orderanke", currentDrugsBatch);
+      } else if (v === "previous") {
+        const current = parseInt(currentDrugsBatch || 0, 10) || null;
+        let prev = null;
+        if (current) {
+          const idx = drugsBatchList.findIndex((b) => b.orderanke === current);
+          if (idx >= 0 && idx + 1 < drugsBatchList.length)
+            prev = drugsBatchList[idx + 1].orderanke;
+        }
+        if (!prev && drugsBatchList.length) {
+          prev =
+            drugsBatchList.length > 1
+              ? drugsBatchList[1].orderanke
+              : drugsBatchList[0].orderanke;
+        }
+        if (prev) q = q.eq("periode_orderanke", prev);
+      } else if (v.startsWith("orderanke:")) {
+        const raw = v.split(":")[1] || "";
+        const picked = parseInt(raw, 10);
+        if (!Number.isNaN(picked) && picked) q = q.eq("periode_orderanke", picked);
+      }
+    }
+    return q;
+  };
+
+  let { data, error } = await build(true).limit(200);
+  if (error && isMissingColumnError(error, "deleted_at")) {
+    ({ data, error } = await build(false).limit(200));
+  }
+
+  if (error) {
+    body.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-red-400">Gagal memuat data: ${error.message}</td></tr>`;
+    return;
+  }
+
+  window.__drugsRowsRaw = data || [];
+  renderDrugsTable(window.__drugsRowsRaw);
 }
 
 async function toggleDrugsPaidStatus(idsOrId, nextStatus) {

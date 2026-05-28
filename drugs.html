@@ -186,18 +186,24 @@
         <!-- Table Card -->
         <div class="lg:col-span-2 page-enter-3">
           <div class="glass-card p-5">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-5 gap-3">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-5 gap-3">
               <h3 class="text-base font-black text-yellow-400 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
                 Riwayat Penjualan
               </h3>
-              <div class="flex items-center gap-2 w-full sm:w-auto">
-                <select id="drugsBatchFilter" class="flex-1 sm:flex-none bg-[#0a0805] border border-[#3d342d] rounded-lg px-3 py-2 text-xs font-semibold text-yellow-300 focus:outline-none focus:border-yellow-600 transition cursor-pointer">
-                  <option value="current">Batch Aktif</option>
-                  <option value="all">Semua Batch</option>
-                </select>
-                <button id="refreshDrugs" class="px-4 py-2 rounded-lg btn-ghost text-xs font-bold">Refresh</button>
-                <button id="sendDrugsTotals" class="px-4 py-2 rounded-lg btn-primary text-xs font-bold">Kirim Total</button>
+              <div class="w-full sm:w-auto flex flex-col sm:flex-row sm:flex-wrap sm:justify-end gap-2 max-w-full">
+                <div class="flex items-center gap-2 min-w-0 w-full sm:w-auto">
+                  <select id="drugsBatchFilter" class="h-10 w-full sm:w-44 bg-[#0a0805] border border-[#3d342d] rounded-lg px-3 text-xs font-semibold text-yellow-300 focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+                    <option value="current">Batch Aktif</option>
+                    <option value="all">Semua Batch</option>
+                  </select>
+                  <button id="refreshDrugs" class="h-10 px-4 rounded-lg btn-ghost text-xs font-bold whitespace-nowrap">Refresh</button>
+                </div>
+                <div class="flex items-center gap-2 min-w-0 w-full sm:w-auto">
+                  <input id="drugsSearch" type="text" placeholder="Search nama / jenis / waktu..." autocomplete="off"
+                    class="h-10 w-full sm:w-64 md:w-72 lg:w-80 min-w-0 bg-[#0a0805] border border-[#3d342d] rounded-lg px-3 text-xs font-semibold text-[#fef3c7] focus:outline-none focus:border-yellow-600 transition" />
+                  <button id="sendDrugsTotals" class="h-10 px-4 rounded-lg btn-primary text-xs font-bold whitespace-nowrap">Kirim Total</button>
+                </div>
               </div>
             </div>
 
