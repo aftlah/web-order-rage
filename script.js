@@ -238,7 +238,7 @@ async function confirmDeletePin() {
     return false;
   }
   if (pin) {
-    const { value: typed } = await Swal.fire({
+    const res = await Swal.fire({
       title: "Masukkan PIN delete",
       input: "password",
       inputPlaceholder: "Masukkan PIN",
@@ -253,7 +253,20 @@ async function confirmDeletePin() {
         input: "rage-modal-input",
       },
     });
-    return !!typed && typed === pin;
+    if (!res.isConfirmed) {
+      showAlert("Dibatalkan", "info");
+      return false;
+    }
+    const typed = String(res.value || "").trim();
+    if (!typed) {
+      showAlert("PIN wajib diisi", "error");
+      return false;
+    }
+    if (typed !== pin) {
+      showAlert("PIN salah", "error");
+      return false;
+    }
+    return true;
   }
   return false;
 }
@@ -3530,10 +3543,7 @@ function renderMyOrders(rows, useOrderanke, mode) {
       if (!result.isConfirmed) return;
 
       const pinOk = await confirmDeletePin();
-      if (!pinOk) {
-        showAlert("Konfirmasi hapus tidak valid", "error");
-        return;
-      }
+      if (!pinOk) return;
 
       try {
         const { ok, error } = await softDeleteById("orders", id);
@@ -5385,10 +5395,7 @@ function renderDashboard(groups) {
       if (!result.isConfirmed) return;
 
       const pinOk = await confirmDeletePin();
-      if (!pinOk) {
-        showAlert("Konfirmasi hapus tidak valid", "error");
-        return;
-      }
+      if (!pinOk) return;
 
       try {
         const { ok, error } = await softDeleteById("orders", id);
@@ -7150,10 +7157,7 @@ window.deleteMember = async function (id, name) {
     if (!result.isConfirmed) return;
 
     const pinOk = await confirmDeletePin();
-    if (!pinOk) {
-      showAlert("Konfirmasi hapus tidak valid", "error");
-      return;
-    }
+    if (!pinOk) return;
 
     const targets = [
       { table: "orders", label: "history order" },
@@ -9132,10 +9136,7 @@ async function deleteRageCashEntry(id) {
   if (!proceed.isConfirmed) return;
 
   const pinOk = await confirmDeletePin();
-  if (!pinOk) {
-    showAlert("Konfirmasi hapus tidak valid", "error");
-    return;
-  }
+  if (!pinOk) return;
 
   const { ok: delOk, error: delErr } = await softDeleteById("rage_cash_logs", id);
   if (!delOk) {
