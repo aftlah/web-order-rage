@@ -4302,31 +4302,43 @@ async function submitOrder() {
     try {
       let fetched = null;
       let qError = null;
-      {
-        const res = await supabase
+      const fetchOrdersForDiscord = async ({
+        includeDelivered,
+        filterActiveOnly,
+      }) => {
+        const fields = includeDelivered
+          ? "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered"
+          : "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal";
+        let q = supabase
           .from("orders")
-          .select(
-            "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered"
-          )
+          .select(fields)
           .eq("member_id", member_id)
           .eq("orderanke", effectiveOrderanke)
           .order("waktu", { ascending: false })
-          .limit(100);
+          .limit(200);
+        if (filterActiveOnly) q = q.is("deleted_at", null);
+        return await q;
+      };
+
+      let includeDelivered = true;
+      let filterActiveOnly = true;
+      for (let i = 0; i < 3; i += 1) {
+        const res = await fetchOrdersForDiscord({
+          includeDelivered,
+          filterActiveOnly,
+        });
         fetched = res.data || null;
         qError = res.error || null;
-      }
-      if (qError && String(qError.message || "").includes("delivered")) {
-        const res2 = await supabase
-          .from("orders")
-          .select(
-            "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal"
-          )
-          .eq("member_id", member_id)
-          .eq("orderanke", effectiveOrderanke)
-          .order("waktu", { ascending: false })
-          .limit(100);
-        fetched = res2.data || null;
-        qError = res2.error || null;
+        if (!qError) break;
+        if (isMissingColumnError(qError, "deleted_at")) {
+          filterActiveOnly = false;
+          continue;
+        }
+        if (String(qError.message || "").includes("delivered")) {
+          includeDelivered = false;
+          continue;
+        }
+        break;
       }
       if (qError) throw qError;
       const items = fetched || [];
