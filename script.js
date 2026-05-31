@@ -3382,9 +3382,18 @@ async function loadMyOrdersForSelection() {
   }
   if (error) return renderMyOrders([], null, mode);
   const all = data || [];
-  const periods = Array.from(
-    new Set(all.map((r) => parseInt(r.orderanke || 0, 10)).filter((x) => !!x))
-  ).sort((a, b) => b - a);
+  const periodMeta = new Map();
+  (all || []).forEach((r) => {
+    const p = parseInt(r.orderanke || 0, 10);
+    if (!p) return;
+    const tRaw = r && r.waktu ? new Date(r.waktu).getTime() : 0;
+    const t = Number.isFinite(tRaw) ? tRaw : 0;
+    const prev = periodMeta.get(p) || 0;
+    if (t > prev) periodMeta.set(p, t);
+  });
+  const periods = Array.from(periodMeta.entries())
+    .sort((a, b) => (b[1] - a[1]) || (b[0] - a[0]))
+    .map(([p]) => p);
   const sel = document.getElementById("myOrdersPeriodSelect");
   if (sel) {
     sel.innerHTML = periods
@@ -3394,11 +3403,7 @@ async function loadMyOrdersForSelection() {
         return `<option value="${v}">M${m}-W${w} (#${v})</option>`;
       })
       .join("");
-    const preferred = getMyOrdersSelectedPeriod(mode);
-    const fallback =
-      typeof preferred === "number" && periods.includes(preferred)
-        ? preferred
-        : periods[0] || null;
+    const fallback = periods[0] || null;
     if (fallback) sel.value = String(fallback);
     sel.onchange = () => {
       const val = parseInt(sel.value || "", 10);
@@ -3454,7 +3459,7 @@ function renderMyOrders(rows, useOrderanke, mode) {
         const actionBtn = isArchive
           ? `<button class="px-2 py-1 rounded bg-emerald-700 text-white" data-restore-id="${r.id}">Pulihkan</button>`
           : `<button class="px-2 py-1 rounded bg-red-700 text-white" data-del-id="${r.id}">Hapus</button>`;
-        `<tr class="table-row-hover"><td class="px-2 py-2">${
+        return `<tr class="table-row-hover"><td class="px-2 py-2">${
           r.item
         }${meta}</td><td class="px-2 py-2 text-center">${
           r.qty
