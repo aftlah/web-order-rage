@@ -3547,8 +3547,10 @@ function renderMyOrders(rows, useOrderanke, mode) {
       });
       if (!result.isConfirmed) return;
 
-      const pinOk = await confirmDeletePin();
-      if (!pinOk) return;
+      if (isAdminMember(window.__currentMember || null)) {
+        const pinOk = await confirmDeletePin();
+        if (!pinOk) return;
+      }
 
       try {
         const { ok, error } = await softDeleteById("orders", id);
