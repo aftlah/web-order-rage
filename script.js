@@ -7422,7 +7422,7 @@ async function initDrugs(member) {
   if (duitMerahInput && estimasiGajiEl) {
     duitMerahInput.addEventListener("input", () => {
       const val = parseFloat(duitMerahInput.value) || 0;
-      const gaji = val * 0.35 * 0.65;
+      const gaji = val * 0.25 * 0.65;
       estimasiGajiEl.textContent = fmt(gaji);
     });
   }
@@ -7533,7 +7533,7 @@ function startEditDrugsRow(row) {
   if (duitEl) duitEl.value = String(parseFloat(row.uang_merah) || 0);
   if (estimasiEl)
     estimasiEl.textContent = fmt(
-      (parseFloat(row.uang_merah) || 0) * 0.35 * 0.65
+      (parseFloat(row.uang_merah) || 0) * 0.25 * 0.65
     );
   if (statusEl) {
     statusEl.textContent = "Mode edit data drugs";
@@ -8002,9 +8002,9 @@ async function submitDrugsData() {
   await checkDrugsSalesJenisJumlahSchema();
 
   // Rumus:
-  // Gaji Putih = (duit merah * 35%) * 65%
+  // Gaji Putih = (duit merah * 25%) * 65%
   // Uang RAGE = (duit merah * 65%) * 65%
-  const upahPutih = duitMerah > 0 ? duitMerah * 0.35 * 0.65 : 0;
+  const upahPutih = duitMerah > 0 ? duitMerah * 0.25 * 0.65 : 0;
   const uangRage = duitMerah > 0 ? duitMerah * 0.65 * 0.65 : 0;
 
   const nowIso = new Date().toISOString();
