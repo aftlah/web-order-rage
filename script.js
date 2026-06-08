@@ -3002,10 +3002,9 @@ function getRolePermissions(role) {
         ])
       ),
       vestType: "VEST MEDIUM", // Merah
-      vestLimit: 5,
+      vestLimit: 5, // No personal limit for VEST MEDIUM
     };
   }
-
   if (R === "Hangaround") {
     return {
       allowed: new Set(
@@ -3158,9 +3157,9 @@ async function addToCart() {
   }
 
   // 3. Check Vest Personal Limit (Local Cart Check + DB check is done at submit, but good to check cart here)
-  if (!isLeo && nItem.includes("VEST")) {
+  if (!isLeo && nItem === "VEST") {
     const currentCartVest = state.cart
-      .filter((c) => c.item.toUpperCase().includes("VEST"))
+      .filter((c) => c.item.toUpperCase() === "VEST")
       .reduce((a, c) => a + c.qty, 0);
 
     if (currentCartVest + qty > perms.vestLimit) {
@@ -4198,8 +4197,7 @@ async function submitOrder() {
   if (!isLeo) {
     const isVestItem = (name) =>
       String(name || "")
-        .toUpperCase()
-        .includes("VEST");
+        .toUpperCase() === "VEST";
     const cartVestCount = state.cart
       .filter((c) => isVestItem(c.item))
       .reduce((a, c) => a + (c.qty || 0), 0);
@@ -4211,7 +4209,7 @@ async function submitOrder() {
         .select("qty,item,order_id")
         .eq("nama", nama)
         .eq("orderanke", effectiveOrderanke)
-        .ilike("item", "%VEST%")
+        .ilike("item", "VEST")
         .is("deleted_at", null);
       if (editingId) q = q.neq("order_id", editingId);
       let { data, error } = await q;
@@ -4221,7 +4219,7 @@ async function submitOrder() {
           .select("qty,item,order_id")
           .eq("nama", nama)
           .eq("orderanke", effectiveOrderanke)
-          .ilike("item", "%VEST%");
+          .ilike("item", "VEST");
         if (editingId) q2 = q2.neq("order_id", editingId);
         ({ data } = await q2);
       }
