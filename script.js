@@ -3002,7 +3002,7 @@ function getRolePermissions(role) {
         ])
       ),
       vestType: "VEST MEDIUM", // Merah
-      vestLimit: 5, // No personal limit for VEST MEDIUM
+      vestLimit: 5,
     };
   }
   if (R === "Hangaround") {
