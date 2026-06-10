@@ -118,18 +118,18 @@
         <!-- Filters -->
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end mb-6">
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Bulan</label>
-            <select id="dashMonth" class="px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"></select>
+            <label class="text-xs font-bold text-stone-400 uppercase tracking-wider">Bulan</label>
+            <select id="dashMonth" class="px-3 py-2.5 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"></select>
           </div>
           <div class="flex flex-col gap-1.5">
-            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Minggu</label>
-            <select id="dashWeek" class="px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"></select>
+            <label class="text-xs font-bold text-stone-400 uppercase tracking-wider">Minggu</label>
+            <select id="dashWeek" class="px-3 py-2.5 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"></select>
           </div>
           <div class="flex flex-col gap-1.5 col-span-2 sm:col-span-1 lg:col-span-2">
-            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Nama</label>
+            <label class="text-xs font-bold text-stone-400 uppercase tracking-wider">Nama</label>
             <div class="relative z-50">
               <input id="dashNameInput" type="text" autocomplete="off" placeholder="Semua anggota"
-                class="w-full px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
+                class="w-full px-3 py-2.5 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
               <div id="dashNameDropdown" class="rage-dropdown absolute left-0 right-0 mt-1 hidden z-50 custom-scrollbar"></div>
             </div>
           </div>
@@ -153,12 +153,12 @@
       <div id="memberModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-start justify-center z-[100] hidden p-4 sm:p-6 pt-20 sm:pt-28">
         <div class="glass-card w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh] relative scale-in">
           <!-- Modal Header -->
-          <div class="px-6 py-5 border-b border-[#3d342d]/60 flex justify-between items-center bg-[#0a0805]/60">
+          <div class="px-6 py-5 border-b border-amber-500/20/60 flex justify-between items-center bg-[#140d0a]/60">
             <div>
               <h3 class="text-lg font-black text-yellow-400">Kelola Member</h3>
-              <p class="text-xs text-stone-500 mt-0.5">Tambah, edit role, atau hapus member</p>
+              <p class="text-xs text-stone-400 mt-0.5">Tambah, edit role, atau hapus member</p>
             </div>
-            <button id="memberCancelBtn" class="p-2 rounded-xl hover:bg-white/5 text-stone-500 hover:text-stone-300 transition-colors">
+            <button id="memberCancelBtn" class="p-2 rounded-xl hover:bg-white/5 text-stone-400 hover:text-stone-300 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -171,13 +171,13 @@
               <div class="flex flex-col sm:flex-row gap-3 bg-white/3 p-3 rounded-xl border border-white/8">
                 <div class="flex-1 relative">
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-stone-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-stone-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
                   </div>
                   <input id="memberNameInput" type="text" placeholder="Nama member baru..."
-                    class="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
+                    class="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
                 </div>
                 <div class="w-full sm:w-36">
-                  <select id="memberRoleInput" class="w-full px-3 py-2.5 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+                  <select id="memberRoleInput" class="w-full px-3 py-2.5 rounded-lg bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
                     <option value="Internship">Internship</option>
                     <option value="Hangaround">Hangaround</option>
                     <option value="Hoodlum" selected>Hoodlum</option>
@@ -192,11 +192,11 @@
               </div>
               <!-- Search -->
               <div class="flex justify-between items-center">
-                <div class="text-xs text-stone-500">Total: <span id="memberCountBadge" class="text-[#fef3c7] font-bold">0</span> Member</div>
+                <div class="text-xs text-stone-400">Total: <span id="memberCountBadge" class="text-[#fef3c7] font-bold">0</span> Member</div>
                 <div class="relative">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                   <input type="text" id="memberSearchInput" onkeyup="filterMembers()" placeholder="Cari member..."
-                    class="pl-9 pr-4 py-2 rounded-lg bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition w-48" />
+                    class="pl-9 pr-4 py-2 rounded-lg bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition w-48" />
                 </div>
               </div>
             </div>
@@ -204,7 +204,7 @@
             <div class="flex-1 overflow-y-auto min-h-0 px-5 pb-5 custom-scrollbar">
               <div class="scroll-table">
                 <table class="w-full text-sm text-left">
-                  <thead class="bg-black/30 text-stone-400 uppercase text-[10px] tracking-widest border-b border-[#3d342d] sticky top-0">
+                  <thead class="bg-black/30 text-stone-400 uppercase text-xs tracking-widest border-b border-amber-500/20 sticky top-0">
                     <tr>
                       <th class="px-4 py-3 font-semibold">Nama</th>
                       <th class="px-4 py-3 font-semibold w-36">Role</th>
@@ -236,32 +236,32 @@
         <!-- Schedule Form -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end mb-6">
           <div class="flex flex-col gap-1.5 lg:col-span-3">
-            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Start</label>
+            <label class="text-xs font-bold text-stone-400 uppercase tracking-wider">Start</label>
             <input id="winStart" type="datetime-local"
-              class="w-full px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
+              class="w-full px-3 py-2.5 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
           </div>
           <div class="flex flex-col gap-1.5 lg:col-span-3">
-            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">End</label>
+            <label class="text-xs font-bold text-stone-400 uppercase tracking-wider">End</label>
             <input id="winEnd" type="datetime-local"
-              class="w-full px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
+              class="w-full px-3 py-2.5 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition" />
           </div>
           <div class="flex flex-col gap-1.5 lg:col-span-4">
-            <label class="text-xs font-bold text-stone-500 uppercase tracking-wider">Order No.</label>
+            <label class="text-xs font-bold text-stone-400 uppercase tracking-wider">Order No.</label>
             <div class="grid grid-cols-4 gap-2">
-              <select id="winMonth" class="w-full px-2 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+              <select id="winMonth" class="w-full px-2 py-2.5 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
                 <option value="">Bln</option>
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option>
                 <option value="4">4</option><option value="5">5</option><option value="6">6</option>
                 <option value="7">7</option><option value="8">8</option><option value="9">9</option>
                 <option value="10">10</option><option value="11">11</option><option value="12">12</option>
               </select>
-              <select id="winWeek" class="w-full px-2 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+              <select id="winWeek" class="w-full px-2 py-2.5 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
                 <option value="">Mgg</option>
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option>
                 <option value="4">4</option><option value="5">5</option>
               </select>
               <input id="winOrderNoLabel" type="text" readonly
-                class="col-span-2 w-full px-3 py-2.5 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm font-mono" />
+                class="col-span-2 w-full px-3 py-2.5 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm font-mono" />
             </div>
             <input id="winOrderanke" type="hidden" />
           </div>
@@ -275,7 +275,7 @@
         <!-- Schedule Table -->
         <div class="scroll-table">
           <table class="w-full text-sm">
-            <thead class="bg-black/40 text-stone-400 uppercase text-[10px] tracking-widest border-b border-[#3d342d]">
+            <thead class="bg-black/40 text-stone-400 uppercase text-xs tracking-widest border-b border-amber-500/20">
               <tr>
                 <th class="px-4 py-3 text-left font-semibold">Order No.</th>
                 <th class="px-4 py-3 text-left font-semibold hidden sm:table-cell">Start</th>

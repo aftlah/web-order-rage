@@ -410,23 +410,25 @@ header .brand-subtitle {
 }
 
 .glass-card {
-  background: rgba(31, 20, 16, 0.95);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(61, 52, 45, 0.8);
+  background: rgba(26, 17, 13, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(251, 191, 36, 0.12);
   border-radius: 16px;
   box-shadow: 
-    0 25px 50px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  transition: all 0.3s ease;
+    0 20px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-card:hover {
-  border-color: rgba(251, 191, 36, 0.1);
+  background: rgba(30, 20, 15, 0.85);
+  border-color: rgba(251, 191, 36, 0.25);
   box-shadow: 
-    0 30px 60px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(251, 191, 36, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 25px 50px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(251, 191, 36, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
 }
 
 /* ===== Section Title ===== */
@@ -467,23 +469,24 @@ select {
 /* Unified dark input style */
 .rage-input {
   width: 100%;
-  padding: 12px 16px;
-  border-radius: 10px;
-  background: #0a0805;
-  border: 1.5px solid #3d342d;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: #140d0a;
+  border: 1.5px solid rgba(251, 191, 36, 0.2);
   color: #fef3c7;
   font-size: 14px;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
   outline: none;
 }
 
 .rage-input:focus {
-  border-color: #d97706;
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12);
+  border-color: #f59e0b;
+  background: #1a100c;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15);
 }
 
 .rage-input::placeholder {
-  color: #4a3828;
+  color: #78716c;
 }
 
 /* ===== Buttons ===== */
@@ -591,10 +594,10 @@ select {
 
   .table-mobile tbody tr {
     display: block;
-    background: rgba(255,255,255,0.02);
-    border: 1px solid rgba(61, 52, 45, 0.6);
+    background: rgba(251, 191, 36, 0.03);
+    border: 1px solid rgba(251, 191, 36, 0.1);
     border-radius: 12px;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     padding: 12px;
     animation: fadeInUp 0.3s ease;
   }

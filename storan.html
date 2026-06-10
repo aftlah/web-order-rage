@@ -109,18 +109,18 @@
               </div>
               <div>
                 <h2 class="text-xl sm:text-2xl font-black text-yellow-400 tracking-tight">Storan Mingguan</h2>
-                <p class="text-xs text-stone-500 mt-1 max-w-sm leading-relaxed">Pilih nama dari database lalu tandai apakah sudah storan atau belum untuk minggu ini.</p>
+                <p class="text-xs text-stone-400 mt-1 max-w-sm leading-relaxed">Pilih nama dari database lalu tandai apakah sudah storan atau belum untuk minggu ini.</p>
               </div>
             </div>
 
             <!-- Stats -->
             <div id="storanStats" class="flex gap-3">
               <div class="stat-card stat-card-green text-center min-w-[80px]">
-                <p class="text-[10px] font-black text-green-500/70 uppercase tracking-widest">Sudah</p>
+                <p class="text-xs font-black text-green-500/70 uppercase tracking-widest">Sudah</p>
                 <p id="storanCountSudah" class="text-xl font-black text-green-400 font-mono mt-1">-</p>
               </div>
               <div class="stat-card stat-card-red text-center min-w-[80px]">
-                <p class="text-[10px] font-black text-red-500/70 uppercase tracking-widest">Belum</p>
+                <p class="text-xs font-black text-red-500/70 uppercase tracking-widest">Belum</p>
                 <p id="storanCountBelum" class="text-xl font-black text-red-400 font-mono mt-1">-</p>
               </div>
             </div>
@@ -137,12 +137,12 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <!-- Nama -->
             <div class="flex flex-col gap-2 relative z-50">
-              <label for="storanNama" class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Nama</label>
+              <label for="storanNama" class="text-xs font-bold text-stone-400 uppercase tracking-widest">Nama</label>
               <input
                 id="storanNama"
                 type="text"
                 placeholder="Cari nama dari database"
-                class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 focus:shadow-[0_0_0_3px_rgba(217,119,6,0.12)] transition placeholder:text-stone-700"
+                class="w-full px-4 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 focus:shadow-[0_0_0_3px_rgba(217,119,6,0.12)] transition placeholder:text-stone-700"
                 autocomplete="off"
               />
               <input type="hidden" id="storanMemberId" />
@@ -150,15 +150,15 @@
               <div id="storanNamaDropdown"
                 class="rage-dropdown absolute left-0 right-0 top-full mt-2 hidden z-50 custom-scrollbar"
               ></div>
-              <p id="storanNamaStatus" class="text-[10px] text-red-500/80 font-bold uppercase mt-0.5">Pilih nama dari database</p>
+              <p id="storanNamaStatus" class="text-xs text-red-500/80 font-bold uppercase mt-0.5">Pilih nama dari database</p>
             </div>
 
             <!-- Status -->
             <div class="flex flex-col gap-2">
-              <label for="storanStatus" class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Status Storan</label>
+              <label for="storanStatus" class="text-xs font-bold text-stone-400 uppercase tracking-widest">Status Storan</label>
               <select
                 id="storanStatus"
-                class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"
+                class="w-full px-4 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"
               >
                 <option value="SUDAH">✅ Sudah storan</option>
                 <option value="BELUM">❌ Belum storan</option>
@@ -167,10 +167,10 @@
 
             <!-- Penerima -->
             <div class="flex flex-col gap-2 sm:col-span-2">
-              <label for="storanPenerima" class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Penerima</label>
+              <label for="storanPenerima" class="text-xs font-bold text-stone-400 uppercase tracking-widest">Penerima</label>
               <select
                 id="storanPenerima"
-                class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"
+                class="w-full px-4 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer"
               >
                 <option value="">Pilih penerima</option>
                 <option value="Leo">Leo</option>
@@ -180,18 +180,18 @@
 
             <!-- Catatan -->
             <div class="flex flex-col gap-2 sm:col-span-2">
-              <label for="storanCatatan" class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Catatan (opsional)</label>
+              <label for="storanCatatan" class="text-xs font-bold text-stone-400 uppercase tracking-widest">Catatan (opsional)</label>
               <textarea
                 id="storanCatatan"
                 rows="3"
                 placeholder="Misal: keterangan storan minggu ini, dll"
-                class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition resize-none placeholder:text-stone-700"
+                class="w-full px-4 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition resize-none placeholder:text-stone-700"
               ></textarea>
             </div>
           </div>
 
           <!-- Submit Area -->
-          <div class="flex items-center justify-between gap-4 mt-5 pt-5 border-t border-[#3d342d]/60">
+          <div class="flex items-center justify-between gap-4 mt-5 pt-5 border-t border-amber-500/20/60">
             <div id="appAlertBox" class="hidden text-sm px-4 py-2 rounded-lg"></div>
             <div class="ml-auto flex items-center gap-3">
               <button id="storanCancelEdit"
@@ -217,9 +217,9 @@
               <h3 class="text-lg font-black text-yellow-400">Rekap Storan Minggu Ini</h3>
             </div>
             <div class="flex items-center gap-3">
-              <span id="storanPeriodeLabel" class="text-[10px] font-black text-yellow-600 uppercase tracking-widest"></span>
+              <span id="storanPeriodeLabel" class="text-xs font-black text-yellow-600 uppercase tracking-widest"></span>
               <button id="storanReloadBtn"
-                class="px-4 py-2 rounded-xl btn-secondary text-[10px] font-bold uppercase tracking-widest">
+                class="px-4 py-2 rounded-xl btn-secondary text-xs font-bold uppercase tracking-widest">
                 ↻ Reload
               </button>
             </div>
@@ -228,7 +228,7 @@
           <!-- Table -->
           <div class="scroll-table max-h-[420px] overflow-y-auto custom-scrollbar">
             <table class="w-full text-sm text-left border-collapse table-mobile">
-              <thead class="bg-black/40 text-stone-400 uppercase text-[10px] tracking-widest border-b border-[#3d342d] sticky top-0">
+              <thead class="bg-black/40 text-stone-400 uppercase text-xs tracking-widest border-b border-amber-500/20 sticky top-0">
                 <tr>
                   <th class="px-4 py-3">Nama</th>
                   <th class="px-4 py-3 hidden sm:table-cell">Penerima</th>

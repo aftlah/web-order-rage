@@ -99,7 +99,7 @@
           <div class="section-divider h-8"></div>
           <div>
             <h2 class="text-xl sm:text-2xl font-black text-yellow-400">Pencatatan Gaji Drugs</h2>
-            <p class="text-xs text-stone-500 mt-1">
+            <p class="text-xs text-stone-400 mt-1">
               Catat setoran duit merah dari penjualan Weed, Meth &amp; Opium. Gaji otomatis dihitung:
               <span class="font-bold text-yellow-600">(Duit Merah × 25%) × 65%</span>.
             </p>
@@ -119,10 +119,10 @@
 
             <!-- Nama Anggota -->
             <div class="flex flex-col gap-1.5 relative z-50">
-              <label class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Nama Anggota</label>
+              <label class="text-xs font-bold text-stone-400 uppercase tracking-widest">Nama Anggota</label>
               <input type="text" id="drugsNama" autocomplete="off" placeholder="Cari nama anggota..."
-                class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 focus:shadow-[0_0_0_3px_rgba(217,119,6,0.12)] transition placeholder:text-stone-700" />
-              <p id="drugsNamaStatus" class="text-[10px] mt-0.5 font-medium text-red-500/80">Pilih nama dari database</p>
+                class="w-full px-4 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 focus:shadow-[0_0_0_3px_rgba(217,119,6,0.12)] transition placeholder:text-stone-700" />
+              <p id="drugsNamaStatus" class="text-xs mt-0.5 font-medium text-red-500/80">Pilih nama dari database</p>
               <div id="drugsNamaDropdown" class="rage-dropdown absolute left-0 right-0 top-full mt-1 hidden z-50 custom-scrollbar"></div>
               <input type="hidden" id="drugsMemberId" />
               <input type="hidden" id="drugsEditId" />
@@ -132,46 +132,46 @@
             <!-- Jenis & Jumlah -->
             <div class="grid grid-cols-2 gap-3">
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Jenis Jualan</label>
-                <select id="drugsJenis" class="w-full px-3 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+                <label class="text-xs font-bold text-stone-400 uppercase tracking-widest">Jenis Jualan</label>
+                <select id="drugsJenis" class="w-full px-3 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
                   <option value="Weed">🌿 Weed</option>
                   <option value="Meth">💊 Meth</option>
                   <option value="Opium">🏺 Opium</option>
                 </select>
               </div>
               <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Jumlah Terjual</label>
+                <label class="text-xs font-bold text-stone-400 uppercase tracking-widest">Jumlah Terjual</label>
                 <input type="number" id="drugsJumlah" placeholder="0" min="0"
-                  class="w-full px-3 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition font-mono" />
+                  class="w-full px-3 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition font-mono" />
               </div>
             </div>
 
             <!-- Uang Merah -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Uang Merah (Total)</label>
+              <label class="text-xs font-bold text-stone-400 uppercase tracking-widest">Uang Merah (Total)</label>
               <div class="relative">
-                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 font-bold text-sm">$</span>
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold text-sm">$</span>
                 <input type="number" id="duitMerah" placeholder="0"
-                  class="w-full pl-8 pr-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition font-mono" />
+                  class="w-full pl-8 pr-4 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition font-mono" />
               </div>
-              <p class="text-[10px] text-stone-600">Boleh kosong dulu, edit nanti saat uang masuk.</p>
+              <p class="text-xs text-stone-600">Boleh kosong dulu, edit nanti saat uang masuk.</p>
             </div>
 
             <!-- Periode Aktif -->
             <div class="p-4 rounded-xl bg-yellow-600/6 border border-yellow-600/15">
               <div class="flex justify-between items-center mb-2">
-                <span class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Periode Aktif</span>
+                <span class="text-xs font-bold text-stone-400 uppercase tracking-widest">Periode Aktif</span>
                 <div class="flex items-center gap-3">
-                  <button id="setActiveBatchBtn" class="text-[10px] font-extrabold text-yellow-500 hover:text-yellow-400 transition uppercase">Atur</button>
-                  <button id="addBatchBtn" class="text-[10px] font-extrabold text-yellow-500 hover:text-yellow-400 transition uppercase">+ Batch Baru</button>
+                  <button id="setActiveBatchBtn" class="text-xs font-extrabold text-yellow-500 hover:text-yellow-400 transition uppercase">Atur</button>
+                  <button id="addBatchBtn" class="text-xs font-extrabold text-yellow-500 hover:text-yellow-400 transition uppercase">+ Batch Baru</button>
                 </div>
               </div>
               <p id="currentBatchDisplay" class="text-base font-black text-yellow-300">Loading...</p>
             </div>
 
             <!-- Estimasi Gaji -->
-            <div class="p-4 rounded-xl bg-black/30 border border-[#3d342d]/60">
-              <p class="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-2">Estimasi Gaji (65% dari 25%)</p>
+            <div class="p-4 rounded-xl bg-black/30 border border-amber-500/20/60">
+              <p class="text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">Estimasi Gaji (65% dari 25%)</p>
               <p id="estimasiGaji" class="text-3xl font-black text-yellow-400 font-mono">$ 0</p>
             </div>
 
@@ -198,11 +198,11 @@
               </h3>
               <div class="w-full sm:w-auto flex flex-col sm:flex-row sm:flex-wrap sm:justify-end gap-2 max-w-full">
                 <div class="flex items-center gap-2 min-w-0 w-full sm:w-auto">
-                  <select id="drugsBatchFilter" class="h-10 w-full sm:w-44 bg-[#0a0805] border border-[#3d342d] rounded-lg px-3 text-xs font-semibold text-yellow-300 focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+                  <select id="drugsBatchFilter" class="h-10 w-full sm:w-44 bg-[#140d0a] border border-amber-500/20 rounded-lg px-3 text-xs font-semibold text-yellow-300 focus:outline-none focus:border-yellow-600 transition cursor-pointer">
                     <option value="current">Batch Aktif</option>
                     <option value="all">Semua Batch</option>
                   </select>
-                  <select id="drugsPaidFilter" class="h-10 w-full sm:w-44 bg-[#0a0805] border border-[#3d342d] rounded-lg px-3 text-xs font-semibold text-yellow-300 focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+                  <select id="drugsPaidFilter" class="h-10 w-full sm:w-44 bg-[#140d0a] border border-amber-500/20 rounded-lg px-3 text-xs font-semibold text-yellow-300 focus:outline-none focus:border-yellow-600 transition cursor-pointer">
                     <option value="all">Semua Status</option>
                     <option value="paid">Sudah Dibayar</option>
                     <option value="unpaid">Belum Dibayar</option>
@@ -211,7 +211,7 @@
                 </div>
                 <div class="flex items-center gap-2 min-w-0 w-full sm:w-auto">
                   <input id="drugsSearch" type="text" placeholder="Search nama / jenis / waktu..." autocomplete="off"
-                    class="h-10 w-full sm:w-64 md:w-72 lg:w-80 min-w-0 bg-[#0a0805] border border-[#3d342d] rounded-lg px-3 text-xs font-semibold text-[#fef3c7] focus:outline-none focus:border-yellow-600 transition" />
+                    class="h-10 w-full sm:w-64 md:w-72 lg:w-80 min-w-0 bg-[#140d0a] border border-amber-500/20 rounded-lg px-3 text-xs font-semibold text-[#fef3c7] focus:outline-none focus:border-yellow-600 transition" />
                   <button id="sendDrugsTotals" class="h-10 px-4 rounded-lg btn-primary text-xs font-bold whitespace-nowrap">Kirim Total</button>
                 </div>
               </div>
@@ -219,7 +219,7 @@
 
             <div class="scroll-table">
               <table class="w-full text-sm text-left">
-                <thead class="bg-black/40 text-stone-400 uppercase text-[10px] tracking-widest border-b border-[#3d342d]">
+                <thead class="bg-black/40 text-stone-400 uppercase text-xs tracking-widest border-b border-amber-500/20">
                   <tr>
                     <th class="px-4 py-3 font-semibold">Anggota</th>
                     <th class="px-4 py-3 font-semibold hidden sm:table-cell">Jenis</th>

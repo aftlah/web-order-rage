@@ -99,7 +99,7 @@
           <div class="section-divider h-7"></div>
           <h2 class="text-xl sm:text-2xl font-black text-yellow-400">Kas R.A.G.E</h2>
         </div>
-        <p class="text-sm text-stone-500 ml-[22px]">
+        <p class="text-sm text-stone-400 ml-[22px]">
           Catat pemasukan dan pengeluaran kas. Setiap transaksi akan dikirim ke Discord.
         </p>
       </div>
@@ -112,7 +112,7 @@
             <h3 class="text-base font-black text-yellow-400">Tambah Transaksi</h3>
             <!-- Saldo Display -->
             <div class="text-right bg-yellow-600/8 border border-yellow-600/15 rounded-xl px-4 py-2.5">
-              <div class="text-[9px] font-black uppercase tracking-widest text-stone-500">Saldo</div>
+              <div class="text-[9px] font-black uppercase tracking-widest text-stone-400">Saldo</div>
               <div id="rageCashBalance" class="text-xl font-black text-yellow-400 font-mono">$ 0</div>
             </div>
           </div>
@@ -120,8 +120,8 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <!-- Tipe -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Tipe</label>
-              <select id="rageCashType" class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+              <label class="text-xs font-bold text-stone-400 uppercase tracking-widest">Tipe</label>
+              <select id="rageCashType" class="w-full px-4 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
                 <option value="IN">📈 Pemasukan</option>
                 <option value="OUT">📉 Pengeluaran</option>
               </select>
@@ -129,18 +129,18 @@
 
             <!-- Nominal -->
             <div class="flex flex-col gap-1.5">
-              <label class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Nominal</label>
+              <label class="text-xs font-bold text-stone-400 uppercase tracking-widest">Nominal</label>
               <div class="relative">
-                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-stone-500 font-bold text-sm">$</span>
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold text-sm">$</span>
                 <input id="rageCashAmount" type="number" min="0" placeholder="0"
-                  class="w-full pl-8 pr-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition font-mono" />
+                  class="w-full pl-8 pr-4 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition font-mono" />
               </div>
             </div>
 
             <!-- Kategori -->
             <div class="flex flex-col gap-1.5 sm:col-span-2">
-              <label class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Kategori</label>
-              <select id="rageCashCategory" class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
+              <label class="text-xs font-bold text-stone-400 uppercase tracking-widest">Kategori</label>
+              <select id="rageCashCategory" class="w-full px-4 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition cursor-pointer">
                 <option value="">Pilih kategori</option>
                 <option value="Operasional">Operasional</option>
                 <option value="Event">Event</option>
@@ -153,16 +153,16 @@
 
             <!-- Catatan -->
             <div class="flex flex-col gap-1.5 sm:col-span-2">
-              <label class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Catatan</label>
+              <label class="text-xs font-bold text-stone-400 uppercase tracking-widest">Catatan</label>
               <textarea id="rageCashNote" rows="3" placeholder="Keterangan tambahan..."
-                class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition resize-none placeholder:text-stone-700"></textarea>
+                class="w-full px-4 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition resize-none placeholder:text-stone-700"></textarea>
             </div>
 
             <!-- Waktu -->
             <div class="flex flex-col gap-1.5 sm:col-span-2">
-              <label class="text-[10px] font-bold text-stone-500 uppercase tracking-widest">Waktu</label>
+              <label class="text-xs font-bold text-stone-400 uppercase tracking-widest">Waktu</label>
               <input id="rageCashTime" type="datetime-local"
-                class="w-full px-4 py-3 rounded-xl bg-[#0a0805] border border-[#3d342d] text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition font-mono" />
+                class="w-full px-4 py-3 rounded-xl bg-[#140d0a] border border-amber-500/20 text-[#fef3c7] text-sm focus:outline-none focus:border-yellow-600 transition font-mono" />
             </div>
           </div>
 
@@ -182,7 +182,7 @@
 
           <div class="scroll-table">
             <table class="w-full text-sm text-left">
-              <thead class="bg-black/40 text-stone-400 uppercase text-[10px] tracking-widest border-b border-[#3d342d]">
+              <thead class="bg-black/40 text-stone-400 uppercase text-xs tracking-widest border-b border-amber-500/20">
                 <tr>
                   <th class="px-4 py-3 font-semibold hidden sm:table-cell">Waktu</th>
                   <th class="px-4 py-3 font-semibold">Tipe</th>
