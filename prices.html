@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>R.A.G.E - Admin Katalog</title>
+    <title>R.A.G.E - Daftar Harga</title>
     <link rel="icon" href="images/LOGO_RAGE.png" type="image/png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -30,19 +30,20 @@
             <!-- Desktop Nav -->
             <nav id="mainNav" class="hidden md:flex items-center gap-1">
               <a href="index.html" class="nav-link">Order</a>
-              <a href="prices.html" class="nav-link">Prices</a>
+              <a href="prices.html" class="nav-link nav-active">Prices</a>
               <a href="dashboard.html" class="nav-link">Dashboard</a>
               <a href="storan.html" class="nav-link">Storan</a>
               <a href="drugs.html" class="nav-link">Drugs</a>
               <a href="kas.html" class="nav-link">Kas</a>
               <a href="rekap.html" class="nav-link">Rekap</a>
-              <a href="admin_users.html" class="nav-link">Users</a>
-              <a href="admin_activity.html" class="nav-link">Activity</a>
-              <a href="admin_catalog.html" class="nav-link nav-active">Catalog</a>
-              <a href="admin_archive.html" class="nav-link">Archive</a>
             </nav>
 
             <button id="logoutBtn" class="btn-logout hidden md:block">Logout</button>
+
+            <div class="text-right hidden sm:block border-l border-[#2d1b14]/60 pl-5">
+              <p class="today-label">Today</p>
+              <p class="today-date" id="current-date"></p>
+            </div>
 
             <!-- Hamburger -->
             <button id="mobileMenuBtn" class="md:hidden" onclick="toggleMobileMenu()">
@@ -58,10 +59,10 @@
       <div id="mobileMenu" class="mobile-menu absolute top-full left-0 w-full hidden z-50">
         <div class="flex flex-col p-3 gap-0.5">
           <a href="index.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504-1.125 1.125-1.125h12.75c.621 0-1.125-.504-1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
             Order
           </a>
-          <a href="prices.html" class="mobile-nav-link">
+          <a href="prices.html" class="mobile-nav-link mobile-nav-active">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             Prices
           </a>
@@ -70,7 +71,7 @@
             Dashboard
           </a>
           <a href="storan.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0-1.125.504-1.125 1.125v9.75c0 .621-.504-1.125-1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" /></svg>
             Storan
           </a>
           <a href="drugs.html" class="mobile-nav-link">
@@ -78,7 +79,7 @@
             Drugs
           </a>
           <a href="kas.html" class="mobile-nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0-1.125.504-1.125 1.125v9.75c0 .621-.504-1.125-1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             Kas
           </a>
           <a href="rekap.html" class="mobile-nav-link">
@@ -96,74 +97,29 @@
 
     <main class="max-w-7xl mx-auto p-4 sm:p-6 relative z-10">
       <div class="glass-card p-6 sm:p-8 mb-8 relative overflow-hidden group">
-        <!-- background glow -->
         <div class="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/20 blur-[50px] rounded-full group-hover:bg-amber-500/30 transition duration-500 pointer-events-none"></div>
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div>
-            <h2 class="text-2xl sm:text-3xl font-black text-amber-500 mb-2 tracking-tight">Manajemen Katalog</h2>
-            <p class="text-slate-400 text-sm font-medium">Update harga, status item, dan kelola database persediaan barang.</p>
+            <h2 class="text-2xl sm:text-3xl font-black text-amber-500 mb-2 tracking-tight">Daftar Harga</h2>
+            <p class="text-slate-400 text-sm font-medium">Lihat harga dasar dan harga efektif semua item, diurutkan berdasarkan grup.</p>
           </div>
           <div class="flex gap-3">
-            <button id="refreshCatalog" class="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-amber-500/30 text-amber-500 font-bold text-sm hover:bg-amber-500/10 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] transition-all duration-300">
+            <button id="refreshPriceList" class="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-amber-500/30 text-amber-500 font-bold text-sm hover:bg-amber-500/10 hover:shadow-[0_0_15px_rgba(245,158,11,0.15)] transition-all duration-300">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
               </svg>
               Refresh
             </button>
-            <button id="addNewItem" class="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-[#1a1410] font-bold text-sm hover:from-amber-400 hover:to-amber-500 hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:-translate-y-0.5 transition-all duration-300">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Tambah Item
-            </button>
           </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 gap-6" id="catalogLists">
-        <!-- Will be populated by categories -->
-        <div class="flex justify-center py-20" id="loadingCatalog">
-            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
+      <div id="priceListContainer">
+        <div class="flex justify-center py-20">
+          <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
         </div>
       </div>
     </main>
-
-    <!-- Modal Tambah/Edit Item -->
-    <template id="itemModalTemplate">
-      <div class="text-left space-y-5">
-        <div>
-          <label class="block text-[10px] font-black text-amber-500/80 uppercase tracking-widest mb-2">Kategori</label>
-          <select id="modalKategori" class="w-full px-4 py-3.5 rounded-xl bg-[#0a0604]/80 border border-amber-500/20 text-amber-50 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all shadow-inner">
-            <option value="Gun">Gun</option>
-            <option value="Ammo">Ammo</option>
-            <option value="Attachment">Attachment</option>
-            <option value="Others">Others</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-[10px] font-black text-amber-500/80 uppercase tracking-widest mb-2">Nama Item</label>
-          <input id="modalName" type="text" class="w-full px-4 py-3.5 rounded-xl bg-[#0a0604]/80 border border-amber-500/20 text-amber-50 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-600 shadow-inner" placeholder="Contoh: PISTOL .50" />
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <label class="block text-[10px] font-black text-amber-500/80 uppercase tracking-widest mb-2">Harga Dasar</label>
-            <input id="modalPrice" type="number" class="w-full px-4 py-3.5 rounded-xl bg-[#0a0604]/80 border border-amber-500/20 text-amber-50 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-600 shadow-inner font-mono" placeholder="0" />
-          </div>
-          <div>
-            <label class="block text-[10px] font-black text-amber-500/80 uppercase tracking-widest mb-2">Scrap (Opsional)</label>
-            <input id="modalScrap" type="number" step="0.1" class="w-full px-4 py-3.5 rounded-xl bg-[#0a0604]/80 border border-amber-500/20 text-amber-50 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-600 shadow-inner font-mono" placeholder="0" />
-          </div>
-        </div>
-        <div>
-          <label class="block text-[10px] font-black text-amber-500/80 uppercase tracking-widest mb-2">Limit Order</label>
-          <input id="modalMaxLimit" type="number" min="1" class="w-full px-4 py-3.5 rounded-xl bg-[#0a0604]/80 border border-amber-500/20 text-amber-50 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-600 shadow-inner font-mono" placeholder="Limit maksimal per order" required />
-        </div>
-        <div>
-          <label class="block text-[10px] font-black text-amber-500/80 uppercase tracking-widest mb-2">Catatan (Metadata)</label>
-          <input id="modalNote" type="text" class="w-full px-4 py-3.5 rounded-xl bg-[#0a0604]/80 border border-amber-500/20 text-amber-50 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-all placeholder:text-slate-600 shadow-inner" placeholder="Contoh: max 20" />
-        </div>
-      </div>
-    </template>
 
     <script>
       function toggleMobileMenu() { document.getElementById("mobileMenu").classList.toggle("hidden"); }

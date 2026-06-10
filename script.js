@@ -989,6 +989,7 @@ function ensureProfileNavLinks(member) {
   const path = String(location.pathname || "").toLowerCase();
   const items = [
     { href: "profile.html", label: "Profile", isVisible: true },
+    { href: "prices.html", label: "Cek Harga", isVisible: true },
     { href: "admin_users.html", label: "Users", isVisible: isAdmin },
     { href: "admin_activity.html", label: "Monitor", isVisible: isAdmin },
     { href: "admin_catalog.html", label: "Katalog", isVisible: isAdmin },
@@ -2353,6 +2354,111 @@ async function initAdminCatalogPage() {
   await load();
 }
 
+async function initPriceListPage() {
+  if (!supabase) return;
+  const containerEl = document.getElementById("priceListContainer");
+  const refreshBtn = document.getElementById("refreshPriceList");
+
+  const load = async () => {
+    if (containerEl)
+      containerEl.innerHTML = `<div class="flex justify-center py-20"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div></div>`;
+    const { data, error } = await supabase
+      .from("catalog_items")
+      .select("*")
+      .eq("is_active", true)
+      .order("kategori", { ascending: true })
+      .order("name", { ascending: true });
+    if (error) {
+      if (containerEl)
+        containerEl.innerHTML = `<div class="p-8 text-center text-red-400">${error.message}</div>`;
+      return;
+    }
+
+    // Organize items by category (Kategori)
+    const byCategory = {};
+    data.forEach((item) => {
+      const categoryDisplay = item.kategori === "Gun" ? "Senjata" : item.kategori;
+      if (!byCategory[categoryDisplay]) {
+        byCategory[categoryDisplay] = [];
+      }
+      byCategory[categoryDisplay].push(item);
+    });
+
+    if (containerEl) {
+      containerEl.innerHTML = Object.keys(byCategory)
+        .map((categoryName) => {
+          const items = byCategory[categoryName];
+          if (!items.length) return "";
+          return `
+          <div class="glass-card overflow-hidden mb-6" data-category="${categoryName}">
+            <div class="bg-amber-500/10 px-6 py-4 border-b border-amber-500/20 flex items-center justify-between cursor-pointer category-header">
+              <h3 class="font-black text-amber-500 uppercase tracking-widest text-sm flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
+                ${categoryName}
+              </h3>
+              <div class="flex items-center gap-3">
+                <span class="text-[10px] text-amber-500/60 font-bold tracking-widest uppercase bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md">${items.length} Items</span>
+                <svg class="w-5 h-5 text-amber-500/60 category-toggle-icon transition-transform duration-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+            <div class="overflow-x-auto category-content">
+              <table class="w-full text-sm">
+                <thead class="bg-[#120a06] text-slate-400/80 border-b border-amber-500/10">
+                  <tr>
+                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px] w-2/3">Nama Item</th>
+                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px]">Harga Jual</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5 bg-[#0a0604]/30">
+                  ${items
+                    .map((it) => {
+                      let displayPrice = it.price;
+                      let afterTax = getEffectivePrice(it.kategori, displayPrice);
+                      
+                      if (it.name === MICRO_FULL_ATTACHMENT_BUNDLE_NAME) {
+                        afterTax = getMicroFullAttachmentBundlePrice();
+                        displayPrice = Math.round(afterTax / 1.1);
+                      }
+                      
+                      return `
+                    <tr class="hover:bg-amber-500/5 transition-colors">
+                      <td class="px-6 py-4">
+                        <div class="font-bold text-amber-50/90 flex items-center gap-2">
+                          <div class="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div>
+                          ${it.name}
+                        </div>
+                      </td>
+                      <td class="px-6 py-4 font-mono text-amber-400 font-bold text-xs bg-amber-500/5">${fmt(afterTax)}</td>
+                    </tr>`;
+                    })
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+        })
+        .join("");
+
+      // Bind category toggle
+      containerEl.querySelectorAll(".category-header").forEach((header) => {
+        header.addEventListener("click", () => {
+          const card = header.closest(".glass-card");
+          const content = card.querySelector(".category-content");
+          const icon = card.querySelector(".category-toggle-icon");
+          
+          content.classList.toggle("hidden");
+          icon.classList.toggle("rotate-180");
+        });
+      });
+    }
+  };
+
+  if (refreshBtn) refreshBtn.addEventListener("click", () => load());
+  await load();
+}
+
 async function initAdminArchivePage() {
   if (!supabase) return;
   const refreshBtn = document.getElementById("refreshArchive");
@@ -2743,6 +2849,7 @@ async function init() {
   const isAdminUsers = !!document.getElementById("adminUsersSection");
   const isAdminActivity = !!document.getElementById("adminActivitySection");
   const isAdminCatalog = !!document.getElementById("catalogLists");
+  const isPriceList = !!document.getElementById("priceListContainer");
   const isAdminArchive = !!document.getElementById("adminArchiveSection");
   const needsAuth =
     isOrder ||
@@ -2755,6 +2862,7 @@ async function init() {
     isAdminUsers ||
     isAdminActivity ||
     isAdminCatalog ||
+    isPriceList ||
     isAdminArchive;
   if (needsAuth) {
     const ok = await guardApp();
@@ -2776,6 +2884,7 @@ async function init() {
     isAdminUsers ||
     isAdminActivity ||
     isAdminCatalog ||
+    isPriceList ||
     isAdminArchive
   ) {
     currentMember = await resolveCurrentMember();
@@ -2879,6 +2988,9 @@ async function init() {
   }
   if (isAdminCatalog) {
     initAdminCatalogPage();
+  }
+  if (isPriceList) {
+    initPriceListPage();
   }
   if (isAdminArchive) {
     initAdminArchivePage();
