@@ -55,6 +55,7 @@ let CATALOG = {
     { name: "BLACK REVOLVER", price: 91000 },
     { name: "KVR", price: 78000 },
     { name: "Assault Rifle", price: 195000 }, //max 20
+    { name: "Carbine Rifle", price: 280000 }, //max 20
     { name: "Virtus#3", price: 230000 }, //max 20
   ],
   Ammo: [
@@ -161,6 +162,7 @@ const ITEM_MAX_LIMITS = {
   LOCKPICK: 60,
   "AMMO 44 MAGNUM": 300,
   "Assault Rifle": 20,
+  "Carbine Rifle": 20,
   "Virtus#3": 20,
   "Ammo 762": 400,
   "Ammo 556": 400,
@@ -2108,10 +2110,48 @@ async function initAdminCatalogPage() {
     } catch (e) {}
   };
 
+  const ensureCarbineRifleItem = async () => {
+    if (window.__rageCarbineRifleSeeded) return;
+    window.__rageCarbineRifleSeeded = true;
+    const seed = {
+      kategori: "Gun",
+      name: "Carbine Rifle",
+      price: 210000,
+      scrap: null,
+      is_active: true,
+      max_limit: 20,
+      metadata: {
+        note: "Ammo 556 | Attachment: Extended Rifle Clip, Rifle Drum, Medium Scope, Grip, Tactical Suppressor",
+      },
+    };
+    try {
+      const { data: existing, error } = await supabase
+        .from("catalog_items")
+        .select("name")
+        .eq("kategori", "Gun")
+        .eq("name", "Carbine Rifle")
+        .limit(1);
+      if (error) return;
+      if ((existing || []).length) return;
+      const res = await supabase.from("catalog_items").insert([seed]);
+      if (
+        res &&
+        res.error &&
+        String(res.error.message || "")
+          .toLowerCase()
+          .includes('column "max_limit"')
+      ) {
+        const { max_limit, ...rest } = seed;
+        await supabase.from("catalog_items").insert([rest]);
+      }
+    } catch (e) {}
+  };
+
   const load = async () => {
     if (listEl)
       listEl.innerHTML = `<div class="flex justify-center py-20"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div></div>`;
     await ensureX17AttachmentItems();
+    await ensureCarbineRifleItem();
     const { data, error } = await supabase
       .from("catalog_items")
       .select("*")
@@ -5088,6 +5128,7 @@ const GROUP_ITEMS = {
     "BLACK REVOLVER",
     "VEST",
     "Assault Rifle",
+    "Carbine Rifle",
     "Ammo 762",
     "Ammo 556",
     "Virtus#3",
@@ -5703,6 +5744,7 @@ WEAPON COMPATIBILITY:
 - SMG: Attachment (SMG Drum, Suppressor, Tactical Flashlight, Macro Scope), Ammo (AMMO 9MM)
 - SHOTGUN: Attachment (Tactical Suppressor, Tactical Flashlight), Ammo (AMMO 12 GAUGE)
 - Assault Rifle: Attachment (Tactical Flashlight, Grip, Rifle Drum, Extended Rifle Clip, Macro Scope, Tactical Suppressor), Ammo (Ammo 762)
+- Carbine Rifle: Attachment (Extended Rifle Clip, Rifle Drum, Medium Scope, Grip, Tactical Suppressor), Ammo (Ammo 556)
 - CERAMIC PISTOL: Attachment (Extended Pistol Clip, Suppressor), Ammo (AMMO 9MM)
 - Virtus#3: Attachment (Tactical Suppressor, Extended Rifle Clip), Ammo (Ammo 556)
 `;
@@ -5761,6 +5803,7 @@ function generateBotResponse(msg) {
       "ak-47": "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
       "ak47": "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
       "ceramic": "Ammo: **AMMO 9MM**\nAttachment:\n- Extended Pistol\n- Suppressor",
+      "carbine": "Ammo: **Ammo 556**\nAttachment:\n- Extended Rifle Clip\n- Rifle Drum\n- Medium Scope\n- Grip\n- Tactical Suppressor",
       "virtus": "Ammo: **Ammo 556**\nAttachment:\n- Tactical Suppressor\n- Extended Rifle Clip"
     };
 
@@ -5781,7 +5824,7 @@ function generateBotResponse(msg) {
     if (lower.includes("44") || lower.includes("magnum")) return "Ammo 44 Magnum cocok untuk Navy Revolver dan Black Revolver.";
     if (lower.includes("45")) return "Ammo .45 cocok untuk KVR.";
     if (lower.includes("762")) return "Peluru 762 digunakan untuk Assault Rifle (AK-47).";
-    if (lower.includes("556")) return "Peluru 556 digunakan untuk Virtus#3.";
+    if (lower.includes("556")) return "Peluru 556 digunakan untuk Carbine Rifle dan Virtus#3.";
     return "Kami punya berbagai jenis ammo: 9mm, .50, .45, 44 Magnum, 762, dan 556. Kakak cari untuk senjata apa?";
   }
 
@@ -5821,7 +5864,7 @@ function findItemInCatalog(text) {
 
   // 2. Reverse Substring Match (Text inside Item name)
   // Useful for "Virtus" -> "Virtus#3"
-  const keywords = ["virtus", "ak", "x17", "tech", "smg", "pistol", "rifle", "vest", "ammo", "clip", "scope", "suppressor"];
+  const keywords = ["virtus", "carbine", "ak", "x17", "tech", "smg", "pistol", "rifle", "vest", "ammo", "clip", "scope", "suppressor"];
   for (const kw of keywords) {
     if (lowerText.includes(kw)) {
       const found = allItems.find(i => i.name.toLowerCase().includes(kw));
@@ -5831,6 +5874,7 @@ function findItemInCatalog(text) {
 
   // 3. Manual Overrides / Aliases
   if (lowerText.includes("ak47") || lowerText.includes("ak-47")) return allItems.find(i => i.name === "Assault Rifle");
+  if (lowerText.includes("carbine") || lowerText.includes("carbin")) return allItems.find(i => i.name === "Carbine Rifle");
   if (lowerText.includes("ak")) return allItems.find(i => i.name === "Assault Rifle");
   if (lowerText.includes("p50")) return allItems.find(i => i.name.includes(".50"));
   if (lowerText.includes("vest")) return allItems.find(i => i.name === "VEST");
