@@ -125,7 +125,6 @@ const MICRO_FULL_ATTACHMENT_COMPONENTS = [
   { name: "Tactical Suppressor", kategori: "Attachment" },
   { name: "Extended SMG Clip", kategori: "Attachment" },
 ];
-const ADMIN_ONLY_ITEMS = new Set(["CARBINE RIFLE"]);
 
 function getEffectivePrice(kategori, basePrice) {
   if (kategori === "Gun" || kategori === "Attachment") {
@@ -732,22 +731,6 @@ function isAdminMember(member) {
   return role.trim().toLowerCase() === "admin";
 }
 
-function isAdminOnlyItem(itemName) {
-  return ADMIN_ONLY_ITEMS.has(
-    String(itemName || "")
-      .trim()
-      .toUpperCase()
-      .replace(/\s+/g, " ")
-  );
-}
-
-function canBuyAdminOnlyItem(memberOrRole) {
-  if (memberOrRole && typeof memberOrRole === "object") {
-    return isAdminMember(memberOrRole);
-  }
-  return String(memberOrRole || "").trim().toLowerCase() === "admin";
-}
-
 function requireAdminOrRedirect() {
   const m = window.__currentMember || null;
   if (isAdminMember(m)) return true;
@@ -958,7 +941,6 @@ function applyCurrentMemberToOrderUI(member) {
     status.classList.toggle("text-red-500", !(member && member.id));
   }
   updateNameValidity();
-  populateItems();
 }
 
 function applyCurrentMemberToStoranUI(member) {
@@ -3116,10 +3098,8 @@ function populateItems() {
   const kategori =
     document.getElementById("kategori").value || Object.keys(CATALOG)[0];
   const itemEl = document.getElementById("item");
-  const member = window.__currentMember || null;
   itemEl.innerHTML = "";
   CATALOG[kategori].forEach((it) => {
-    if (isAdminOnlyItem(it.name) && !canBuyAdminOnlyItem(member)) return;
     const o = document.createElement("option");
     o.value = it.name;
     const displayPrice =
@@ -3237,11 +3217,6 @@ async function addToCart() {
   const nItem = itemName.toUpperCase();
   const isLeo = nama.toLowerCase() === "leo";
   const perms = getRolePermissions(role);
-
-  if (!isLeo && isAdminOnlyItem(itemName) && !canBuyAdminOnlyItem(role)) {
-    showAlert("Hanya Admin yang bisa membeli Carbine Rifle", "error");
-    return;
-  }
 
   if (itemName === MICRO_FULL_ATTACHMENT_BUNDLE_NAME) {
     const canBuyItem = (name) => {
@@ -4345,16 +4320,6 @@ async function submitOrder() {
   const role = await getMemberRole(member_id);
   const perms = getRolePermissions(role);
   const isLeo = String(nama || "").toLowerCase() === "leo";
-
-  if (!isLeo) {
-    for (const c of state.cart) {
-      if (isAdminOnlyItem(c.item) && !canBuyAdminOnlyItem(role)) {
-        showAlert("Hanya Admin yang bisa membeli Carbine Rifle", "error");
-        endLoading();
-        return;
-      }
-    }
-  }
 
   // 1. Validate Items in Cart against Role
   if (!isLeo && perms.allowed !== "ALL") {
