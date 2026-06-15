@@ -507,6 +507,61 @@ function saveStoredDashboard(data) {
     );
   } catch (e) {}
 }
+function invalidateDashboardCache() {
+  dashboardCache.filtered = {};
+  dashboardCache.orders = null;
+  dashboardCache.lastFetch = 0;
+  try {
+    localStorage.removeItem(DASH_CACHE_KEY);
+  } catch (e) {}
+}
+function patchDashboardOrdersInCache(matchFn, patchFn) {
+  const apply = (rows) =>
+    (rows || []).map((r) => (matchFn(r) ? { ...r, ...patchFn(r) } : r));
+
+  Object.keys(dashboardCache.filtered).forEach((key) => {
+    const entry = dashboardCache.filtered[key];
+    if (entry && Array.isArray(entry.data)) {
+      entry.data = apply(entry.data);
+      entry.ts = Date.now();
+    }
+  });
+  if (Array.isArray(dashboardCache.orders)) {
+    dashboardCache.orders = apply(dashboardCache.orders);
+    saveStoredDashboard(dashboardCache.orders);
+  }
+}
+function getDashboardFilterState() {
+  const mSel = document.getElementById("dashMonth");
+  const wSel = document.getElementById("dashWeek");
+  const nameInput = document.getElementById("dashNameInput");
+  return {
+    month: mSel ? parseInt(mSel.value, 10) : NaN,
+    weekVal: wSel ? String(wSel.value || "") : "",
+    nameVal: nameInput ? nameInput.value.trim() : "",
+  };
+}
+function rerenderDashboardFromCache() {
+  const { month, weekVal, nameVal } = getDashboardFilterState();
+  const filterKey =
+    (Number.isNaN(month) ? "" : String(month)) +
+    "|" +
+    String(weekVal || "") +
+    "|" +
+    normalizeDashNameFilter(nameVal).toLowerCase();
+  const cached = dashboardCache.filtered[filterKey];
+  if (cached && Array.isArray(cached.data)) {
+    renderDashboard(groupOrdersByBatch(cached.data));
+    return;
+  }
+  loadDashboard(false);
+}
+function isSamePersonOrder(row, batch, name) {
+  return (
+    parseInt(row.orderanke, 10) === parseInt(batch, 10) &&
+    normalizePersonStatusName(row.nama) === normalizePersonStatusName(name)
+  );
+}
 function getDistinctNamesFromData(data) {
   const set = new Set();
   (data || []).forEach((r) => {
@@ -4860,8 +4915,12 @@ async function fetchOrdersSafe(limit = 500) {
 function normalizeDashNameFilter(raw) {
   const v = String(raw || "").trim();
   if (!v) return "";
-  if (v.toLowerCase() === "semua") return "";
+  const lower = v.toLowerCase();
+  if (lower === "semua" || lower === "semua anggota") return "";
   return v;
+}
+function escapeIlikePattern(value) {
+  return String(value || "").replace(/[%_\\]/g, "\\$&");
 }
 
 async function fetchOrdersForDashboard({ month, weekVal, nameVal }) {
@@ -4898,7 +4957,7 @@ async function fetchOrdersForDashboard({ month, weekVal, nameVal }) {
       }
     }
 
-    if (name) q = q.ilike("nama", name);
+    if (name) q = q.ilike("nama", `%${escapeIlikePattern(name)}%`);
 
     const { data, error } = await q.range(from, to);
     if (error) {
@@ -5219,6 +5278,7 @@ function renderDashboard(groups) {
   );
   const paidPeople = getPaidPersonSet();
   const scrapPeopleLocal = getScrapPersonSet();
+  const deliveredRows = getDeliveredRowSet();
   const totalsByUser = {};
   keys.forEach((k) => {
     const g = groups[k];
@@ -5380,8 +5440,11 @@ function renderDashboard(groups) {
           byName[name]
             .map((r, idx, arr) => {
               const personKey = makePersonStatusKey(k, name);
-              const paidOn = arr.every((x) => !!x.paid);
-              const scrapOn = arr.every((x) => !!x.scrap_given);
+              const paidOn =
+                arr.every((x) => !!x.paid) || paidPeople.has(personKey);
+              const scrapOn =
+                arr.every((x) => !!x.scrap_given) ||
+                scrapPeopleLocal.has(personKey);
               const nameCell =
                 idx === 0
                   ? `<td class=\"px-2 py-2 align-top\" rowspan=\"${byName[name].length}\">${name}</td>`
@@ -5420,9 +5483,11 @@ function renderDashboard(groups) {
               )}</td><td class=\"px-2 py-2 text-center\"><button data-row-id=\"${
                 r.id
               }" class="px-2 py-1 rounded ${
-                r.delivered ? "bg-green-700" : "bg-yellow-700"
+                r.delivered || deliveredRows.has(String(r.id))
+                  ? "bg-green-700"
+                  : "bg-yellow-700"
               } text-white">${
-                r.delivered ? "Sudah" : "Belum"
+                r.delivered || deliveredRows.has(String(r.id)) ? "Sudah" : "Belum"
               }</button></td>${paidCell}${scrapCell}<td class=\"px-2 py-2 text-right\"><button data-del-id=\"${
                 r.id
               }\" class=\"px-2 py-1 rounded bg-red-700 text-white\">Hapus</button></td></tr>`;
@@ -5438,7 +5503,6 @@ function renderDashboard(groups) {
     })
     .join("");
   container.innerHTML = totalsHtml + batchesHtml;
-  const deliveredRows = getDeliveredRowSet();
   const paidPeopleLocal = getPaidPersonSet();
   const scrapPeople = getScrapPersonSet();
   container.querySelectorAll("[data-row-id]").forEach((btn) => {
@@ -5450,24 +5514,31 @@ function renderDashboard(groups) {
     btn.addEventListener("click", async () => {
       const nowDelivered = btn.textContent === "Belum";
       try {
-        await supabase
+        const { error } = await supabase
           .from("orders")
           .update({ delivered: nowDelivered })
           .eq("id", id);
-        btn.textContent = nowDelivered ? "Sudah" : "Belum";
-        btn.className = nowDelivered
-          ? "px-2 py-1 rounded bg-green-700 text-white"
-          : "px-2 py-1 rounded bg-yellow-700 text-white";
+        if (error) throw error;
+        const deliveredSet = getDeliveredRowSet();
+        deliveredSet.delete(String(id));
+        saveDeliveredRowSet(deliveredSet);
+        patchDashboardOrdersInCache(
+          (r) => parseInt(r.id, 10) === id,
+          () => ({ delivered: nowDelivered })
+        );
+        invalidateDashboardCache();
+        await loadDashboard(true);
         showAlert("Status diperbarui", "success");
       } catch (e) {
         const set = getDeliveredRowSet();
         if (nowDelivered) set.add(String(id));
         else set.delete(String(id));
         saveDeliveredRowSet(set);
-        btn.textContent = nowDelivered ? "Sudah" : "Belum";
-        btn.className = nowDelivered
-          ? "px-2 py-1 rounded bg-green-700 text-white"
-          : "px-2 py-1 rounded bg-yellow-700 text-white";
+        patchDashboardOrdersInCache(
+          (r) => parseInt(r.id, 10) === id,
+          () => ({ delivered: nowDelivered })
+        );
+        rerenderDashboardFromCache();
         showAlert("Status diperbarui (lokal)", "success");
       }
     });
@@ -5485,27 +5556,35 @@ function renderDashboard(groups) {
     btn.addEventListener("click", async () => {
       const nowPaid = btn.textContent !== "Lunas";
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("orders")
           .update({ paid: nowPaid })
           .eq("orderanke", batch)
-          .eq("nama", name);
+          .ilike("nama", name)
+          .select("id");
         if (error) throw error;
-        btn.textContent = nowPaid ? "Lunas" : "Belum";
-        btn.className = nowPaid
-          ? "px-2 py-1 rounded bg-emerald-700 text-white"
-          : "px-2 py-1 rounded bg-slate-700 text-white";
+        if (!data || !data.length) throw new Error("Tidak ada baris order yang cocok");
+        const paidSet = getPaidPersonSet();
+        paidSet.delete(personKey);
+        savePaidPersonSet(paidSet);
+        patchDashboardOrdersInCache(
+          (r) => isSamePersonOrder(r, batch, name),
+          () => ({ paid: nowPaid })
+        );
+        invalidateDashboardCache();
         await postWeaponPaymentLog({ batch, name, paid: nowPaid, total, qty });
+        await loadDashboard(true);
         showAlert("Status bayar diperbarui", "success");
       } catch (e) {
         const set = getPaidPersonSet();
         if (nowPaid) set.add(String(personKey));
         else set.delete(String(personKey));
         savePaidPersonSet(set);
-        btn.textContent = nowPaid ? "Lunas" : "Belum";
-        btn.className = nowPaid
-          ? "px-2 py-1 rounded bg-emerald-700 text-white"
-          : "px-2 py-1 rounded bg-slate-700 text-white";
+        patchDashboardOrdersInCache(
+          (r) => isSamePersonOrder(r, batch, name),
+          () => ({ paid: nowPaid })
+        );
+        rerenderDashboardFromCache();
         showAlert("Status bayar diperbarui (lokal)", "success");
       }
     });
@@ -5521,26 +5600,34 @@ function renderDashboard(groups) {
     btn.addEventListener("click", async () => {
       const nowGiven = btn.textContent !== "Sudah";
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("orders")
           .update({ scrap_given: nowGiven })
           .eq("orderanke", batch)
-          .eq("nama", name);
+          .ilike("nama", name)
+          .select("id");
         if (error) throw error;
-        btn.textContent = nowGiven ? "Sudah" : "Belum";
-        btn.className = nowGiven
-          ? "px-2 py-1 rounded bg-cyan-700 text-white"
-          : "px-2 py-1 rounded bg-slate-700 text-white";
+        if (!data || !data.length) throw new Error("Tidak ada baris order yang cocok");
+        const scrapSet = getScrapPersonSet();
+        scrapSet.delete(personKey);
+        saveScrapPersonSet(scrapSet);
+        patchDashboardOrdersInCache(
+          (r) => isSamePersonOrder(r, batch, name),
+          () => ({ scrap_given: nowGiven })
+        );
+        invalidateDashboardCache();
+        await loadDashboard(true);
         showAlert("Status metal scrap diperbarui", "success");
       } catch (e) {
         const set = getScrapPersonSet();
         if (nowGiven) set.add(String(personKey));
         else set.delete(String(personKey));
         saveScrapPersonSet(set);
-        btn.textContent = nowGiven ? "Sudah" : "Belum";
-        btn.className = nowGiven
-          ? "px-2 py-1 rounded bg-cyan-700 text-white"
-          : "px-2 py-1 rounded bg-slate-700 text-white";
+        patchDashboardOrdersInCache(
+          (r) => isSamePersonOrder(r, batch, name),
+          () => ({ scrap_given: nowGiven })
+        );
+        rerenderDashboardFromCache();
         showAlert("Status metal scrap diperbarui (lokal)", "success");
       }
     });
