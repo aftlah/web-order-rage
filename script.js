@@ -2454,18 +2454,11 @@ async function initPriceListPage() {
   const containerEl = document.getElementById("priceListContainer");
   const refreshBtn = document.getElementById("refreshPriceList");
   const searchInput = document.getElementById("priceSearchInput");
-  const chipsEl = document.getElementById("priceCategoryChips");
+  const searchClearBtn = document.getElementById("priceSearchClear");
+  const tabsEl = document.getElementById("priceCategoryTabs");
   const resultCountEl = document.getElementById("priceResultCount");
-  const expandAllBtn = document.getElementById("priceExpandAll");
-  const collapseAllBtn = document.getElementById("priceCollapseAll");
 
   const PRICE_CATEGORY_ORDER = ["Senjata", "Ammo", "Attachment", "Others"];
-  const PRICE_CATEGORY_META = {
-    Senjata: { desc: "Daftar senjata" },
-    Ammo: { desc: "Peluru & amunisi" },
-    Attachment: { desc: "Lampiran senjata" },
-    Others: { desc: "Vest, lockpick, dan lainnya" },
-  };
 
   let catalogRows = [];
   let activeCategory = "ALL";
@@ -2489,46 +2482,54 @@ async function initPriceListPage() {
     );
   };
 
-  const setCategoryExpanded = (expanded) => {
-    if (!containerEl) return;
-    containerEl.querySelectorAll(".price-category-card").forEach((card) => {
-      const content = card.querySelector(".category-content");
-      const icon = card.querySelector(".category-toggle-icon");
-      if (!content) return;
-      content.classList.toggle("hidden", !expanded);
-      if (icon) icon.classList.toggle("rotate-180", expanded);
+  const getFilteredItems = () => {
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    return catalogRows.filter((item) => {
+      const categoryDisplay = getCategoryDisplay(item.kategori);
+      if (activeCategory !== "ALL" && categoryDisplay !== activeCategory)
+        return false;
+      if (query && !String(item.name || "").toLowerCase().includes(query))
+        return false;
+      return true;
     });
   };
 
-  const bindCategoryToggles = () => {
-    if (!containerEl) return;
-    containerEl.querySelectorAll(".category-header").forEach((header) => {
-      header.addEventListener("click", () => {
-        const card = header.closest(".price-category-card");
-        const content = card.querySelector(".category-content");
-        const icon = card.querySelector(".category-toggle-icon");
-        content.classList.toggle("hidden");
-        icon.classList.toggle("rotate-180");
-      });
-    });
-  };
+  const renderTabs = () => {
+    if (!tabsEl) return;
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const countFor = (cat) =>
+      catalogRows.filter((item) => {
+        if (cat !== "ALL" && getCategoryDisplay(item.kategori) !== cat)
+          return false;
+        if (query && !String(item.name || "").toLowerCase().includes(query))
+          return false;
+        return true;
+      }).length;
 
-  const renderCategoryChips = (byCategory) => {
-    if (!chipsEl) return;
-    const categories = PRICE_CATEGORY_ORDER.filter((c) => byCategory[c]?.length);
-    const total = categories.reduce(
-      (sum, c) => sum + (byCategory[c] || []).length,
-      0
-    );
-    const chips = [
-      `<button type="button" class="price-chip ${activeCategory === "ALL" ? "price-chip--active" : ""}" data-price-cat="ALL">Semua (${total})</button>`,
-      ...categories.map((cat) => {
-        const count = (byCategory[cat] || []).length;
-        return `<button type="button" class="price-chip ${activeCategory === cat ? "price-chip--active" : ""}" data-price-cat="${cat}">${cat} (${count})</button>`;
-      }),
+    const tabs = [
+      { id: "ALL", label: "Semua", count: countFor("ALL") },
+      ...PRICE_CATEGORY_ORDER.filter((cat) =>
+        catalogRows.some((item) => getCategoryDisplay(item.kategori) === cat)
+      ).map((cat) => ({ id: cat, label: cat, count: countFor(cat) })),
     ];
-    chipsEl.innerHTML = chips.join("");
-    chipsEl.querySelectorAll("[data-price-cat]").forEach((btn) => {
+
+    tabsEl.innerHTML = tabs
+      .map(
+        (tab) => `
+      <button
+        type="button"
+        role="tab"
+        aria-selected="${activeCategory === tab.id}"
+        class="price-tab ${activeCategory === tab.id ? "price-tab--active" : ""}"
+        data-price-cat="${tab.id}"
+      >
+        ${tab.label}
+        <span class="price-tab-count">${tab.count}</span>
+      </button>`
+      )
+      .join("");
+
+    tabsEl.querySelectorAll("[data-price-cat]").forEach((btn) => {
       btn.addEventListener("click", () => {
         activeCategory = btn.getAttribute("data-price-cat") || "ALL";
         renderPriceList();
@@ -2536,112 +2537,110 @@ async function initPriceListPage() {
     });
   };
 
+  const renderItemRow = (it, query, showScrap) => {
+    const sellPrice = getItemSellPrice(it);
+    return `
+      <tr class="price-row">
+        <td class="price-cell-name">
+          <span class="price-item-name">${highlightMatch(it.name, query)}</span>
+        </td>
+        <td class="price-cell-price">${fmt(sellPrice)}</td>
+        ${
+          showScrap
+            ? `<td class="price-cell-scrap">${it.scrap ? `<span class="price-scrap-pill">${it.scrap}</span>` : `<span class="price-scrap-empty">—</span>`}</td>`
+            : ""
+        }
+      </tr>`;
+  };
+
   const renderPriceList = () => {
     if (!containerEl) return;
     const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+    const filtered = getFilteredItems();
+    const showScrap = filtered.some((it) => it.scrap);
 
-    const byCategory = {};
-    let visibleCount = 0;
-
-    catalogRows.forEach((item) => {
-      const categoryDisplay = getCategoryDisplay(item.kategori);
-      if (activeCategory !== "ALL" && categoryDisplay !== activeCategory) return;
-      if (query && !String(item.name || "").toLowerCase().includes(query)) return;
-
-      if (!byCategory[categoryDisplay]) byCategory[categoryDisplay] = [];
-      byCategory[categoryDisplay].push(item);
-      visibleCount += 1;
-    });
-
-    renderCategoryChips(
-      PRICE_CATEGORY_ORDER.reduce((acc, cat) => {
-        acc[cat] = catalogRows
-          .filter((item) => getCategoryDisplay(item.kategori) === cat)
-          .filter(
-            (item) =>
-              !query || String(item.name || "").toLowerCase().includes(query)
-          );
-        return acc;
-      }, {})
-    );
-
-    if (resultCountEl) {
-      resultCountEl.textContent =
-        visibleCount === 0
-          ? "Tidak ada item cocok"
-          : `Menampilkan ${visibleCount} item`;
+    if (searchClearBtn) {
+      searchClearBtn.classList.toggle("hidden", !query);
     }
 
-    if (!visibleCount) {
-      containerEl.innerHTML = `<div class="glass-card price-empty-state">
-        <p class="text-lg font-bold text-amber-100/80 mb-2">Item tidak ditemukan</p>
-        <p class="text-sm">Coba kata kunci lain atau pilih kategori <strong>Semua</strong>.</p>
-      </div>`;
+    renderTabs();
+
+    if (resultCountEl) {
+      if (!filtered.length) {
+        resultCountEl.textContent = query
+          ? `Tidak ada hasil untuk "${searchInput.value.trim()}"`
+          : "Tidak ada item di kategori ini";
+      } else {
+        const catLabel =
+          activeCategory === "ALL" ? "semua kategori" : activeCategory;
+        resultCountEl.textContent = `${filtered.length} item · ${catLabel}`;
+      }
+    }
+
+    if (!filtered.length) {
+      containerEl.innerHTML = `
+        <div class="glass-card price-empty">
+          <p class="price-empty-title">Item tidak ditemukan</p>
+          <p class="price-empty-desc">Coba kata kunci lain atau pilih tab kategori berbeda.</p>
+          ${query ? `<button type="button" class="price-empty-btn" id="priceEmptyClear">Hapus pencarian</button>` : ""}
+        </div>`;
+      const clearBtn = document.getElementById("priceEmptyClear");
+      if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+          if (searchInput) searchInput.value = "";
+          renderPriceList();
+        });
+      }
       return;
     }
 
-    const orderedCategories = PRICE_CATEGORY_ORDER.filter(
-      (cat) => (byCategory[cat] || []).length
-    );
+    let bodyHtml = "";
 
-    containerEl.innerHTML = `<div class="price-grid">${orderedCategories
-      .map((categoryName, catIdx) => {
-        const items = byCategory[categoryName];
-        const meta = PRICE_CATEGORY_META[categoryName] || {};
-        const startOpen = true;
-        const showScrapCol = items.some((it) => it.scrap);
+    if (activeCategory === "ALL") {
+      PRICE_CATEGORY_ORDER.forEach((cat) => {
+        const items = filtered.filter(
+          (item) => getCategoryDisplay(item.kategori) === cat
+        );
+        if (!items.length) return;
+        bodyHtml += `
+          <tr class="price-section">
+            <td colspan="${showScrap ? 3 : 2}">
+              <span class="price-section-label">${cat}</span>
+              <span class="price-section-count">${items.length} item</span>
+            </td>
+          </tr>`;
+        items.forEach((it) => {
+          bodyHtml += renderItemRow(it, query, showScrap);
+        });
+      });
+    } else {
+      filtered.forEach((it) => {
+        bodyHtml += renderItemRow(it, query, showScrap);
+      });
+    }
 
-        return `
-          <div class="glass-card overflow-hidden price-category-card" data-category="${categoryName}">
-            <div class="price-category-header cursor-pointer category-header">
-              <div class="min-w-0">
-                <h3 class="font-black text-amber-500 uppercase tracking-widest text-sm truncate">
-                  ${categoryName}
-                </h3>
-                <p class="price-category-desc mt-0.5 truncate">${meta.desc || ""}</p>
-              </div>
-              <div class="flex items-center gap-2 flex-shrink-0">
-                <span class="price-category-count">${items.length}</span>
-                <svg class="w-4 h-4 text-amber-500/60 category-toggle-icon transition-transform duration-300 ${startOpen ? "rotate-180" : ""}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-            <div class="price-category-body category-content ${startOpen ? "" : "hidden"}${showScrapCol ? " price-category-body--scrap" : ""}">
-              <div class="price-list-header">
-                <span>Item</span>
-                <span class="text-right">Harga</span>
-                ${showScrapCol ? `<span class="text-center">Scrap</span>` : ""}
-              </div>
-              <div class="price-list-items">
-                ${items
-                  .map((it) => {
-                    const sellPrice = getItemSellPrice(it);
-                    return `
-                  <div class="price-item-row">
-                    <div class="price-item-name font-semibold text-amber-50/90 min-w-0">${highlightMatch(it.name, query)}</div>
-                    <div class="price-item-price">${fmt(sellPrice)}</div>
-                    ${
-                      showScrapCol
-                        ? `<div class="price-item-scrap">${it.scrap ? `<span class="price-scrap-badge">${it.scrap}</span>` : `<span class="text-slate-600">—</span>`}</div>`
-                        : ""
-                    }
-                  </div>`;
-                  })
-                  .join("")}
-              </div>
-            </div>
-          </div>`;
-      })
-      .join("")}</div>`;
-
-    bindCategoryToggles();
+    containerEl.innerHTML = `
+      <div class="glass-card price-table-card">
+        <div class="price-table-scroll">
+          <table class="price-table">
+            <thead>
+              <tr>
+                <th>Nama Item</th>
+                <th>Harga</th>
+                ${showScrap ? `<th>Scrap</th>` : ""}
+              </tr>
+            </thead>
+            <tbody>${bodyHtml}</tbody>
+          </table>
+        </div>
+        ${showScrap ? `<p class="price-footnote">Scrap = kebutuhan metal per 1 item saat order.</p>` : ""}
+      </div>`;
   };
 
   const load = async () => {
     if (containerEl)
-      containerEl.innerHTML = `<div class="flex justify-center py-20"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div></div>`;
-    if (resultCountEl) resultCountEl.textContent = "Memuat...";
+      containerEl.innerHTML = `<div class="price-loading"><div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-amber-500"></div></div>`;
+    if (resultCountEl) resultCountEl.textContent = "Memuat data...";
 
     const { data, error } = await supabase
       .from("catalog_items")
@@ -2652,7 +2651,7 @@ async function initPriceListPage() {
 
     if (error) {
       if (containerEl)
-        containerEl.innerHTML = `<div class="p-8 text-center text-red-400">${error.message}</div>`;
+        containerEl.innerHTML = `<div class="glass-card price-empty"><p class="price-empty-title text-red-400">Gagal memuat</p><p class="price-empty-desc">${error.message}</p></div>`;
       if (resultCountEl) resultCountEl.textContent = "Gagal memuat";
       return;
     }
@@ -2664,11 +2663,12 @@ async function initPriceListPage() {
   if (searchInput) {
     searchInput.addEventListener("input", () => renderPriceList());
   }
-  if (expandAllBtn) {
-    expandAllBtn.addEventListener("click", () => setCategoryExpanded(true));
-  }
-  if (collapseAllBtn) {
-    collapseAllBtn.addEventListener("click", () => setCategoryExpanded(false));
+  if (searchClearBtn) {
+    searchClearBtn.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      searchInput?.focus();
+      renderPriceList();
+    });
   }
   if (refreshBtn) refreshBtn.addEventListener("click", () => load());
   await load();
