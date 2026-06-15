@@ -2453,103 +2453,223 @@ async function initPriceListPage() {
   if (!supabase) return;
   const containerEl = document.getElementById("priceListContainer");
   const refreshBtn = document.getElementById("refreshPriceList");
+  const searchInput = document.getElementById("priceSearchInput");
+  const chipsEl = document.getElementById("priceCategoryChips");
+  const resultCountEl = document.getElementById("priceResultCount");
+  const expandAllBtn = document.getElementById("priceExpandAll");
+  const collapseAllBtn = document.getElementById("priceCollapseAll");
+
+  const PRICE_CATEGORY_ORDER = ["Senjata", "Ammo", "Attachment", "Others"];
+  const PRICE_CATEGORY_META = {
+    Senjata: { desc: "Daftar senjata" },
+    Ammo: { desc: "Peluru & amunisi" },
+    Attachment: { desc: "Lampiran senjata" },
+    Others: { desc: "Vest, lockpick, dan lainnya" },
+  };
+
+  let catalogRows = [];
+  let activeCategory = "ALL";
+
+  const getCategoryDisplay = (kategori) =>
+    kategori === "Gun" ? "Senjata" : kategori;
+
+  const getItemSellPrice = (it) => {
+    if (it.name === MICRO_FULL_ATTACHMENT_BUNDLE_NAME) {
+      return getMicroFullAttachmentBundlePrice();
+    }
+    return getEffectivePrice(it.kategori, it.price);
+  };
+
+  const highlightMatch = (text, query) => {
+    if (!query) return text;
+    const safe = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return String(text || "").replace(
+      new RegExp(`(${safe})`, "ig"),
+      "<mark>$1</mark>"
+    );
+  };
+
+  const setCategoryExpanded = (expanded) => {
+    if (!containerEl) return;
+    containerEl.querySelectorAll(".price-category-card").forEach((card) => {
+      const content = card.querySelector(".category-content");
+      const icon = card.querySelector(".category-toggle-icon");
+      if (!content) return;
+      content.classList.toggle("hidden", !expanded);
+      if (icon) icon.classList.toggle("rotate-180", expanded);
+    });
+  };
+
+  const bindCategoryToggles = () => {
+    if (!containerEl) return;
+    containerEl.querySelectorAll(".category-header").forEach((header) => {
+      header.addEventListener("click", () => {
+        const card = header.closest(".price-category-card");
+        const content = card.querySelector(".category-content");
+        const icon = card.querySelector(".category-toggle-icon");
+        content.classList.toggle("hidden");
+        icon.classList.toggle("rotate-180");
+      });
+    });
+  };
+
+  const renderCategoryChips = (byCategory) => {
+    if (!chipsEl) return;
+    const categories = PRICE_CATEGORY_ORDER.filter((c) => byCategory[c]?.length);
+    const total = categories.reduce(
+      (sum, c) => sum + (byCategory[c] || []).length,
+      0
+    );
+    const chips = [
+      `<button type="button" class="price-chip ${activeCategory === "ALL" ? "price-chip--active" : ""}" data-price-cat="ALL">Semua (${total})</button>`,
+      ...categories.map((cat) => {
+        const count = (byCategory[cat] || []).length;
+        return `<button type="button" class="price-chip ${activeCategory === cat ? "price-chip--active" : ""}" data-price-cat="${cat}">${cat} (${count})</button>`;
+      }),
+    ];
+    chipsEl.innerHTML = chips.join("");
+    chipsEl.querySelectorAll("[data-price-cat]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        activeCategory = btn.getAttribute("data-price-cat") || "ALL";
+        renderPriceList();
+      });
+    });
+  };
+
+  const renderPriceList = () => {
+    if (!containerEl) return;
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : "";
+
+    const byCategory = {};
+    let visibleCount = 0;
+
+    catalogRows.forEach((item) => {
+      const categoryDisplay = getCategoryDisplay(item.kategori);
+      if (activeCategory !== "ALL" && categoryDisplay !== activeCategory) return;
+      if (query && !String(item.name || "").toLowerCase().includes(query)) return;
+
+      if (!byCategory[categoryDisplay]) byCategory[categoryDisplay] = [];
+      byCategory[categoryDisplay].push(item);
+      visibleCount += 1;
+    });
+
+    renderCategoryChips(
+      PRICE_CATEGORY_ORDER.reduce((acc, cat) => {
+        acc[cat] = catalogRows
+          .filter((item) => getCategoryDisplay(item.kategori) === cat)
+          .filter(
+            (item) =>
+              !query || String(item.name || "").toLowerCase().includes(query)
+          );
+        return acc;
+      }, {})
+    );
+
+    if (resultCountEl) {
+      resultCountEl.textContent =
+        visibleCount === 0
+          ? "Tidak ada item cocok"
+          : `Menampilkan ${visibleCount} item`;
+    }
+
+    if (!visibleCount) {
+      containerEl.innerHTML = `<div class="glass-card price-empty-state">
+        <p class="text-lg font-bold text-amber-100/80 mb-2">Item tidak ditemukan</p>
+        <p class="text-sm">Coba kata kunci lain atau pilih kategori <strong>Semua</strong>.</p>
+      </div>`;
+      return;
+    }
+
+    const orderedCategories = PRICE_CATEGORY_ORDER.filter(
+      (cat) => (byCategory[cat] || []).length
+    );
+
+    containerEl.innerHTML = `<div class="price-grid">${orderedCategories
+      .map((categoryName, catIdx) => {
+        const items = byCategory[categoryName];
+        const meta = PRICE_CATEGORY_META[categoryName] || {};
+        const startOpen = true;
+        const showScrapCol = items.some((it) => it.scrap);
+
+        return `
+          <div class="glass-card overflow-hidden price-category-card" data-category="${categoryName}">
+            <div class="price-category-header cursor-pointer category-header">
+              <div class="min-w-0">
+                <h3 class="font-black text-amber-500 uppercase tracking-widest text-sm truncate">
+                  ${categoryName}
+                </h3>
+                <p class="price-category-desc mt-0.5 truncate">${meta.desc || ""}</p>
+              </div>
+              <div class="flex items-center gap-2 flex-shrink-0">
+                <span class="price-category-count">${items.length}</span>
+                <svg class="w-4 h-4 text-amber-500/60 category-toggle-icon transition-transform duration-300 ${startOpen ? "rotate-180" : ""}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+            <div class="price-category-body category-content ${startOpen ? "" : "hidden"}${showScrapCol ? " price-category-body--scrap" : ""}">
+              <div class="price-list-header">
+                <span>Item</span>
+                <span class="text-right">Harga</span>
+                ${showScrapCol ? `<span class="text-center">Scrap</span>` : ""}
+              </div>
+              <div class="price-list-items">
+                ${items
+                  .map((it) => {
+                    const sellPrice = getItemSellPrice(it);
+                    return `
+                  <div class="price-item-row">
+                    <div class="price-item-name font-semibold text-amber-50/90 min-w-0">${highlightMatch(it.name, query)}</div>
+                    <div class="price-item-price">${fmt(sellPrice)}</div>
+                    ${
+                      showScrapCol
+                        ? `<div class="price-item-scrap">${it.scrap ? `<span class="price-scrap-badge">${it.scrap}</span>` : `<span class="text-slate-600">—</span>`}</div>`
+                        : ""
+                    }
+                  </div>`;
+                  })
+                  .join("")}
+              </div>
+            </div>
+          </div>`;
+      })
+      .join("")}</div>`;
+
+    bindCategoryToggles();
+  };
 
   const load = async () => {
     if (containerEl)
       containerEl.innerHTML = `<div class="flex justify-center py-20"><div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div></div>`;
+    if (resultCountEl) resultCountEl.textContent = "Memuat...";
+
     const { data, error } = await supabase
       .from("catalog_items")
       .select("*")
       .eq("is_active", true)
       .order("kategori", { ascending: true })
       .order("name", { ascending: true });
+
     if (error) {
       if (containerEl)
         containerEl.innerHTML = `<div class="p-8 text-center text-red-400">${error.message}</div>`;
+      if (resultCountEl) resultCountEl.textContent = "Gagal memuat";
       return;
     }
 
-    // Organize items by category (Kategori)
-    const byCategory = {};
-    data.forEach((item) => {
-      const categoryDisplay = item.kategori === "Gun" ? "Senjata" : item.kategori;
-      if (!byCategory[categoryDisplay]) {
-        byCategory[categoryDisplay] = [];
-      }
-      byCategory[categoryDisplay].push(item);
-    });
-
-    if (containerEl) {
-      containerEl.innerHTML = Object.keys(byCategory)
-        .map((categoryName) => {
-          const items = byCategory[categoryName];
-          if (!items.length) return "";
-          return `
-          <div class="glass-card overflow-hidden mb-6" data-category="${categoryName}">
-            <div class="bg-amber-500/10 px-6 py-4 border-b border-amber-500/20 flex items-center justify-between cursor-pointer category-header">
-              <h3 class="font-black text-amber-500 uppercase tracking-widest text-sm flex items-center gap-2">
-                <div class="w-2 h-2 rounded-full bg-amber-500 animate-pulse shadow-[0_0_8px_rgba(245,158,11,0.8)]"></div>
-                ${categoryName}
-              </h3>
-              <div class="flex items-center gap-3">
-                <span class="text-[10px] text-amber-500/60 font-bold tracking-widest uppercase bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-md">${items.length} Items</span>
-                <svg class="w-5 h-5 text-amber-500/60 category-toggle-icon transition-transform duration-300" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-            <div class="overflow-x-auto category-content">
-              <table class="w-full text-sm">
-                <thead class="bg-[#120a06] text-slate-400/80 border-b border-amber-500/10">
-                  <tr>
-                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px] w-2/3">Nama Item</th>
-                    <th class="px-6 py-4 text-left font-bold uppercase tracking-wider text-[11px]">Harga Jual</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-white/5 bg-[#0a0604]/30">
-                  ${items
-                    .map((it) => {
-                      let displayPrice = it.price;
-                      let afterTax = getEffectivePrice(it.kategori, displayPrice);
-                      
-                      if (it.name === MICRO_FULL_ATTACHMENT_BUNDLE_NAME) {
-                        afterTax = getMicroFullAttachmentBundlePrice();
-                        displayPrice = Math.round(afterTax / 1.1);
-                      }
-                      
-                      return `
-                    <tr class="hover:bg-amber-500/5 transition-colors">
-                      <td class="px-6 py-4">
-                        <div class="font-bold text-amber-50/90 flex items-center gap-2">
-                          <div class="w-1.5 h-1.5 rounded-full bg-amber-500/80"></div>
-                          ${it.name}
-                        </div>
-                      </td>
-                      <td class="px-6 py-4 font-mono text-amber-400 font-bold text-xs bg-amber-500/5">${fmt(afterTax)}</td>
-                    </tr>`;
-                    })
-                    .join("")}
-                </tbody>
-              </table>
-            </div>
-          </div>`;
-        })
-        .join("");
-
-      // Bind category toggle
-      containerEl.querySelectorAll(".category-header").forEach((header) => {
-        header.addEventListener("click", () => {
-          const card = header.closest(".glass-card");
-          const content = card.querySelector(".category-content");
-          const icon = card.querySelector(".category-toggle-icon");
-          
-          content.classList.toggle("hidden");
-          icon.classList.toggle("rotate-180");
-        });
-      });
-    }
+    catalogRows = data || [];
+    renderPriceList();
   };
 
+  if (searchInput) {
+    searchInput.addEventListener("input", () => renderPriceList());
+  }
+  if (expandAllBtn) {
+    expandAllBtn.addEventListener("click", () => setCategoryExpanded(true));
+  }
+  if (collapseAllBtn) {
+    collapseAllBtn.addEventListener("click", () => setCategoryExpanded(false));
+  }
   if (refreshBtn) refreshBtn.addEventListener("click", () => load());
   await load();
 }

@@ -1075,3 +1075,225 @@ select option:active {
   position: relative;
   z-index: 20;
 }
+
+/* ===== Prices Page ===== */
+.price-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (min-width: 768px) {
+  .price-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.price-category-card {
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 28rem;
+}
+
+.price-category-card:hover {
+  transform: none;
+}
+
+.price-category-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  background: rgba(245, 158, 11, 0.08);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.15);
+}
+
+.price-category-count {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(245, 158, 11, 0.75);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+}
+
+.price-category-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.price-list-header,
+.price-item-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  padding: 0.45rem 1rem;
+}
+
+.price-list-header.price-list-header--scrap,
+.price-item-row.price-item-row--scrap,
+.price-category-body--scrap .price-list-header,
+.price-category-body--scrap .price-item-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.price-list-header {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.85);
+  background: rgba(18, 10, 6, 0.9);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.08);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.price-list-items {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.price-item-row {
+  font-size: 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.15s ease;
+}
+
+.price-item-row:hover {
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.price-item-row:last-child {
+  border-bottom: none;
+}
+
+.price-item-price {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fbbf24;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.price-item-scrap {
+  text-align: center;
+  min-width: 2.5rem;
+}
+
+.price-toolbar {
+  position: sticky;
+  top: 4.5rem;
+  z-index: 30;
+}
+
+.price-chip {
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid rgba(251, 191, 36, 0.18);
+  background: rgba(10, 6, 4, 0.55);
+  color: rgba(254, 243, 199, 0.75);
+  transition: all 0.2s ease;
+}
+
+.price-chip:hover {
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fde68a;
+}
+
+.price-chip--active {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.12);
+}
+
+.price-legend-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.price-legend-dot--tax {
+  background: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+}
+
+.price-legend-dot--scrap {
+  background: #22d3ee;
+  box-shadow: 0 0 8px rgba(34, 211, 238, 0.45);
+}
+
+.price-category-desc {
+  font-size: 0.7rem;
+  color: rgba(148, 163, 184, 0.85);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.price-tax-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.35rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  background: rgba(245, 158, 11, 0.14);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+}
+
+.price-scrap-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.45rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  color: #67e8f9;
+}
+
+.price-item-name mark {
+  background: rgba(245, 158, 11, 0.28);
+  color: #fde68a;
+  border-radius: 0.2rem;
+  padding: 0 0.15rem;
+}
+
+.price-empty-state {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+@media (max-width: 640px) {
+  .price-toolbar {
+    top: 4rem;
+  }
+
+  .price-table-hide-mobile {
+    display: none;
+  }
+}
