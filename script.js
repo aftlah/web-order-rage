@@ -297,17 +297,11 @@ async function softDeleteById(tableName, id) {
   if (!supabase)
     return { ok: false, error: { message: "Supabase tidak terhubung" } };
   const now = new Date().toISOString();
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from(tableName)
     .update({ deleted_at: now })
-    .eq("id", id)
-    .select("id");
+    .eq("id", id);
   if (error) return { ok: false, error };
-  if (!data || !data.length)
-    return {
-      ok: false,
-      error: { message: "Tidak bisa menghapus (RLS/policy menolak)" },
-    };
   return { ok: true, error: null };
 }
 
@@ -318,17 +312,11 @@ async function softDeleteByIds(tableName, ids) {
   const clean = list.map((x) => String(x).trim()).filter(Boolean);
   if (!clean.length) return { ok: false, error: { message: "ID kosong" } };
   const now = new Date().toISOString();
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from(tableName)
     .update({ deleted_at: now })
-    .in("id", clean)
-    .select("id");
+    .in("id", clean);
   if (error) return { ok: false, error };
-  if (!data || !data.length)
-    return {
-      ok: false,
-      error: { message: "Tidak bisa menghapus (RLS/policy menolak)" },
-    };
   return { ok: true, error: null };
 }
 
@@ -476,7 +464,7 @@ function getNitipCuciWebhookUrl() {
   );
 }
 
-async function postToDiscordWithFile({ message, file, overrideUrl }) {
+async function postToDiscordWithFile({ message, file, embeds, overrideUrl }) {
   const url = overrideUrl || getNitipCuciWebhookUrl();
   const enabled = window.DISCORD_ENABLED !== false;
   if (!url || !enabled) return;
@@ -488,15 +476,59 @@ async function postToDiscordWithFile({ message, file, overrideUrl }) {
 
   if (file) {
     const form = new FormData();
-    form.append(
-      "payload_json",
-      JSON.stringify({ content: message || undefined }),
-    );
+    const payload = {};
+    if (message) payload.content = message;
+    if (embeds && embeds.length) payload.embeds = embeds;
+    form.append("payload_json", JSON.stringify(payload));
     form.append("files[0]", file, file.name || "bukti.png");
     await fetch(url, { method: "POST", body: form });
     return;
   }
+  if (embeds && embeds.length) {
+    await postToDiscordEmbed(embeds[0], url, message);
+    return;
+  }
   await postToDiscord(message, url);
+}
+
+function buildNitipCuciDiscordPayload({
+  nama,
+  uangMerah,
+  uangPutih,
+  keterangan,
+  periodeLabel,
+  waktu,
+  actor,
+}) {
+  const ts = waktu || new Date().toISOString();
+  const actorName = String(actor || "").trim();
+  const memberName = String(nama || "-").trim();
+  const lines = [
+    "NITIP CUCI UANG MERAH",
+    "",
+    `Nama       : ${memberName}`,
+    `Merah      : ${fmtIdMoney(uangMerah)}`,
+    `Putih      : ${fmtIdMoney(uangPutih)}`,
+    `Keterangan : ${keterangan || "Nitip cuci"}`,
+  ];
+  if (periodeLabel) lines.push(`Periode    : ${periodeLabel}`);
+  if (actorName && actorName.toLowerCase() !== memberName.toLowerCase()) {
+    lines.push(`Dicatat    : ${actorName}`);
+  }
+  lines.push(`Waktu      : ${fmtDateTime(ts)}`);
+
+  return {
+    content: "```\n" + lines.join("\n") + "\n```",
+    embeds: [],
+  };
+}
+
+function canDeleteNitipCuciRow(row, member) {
+  if (!row || !member) return false;
+  if (isAdminMember(member)) return true;
+  const mid = parseInt(String(member.id || ""), 10);
+  const rowMid = parseInt(String(row.member_id || ""), 10);
+  return !!(mid && rowMid && mid === rowMid);
 }
 
 async function postWeaponPaymentLog(payload) {
@@ -4443,18 +4475,22 @@ async function submitNitipCuci() {
       return;
     }
 
-    let msg = "```";
-    msg += `\nNITIP CUCI UANG MERAH`;
-    if (periodeLabel) msg += `\nPeriode : ${periodeLabel}`;
-    msg += `\nNama : ${nama}`;
-    msg += `\nJumlah Uang merah : ${fmtIdMoney(uangMerah)}`;
-    msg += `\nUang putih : ${fmtIdMoney(uangPutih)}`;
-    msg += `\nKeterangan : ${keterangan}`;
-    msg += `\nWaktu : ${fmtDateTime(now.toISOString())}`;
-    msg += "\n```";
+    const actor =
+      (currentMember && currentMember.nama) ||
+      (window.__currentMember && window.__currentMember.nama) ||
+      "";
+    const discordPayload = buildNitipCuciDiscordPayload({
+      nama,
+      uangMerah,
+      uangPutih,
+      keterangan,
+      periodeLabel,
+      waktu: now.toISOString(),
+      actor,
+    });
 
     await postToDiscordWithFile({
-      message: msg,
+      message: discordPayload.content,
       file: buktiFile,
     });
 
@@ -4587,12 +4623,18 @@ async function loadNitipCuciTable() {
       </div>`;
   }
 
+  const currentMember = window.__currentMember || null;
+
   body.innerHTML = rows
     .map((r) => {
       const waktu = r.waktu ? new Date(r.waktu).toLocaleString("id-ID") : "-";
       const bukti = r.image_url
         ? `<a href="${r.image_url}" target="_blank" rel="noopener" class="text-amber-400 hover:underline text-xs font-bold">Lihat</a>`
         : `<span class="text-stone-600">—</span>`;
+      const canDel = canDeleteNitipCuciRow(r, currentMember);
+      const delBtn = canDel
+        ? `<button type="button" class="px-3 py-1 rounded-lg bg-red-600/15 text-red-300 border border-red-600/30 text-[10px] font-bold uppercase hover:bg-red-600/25 transition" data-del-nitip-id="${r.id}">Hapus</button>`
+        : `<span class="text-stone-600 text-xs">—</span>`;
       return `<tr>
         <td class="px-4 py-3 font-semibold">${r.nama || "-"}</td>
         <td class="px-4 py-3 text-right font-mono text-red-300">${fmtIdMoney(r.uang_merah)}</td>
@@ -4600,9 +4642,106 @@ async function loadNitipCuciTable() {
         <td class="px-4 py-3 hidden md:table-cell text-stone-400 text-xs">${r.keterangan || "-"}</td>
         <td class="px-4 py-3 text-center">${bukti}</td>
         <td class="px-4 py-3 hidden sm:table-cell text-xs text-stone-500 whitespace-nowrap">${waktu}</td>
+        <td class="px-4 py-3 text-center">${delBtn}</td>
       </tr>`;
     })
     .join("");
+
+  body.querySelectorAll("[data-del-nitip-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = parseInt(btn.getAttribute("data-del-nitip-id") || "", 10);
+      if (!id) return;
+      const row = rows.find((r) => parseInt(String(r.id), 10) === id);
+      if (!row || !canDeleteNitipCuciRow(row, currentMember)) {
+        showAlert("Tidak bisa menghapus data ini", "error");
+        return;
+      }
+      await deleteNitipCuciRow(row);
+    });
+  });
+}
+
+async function deleteNitipCuciRow(row) {
+  if (!supabase || !row || !row.id) return;
+  const currentMember = window.__currentMember || null;
+  if (!canDeleteNitipCuciRow(row, currentMember)) {
+    showAlert("Tidak bisa menghapus data ini", "error");
+    return;
+  }
+
+  const result = await Swal.fire({
+    title: "Hapus nitip cuci ini?",
+    html: `<p class="text-sm text-stone-300">Nama: <strong>${row.nama || "-"}</strong><br>Merah: <strong>${fmtIdMoney(row.uang_merah)}</strong></p>`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#dc2626",
+    cancelButtonColor: "#57534e",
+    confirmButtonText: "Ya, hapus",
+    cancelButtonText: "Batal",
+    background: "#1f1410",
+    color: "#fef3c7",
+  });
+  if (!result.isConfirmed) return;
+
+  if (isAdminMember(currentMember)) {
+    const pinOk = await confirmDeletePin();
+    if (!pinOk) return;
+  }
+
+  try {
+    let ok = false;
+    let error = null;
+
+    const { data: rpcOk, error: rpcErr } = await supabase.rpc(
+      "soft_delete_nitip_cuci",
+      { p_id: row.id },
+    );
+    if (!rpcErr) {
+      ok = rpcOk === true;
+      if (!ok) {
+        error = { message: "Data tidak ditemukan atau sudah dihapus" };
+      }
+    } else if (
+      String(rpcErr.message || "").includes("soft_delete_nitip_cuci") ||
+      String(rpcErr.code || "") === "PGRST202"
+    ) {
+      const res = await softDeleteById("nitip_cuci_logs", row.id);
+      ok = res.ok;
+      error = res.error;
+    } else {
+      error = rpcErr;
+    }
+
+    if (!ok) {
+      if (isMissingColumnError(error, "deleted_at")) {
+        showAlert(
+          `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+            "nitip_cuci_logs",
+          )}`,
+          "error",
+        );
+        return;
+      }
+      const msg = String((error && error.message) || "");
+      if (msg.toLowerCase().includes("not allowed")) {
+        showAlert("Tidak bisa menghapus data orang lain", "error");
+        return;
+      }
+      if (msg.toLowerCase().includes("row-level security")) {
+        showAlert(
+          "Gagal menghapus (RLS). Jalankan file supabase/migrations/20260617_nitip_cuci_rls_soft_delete.sql di Supabase SQL Editor.",
+          "error",
+        );
+        return;
+      }
+      showAlert(`Gagal menghapus: ${msg || "Unknown error"}`, "error");
+      return;
+    }
+    showAlert("Nitip cuci dihapus", "success");
+    await loadNitipCuciTable();
+  } catch (e) {
+    showAlert("Gagal menghapus (network)", "error");
+  }
 }
 
 function setStoranFormMode(isEditing) {
