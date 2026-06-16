@@ -1046,7 +1046,6 @@ function ensureProfileNavLinks(member) {
   const path = String(location.pathname || "").toLowerCase();
   const items = [
     { href: "profile.html", label: "Profile", isVisible: true },
-    { href: "prices.html", label: "Cek Harga", isVisible: true },
     { href: "admin_users.html", label: "Users", isVisible: isAdmin },
     { href: "admin_activity.html", label: "Monitor", isVisible: isAdmin },
     { href: "admin_catalog.html", label: "Katalog", isVisible: isAdmin },
