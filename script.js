@@ -34,9 +34,11 @@ function escapeHtml(value) {
 }
 
 function validatePasswordStrength(pw) {
-  if (__rageSec && __rageSec.validatePassword) return __rageSec.validatePassword(pw);
+  if (__rageSec && __rageSec.validatePassword)
+    return __rageSec.validatePassword(pw);
   const s = String(pw || "");
-  if (s.length < 6) return { ok: false, message: "Password minimal 6 karakter" };
+  if (s.length < 6)
+    return { ok: false, message: "Password minimal 6 karakter" };
   return { ok: true, message: "" };
 }
 
@@ -75,7 +77,7 @@ let CATALOG = {
     { name: "Extended Pistol Clip", price: 4000, scrap: 5 },
     { name: "Extended SMG Clip", price: 7000, scrap: 5 },
     { name: "Extended Rifle Clip", price: 20000, scrap: 5 },
-    // { name: "SMG Drum", price: 13000, scrap: 5 }, // 
+    // { name: "SMG Drum", price: 13000, scrap: 5 }, //
     { name: "Rifle Drum", price: 26000, scrap: 5 },
     { name: "Macro Scope", price: 4000, scrap: 5 },
     { name: "Medium Scope", price: 4000, scrap: 5 },
@@ -134,7 +136,9 @@ function getEffectivePrice(kategori, basePrice) {
 }
 function getMicroFullAttachmentBundlePrice() {
   return MICRO_FULL_ATTACHMENT_COMPONENTS.reduce((sum, entry) => {
-    const found = (CATALOG[entry.kategori] || []).find((i) => i.name === entry.name);
+    const found = (CATALOG[entry.kategori] || []).find(
+      (i) => i.name === entry.name,
+    );
     if (!found) return sum;
     return sum + getEffectivePrice(entry.kategori, found.price);
   }, 0);
@@ -184,28 +188,28 @@ const ITEM_MAX_LIMITS = {
 
 function getItemMax(name) {
   const n = name || "";
-  
+
   // Cari di semua kategori di CATALOG
   for (const kategori in CATALOG) {
     const items = CATALOG[kategori];
     if (!Array.isArray(items)) continue;
-    
+
     const item = items.find((i) => {
       const itemName = i.name || "";
       return itemName.toLowerCase() === n.toLowerCase();
     });
-    
+
     if (item && item.max_limit) {
       return item.max_limit;
     }
   }
-  
+
   // Fallback ke ITEM_MAX_LIMITS jika tidak ada di database
   if (Object.prototype.hasOwnProperty.call(ITEM_MAX_LIMITS, n))
     return ITEM_MAX_LIMITS[n];
   const upper = n.toUpperCase();
   const found = Object.keys(ITEM_MAX_LIMITS).find(
-    (k) => k.toUpperCase() === upper
+    (k) => k.toUpperCase() === upper,
   );
   return typeof found === "string" ? ITEM_MAX_LIMITS[found] : null;
 }
@@ -277,7 +281,10 @@ function isMissingColumnError(err, columnName) {
   const msg = String((err && err.message) || "").toLowerCase();
   const col = String(columnName || "").toLowerCase();
   if (!msg || !col) return false;
-  return msg.includes(col) && (msg.includes("column") || msg.includes("does not exist"));
+  return (
+    msg.includes(col) &&
+    (msg.includes("column") || msg.includes("does not exist"))
+  );
 }
 
 function getSoftDeleteSql(tableName) {
@@ -287,7 +294,8 @@ function getSoftDeleteSql(tableName) {
 }
 
 async function softDeleteById(tableName, id) {
-  if (!supabase) return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  if (!supabase)
+    return { ok: false, error: { message: "Supabase tidak terhubung" } };
   const now = new Date().toISOString();
   const { data, error } = await supabase
     .from(tableName)
@@ -296,12 +304,16 @@ async function softDeleteById(tableName, id) {
     .select("id");
   if (error) return { ok: false, error };
   if (!data || !data.length)
-    return { ok: false, error: { message: "Tidak bisa menghapus (RLS/policy menolak)" } };
+    return {
+      ok: false,
+      error: { message: "Tidak bisa menghapus (RLS/policy menolak)" },
+    };
   return { ok: true, error: null };
 }
 
 async function softDeleteByIds(tableName, ids) {
-  if (!supabase) return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  if (!supabase)
+    return { ok: false, error: { message: "Supabase tidak terhubung" } };
   const list = Array.isArray(ids) ? ids : [ids];
   const clean = list.map((x) => String(x).trim()).filter(Boolean);
   if (!clean.length) return { ok: false, error: { message: "ID kosong" } };
@@ -313,12 +325,16 @@ async function softDeleteByIds(tableName, ids) {
     .select("id");
   if (error) return { ok: false, error };
   if (!data || !data.length)
-    return { ok: false, error: { message: "Tidak bisa menghapus (RLS/policy menolak)" } };
+    return {
+      ok: false,
+      error: { message: "Tidak bisa menghapus (RLS/policy menolak)" },
+    };
   return { ok: true, error: null };
 }
 
 async function softDeleteByMemberId(tableName, memberId) {
-  if (!supabase) return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  if (!supabase)
+    return { ok: false, error: { message: "Supabase tidak terhubung" } };
   const id = parseInt(String(memberId || ""), 10);
   if (!id) return { ok: false, error: { message: "ID member tidak valid" } };
   const now = new Date().toISOString();
@@ -331,7 +347,8 @@ async function softDeleteByMemberId(tableName, memberId) {
 }
 
 async function restoreSoftDeletedById(tableName, id) {
-  if (!supabase) return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  if (!supabase)
+    return { ok: false, error: { message: "Supabase tidak terhubung" } };
   const { data, error } = await supabase
     .from(tableName)
     .update({ deleted_at: null })
@@ -339,14 +356,20 @@ async function restoreSoftDeletedById(tableName, id) {
     .select("id");
   if (error) return { ok: false, error };
   if (!data || !data.length)
-    return { ok: false, error: { message: "Tidak bisa memulihkan data (RLS/policy menolak)" } };
+    return {
+      ok: false,
+      error: { message: "Tidak bisa memulihkan data (RLS/policy menolak)" },
+    };
   return { ok: true, error: null };
 }
 
 // Delete rows that have been in the archive for more than 3 days
 async function purgeOldArchives(tableName) {
-  if (!supabase) return { ok: false, error: { message: "Supabase tidak terhubung" } };
-  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+  if (!supabase)
+    return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  const threeDaysAgo = new Date(
+    Date.now() - 3 * 24 * 60 * 60 * 1000,
+  ).toISOString();
   const { data, error } = await supabase
     .from(tableName)
     .delete()
@@ -467,7 +490,7 @@ async function postToDiscordWithFile({ message, file, overrideUrl }) {
     const form = new FormData();
     form.append(
       "payload_json",
-      JSON.stringify({ content: message || undefined })
+      JSON.stringify({ content: message || undefined }),
     );
     form.append("files[0]", file, file.name || "bukti.png");
     await fetch(url, { method: "POST", body: form });
@@ -535,7 +558,7 @@ function saveStoredDashboard(data) {
   try {
     localStorage.setItem(
       DASH_CACHE_KEY,
-      JSON.stringify({ ts: Date.now(), data })
+      JSON.stringify({ ts: Date.now(), data }),
     );
   } catch (e) {}
 }
@@ -631,7 +654,7 @@ function setupDashNameSearch() {
           (n, i) =>
             `<div class=\"px-3 py-2 cursor-pointer ${
               i === active ? "bg-yellow-900/30" : ""
-            }\" data-name=\"${n}\">${n}</div>`
+            }\" data-name=\"${n}\">${n}</div>`,
         )
         .join("");
     dd.classList.toggle("hidden", items.length === 0 && !q);
@@ -641,7 +664,7 @@ function setupDashNameSearch() {
         input.value = v;
         dd.classList.add("hidden");
         loadDashboard(false);
-      })
+      }),
     );
   };
   input.addEventListener("input", (e) => render(e.target.value.trim()));
@@ -664,11 +687,11 @@ function setupDashNameSearch() {
       dd.classList.add("hidden");
     }
     items.forEach((el, i) =>
-      el.classList.toggle("bg-yellow-900/30", i === active)
+      el.classList.toggle("bg-yellow-900/30", i === active),
     );
   });
   input.addEventListener("blur", () =>
-    setTimeout(() => dd.classList.add("hidden"), 150)
+    setTimeout(() => dd.classList.add("hidden"), 150),
   );
 }
 
@@ -689,7 +712,7 @@ function fmtIdMoney(n) {
   const v = typeof n === "number" ? n : parseFloat(n || "0");
   const safe = Number.isFinite(v) ? v : 0;
   return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(
-    safe
+    safe,
   );
 }
 
@@ -883,14 +906,16 @@ async function showLinkMemberHelpModal() {
     const lines = [];
     if (email)
       lines.push(
-        `<div class="text-xs text-slate-500 dark:text-slate-400">Email</div><div class="font-mono text-sm break-all">${escapeHtml(email)}</div>`
+        `<div class="text-xs text-slate-500 dark:text-slate-400">Email</div><div class="font-mono text-sm break-all">${escapeHtml(email)}</div>`,
       );
     if (uid)
       lines.push(
-        `<div class="mt-3 text-xs text-slate-500 dark:text-slate-400">User ID</div><div class="font-mono text-sm break-all">${escapeHtml(uid)}</div>`
+        `<div class="mt-3 text-xs text-slate-500 dark:text-slate-400">User ID</div><div class="font-mono text-sm break-all">${escapeHtml(uid)}</div>`,
       );
     if (err)
-      lines.push(`<div class="mt-3 text-xs text-red-500">Info: ${escapeHtml(err)}</div>`);
+      lines.push(
+        `<div class="mt-3 text-xs text-red-500">Info: ${escapeHtml(err)}</div>`,
+      );
 
     const html =
       `<div class="text-left">` +
@@ -966,7 +991,7 @@ async function showLinkMemberHelpModal() {
       if (!matches.length) {
         showAlert(
           "Member tidak ditemukan. Pastikan nama sama persis di database.",
-          "error"
+          "error",
         );
         return;
       }
@@ -1107,7 +1132,7 @@ function ensureProfileNavLinks(member) {
   ].filter((x) => x.isVisible);
 
   const isActive = items.some((it) =>
-    path.endsWith("/" + it.href.toLowerCase())
+    path.endsWith("/" + it.href.toLowerCase()),
   );
 
   const desktopNav = document.getElementById("mainNav");
@@ -1118,7 +1143,7 @@ function ensureProfileNavLinks(member) {
       .forEach((a) => a.remove());
     desktopNav
       .querySelectorAll(
-        'a[href="admin_users.html"], a[href="admin_activity.html"]'
+        'a[href="admin_users.html"], a[href="admin_activity.html"]',
       )
       .forEach((a) => a.classList.add("hidden"));
     const oldAdmin = desktopNav.querySelector("#adminNavDropdown");
@@ -1183,7 +1208,7 @@ function ensureProfileNavLinks(member) {
               if (b)
                 b.classList.toggle(
                   "nav-active",
-                  dd.classList.contains("nav-dropdown-active-page")
+                  dd.classList.contains("nav-dropdown-active-page"),
                 );
             }
           });
@@ -1196,7 +1221,7 @@ function ensureProfileNavLinks(member) {
             if (b)
               b.classList.toggle(
                 "nav-active",
-                dd.classList.contains("nav-dropdown-active-page")
+                dd.classList.contains("nav-dropdown-active-page"),
               );
           });
         });
@@ -1214,7 +1239,7 @@ function ensureProfileNavLinks(member) {
       .forEach((a) => a.remove());
     mobileContainer
       .querySelectorAll(
-        'a[href="admin_users.html"], a[href="admin_activity.html"]'
+        'a[href="admin_users.html"], a[href="admin_activity.html"]',
       )
       .forEach((a) => a.classList.add("hidden"));
 
@@ -1329,7 +1354,7 @@ async function supabaseAdminUpdateUser(targetAuthUserId, updatePayload) {
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify(updatePayload || {}),
-    }
+    },
   );
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -1455,13 +1480,13 @@ function getUsernameFromEmail(email) {
 
 function getPrimaryAuthEmailDomain() {
   return String(
-    (window && window.AUTH_EMAIL_DOMAIN) || "rage.example.com"
+    (window && window.AUTH_EMAIL_DOMAIN) || "rage.example.com",
   ).trim();
 }
 
 function getLegacyAuthEmailDomain() {
   return String(
-    (window && window.LEGACY_AUTH_EMAIL_DOMAIN) || "rage.local"
+    (window && window.LEGACY_AUTH_EMAIL_DOMAIN) || "rage.local",
   ).trim();
 }
 
@@ -1583,7 +1608,7 @@ async function initAdminUsersPage() {
   const resetUsernameBtn = document.getElementById("adminResetUsernameAuto");
   const adminNewPasswordEl = document.getElementById("adminNewPassword");
   const adminConfirmPasswordEl = document.getElementById(
-    "adminConfirmPassword"
+    "adminConfirmPassword",
   );
   const setPwBtn = document.getElementById("adminSetPasswordDirect");
 
@@ -1684,7 +1709,7 @@ async function initAdminUsersPage() {
     const { data, error } = await supabase
       .from("account_audit_logs")
       .select(
-        "created_at,action,actor_auth_user_id,target_auth_user_id,target_member_id"
+        "created_at,action,actor_auth_user_id,target_auth_user_id,target_member_id",
       )
       .order("created_at", { ascending: false })
       .limit(50);
@@ -1723,7 +1748,7 @@ async function initAdminUsersPage() {
         return;
       }
       const username = normalizeUsernameInput(
-        (newUsernameEl || {}).value || ""
+        (newUsernameEl || {}).value || "",
       );
       if (!username || username.length < 3) {
         showAlert("Username minimal 3 karakter", "error");
@@ -1740,7 +1765,7 @@ async function initAdminUsersPage() {
       try {
         const { error: authErr } = await supabaseAdminUpdateUser(
           String(selected.auth_user_id),
-          { email: nextEmail, email_confirm: true }
+          { email: nextEmail, email_confirm: true },
         );
         if (authErr) {
           showAlert("Gagal ubah email login: " + authErr.message, "error");
@@ -1817,7 +1842,7 @@ async function initAdminUsersPage() {
       try {
         const { error } = await supabaseAdminUpdateUser(
           String(selected.auth_user_id),
-          { password: pw1 }
+          { password: pw1 },
         );
         if (error) {
           showAlert("Gagal: " + error.message, "error");
@@ -1873,7 +1898,7 @@ async function initAdminActivityPage() {
     headEl.innerHTML = headCells
       .map(
         (h) =>
-          `<th class="px-3 py-3 text-left text-[10px] uppercase tracking-wider">${h}</th>`
+          `<th class="px-3 py-3 text-left text-[10px] uppercase tracking-wider">${h}</th>`,
       )
       .join("");
     bodyEl.innerHTML =
@@ -1914,8 +1939,8 @@ async function initAdminActivityPage() {
       new Set(
         (rows || [])
           .map((r) => Number(r.member_id))
-          .filter((v) => Number.isFinite(v) && v > 0)
-      )
+          .filter((v) => Number.isFinite(v) && v > 0),
+      ),
     );
     if (memberIds.length) {
       const { data, error } = await supabase
@@ -1924,7 +1949,8 @@ async function initAdminActivityPage() {
         .in("id", memberIds);
       if (!error && Array.isArray(data)) {
         data.forEach((m) => {
-          if (m && m.id != null) byMemberId.set(String(m.id), String(m.nama || "-"));
+          if (m && m.id != null)
+            byMemberId.set(String(m.id), String(m.nama || "-"));
           if (m && m.auth_user_id)
             byAuthId.set(String(m.auth_user_id), String(m.nama || "-"));
         });
@@ -1935,8 +1961,8 @@ async function initAdminActivityPage() {
       new Set(
         (rows || [])
           .map((r) => String(r.auth_user_id || ""))
-          .filter((v) => v && !byAuthId.has(v))
-      )
+          .filter((v) => v && !byAuthId.has(v)),
+      ),
     );
     if (unresolvedAuthIds.length) {
       const { data, error } = await supabase
@@ -1954,9 +1980,11 @@ async function initAdminActivityPage() {
     }
 
     return (r) => {
-      const memberName = r && r.member_id != null ? byMemberId.get(String(r.member_id)) : null;
+      const memberName =
+        r && r.member_id != null ? byMemberId.get(String(r.member_id)) : null;
       if (memberName) return memberName;
-      const authName = r && r.auth_user_id ? byAuthId.get(String(r.auth_user_id)) : null;
+      const authName =
+        r && r.auth_user_id ? byAuthId.get(String(r.auth_user_id)) : null;
       if (authName) return authName;
       return "-";
     };
@@ -1993,7 +2021,7 @@ async function initAdminActivityPage() {
       const { data, error } = await supabase
         .from("user_login_sessions")
         .select(
-          "auth_user_id,member_id,device_id,login_time,last_seen_at,logout_time,user_agent"
+          "auth_user_id,member_id,device_id,login_time,last_seen_at,logout_time,user_agent",
         )
         .order("last_seen_at", { ascending: false })
         .limit(80);
@@ -2001,7 +2029,7 @@ async function initAdminActivityPage() {
         if (paginationEl) paginationEl.innerHTML = "";
         render(
           ["Waktu", "Nama User", "Auth UID", "Member", "Device", "Status"],
-          `<tr><td colspan="6" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`
+          `<tr><td colspan="6" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`,
         );
         return;
       }
@@ -2032,7 +2060,7 @@ async function initAdminActivityPage() {
   <td class="px-3 py-3 text-xs ${active ? "text-green-500" : "text-slate-400"}">${active ? "ACTIVE" : r.logout_time ? "LOGOUT" : "IDLE"}</td>
 </tr>`;
           })
-          .join("")
+          .join(""),
       );
       renderPagination(rows.length, load);
       await refreshActiveCount();
@@ -2043,7 +2071,7 @@ async function initAdminActivityPage() {
       const { data, error } = await supabase
         .from("page_access_logs")
         .select(
-          "auth_user_id,member_id,device_id,page_url,access_time,duration_ms"
+          "auth_user_id,member_id,device_id,page_url,access_time,duration_ms",
         )
         .order("access_time", { ascending: false })
         .limit(120);
@@ -2051,7 +2079,7 @@ async function initAdminActivityPage() {
         if (paginationEl) paginationEl.innerHTML = "";
         render(
           ["Waktu", "Nama User", "Auth UID", "Halaman", "Durasi"],
-          `<tr><td colspan="5" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`
+          `<tr><td colspan="5" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`,
         );
         return;
       }
@@ -2080,7 +2108,7 @@ async function initAdminActivityPage() {
   <td class="px-3 py-3 text-xs text-slate-600 dark:text-amber-200/80 whitespace-nowrap">${d}</td>
 </tr>`;
           })
-          .join("")
+          .join(""),
       );
       renderPagination(rows.length, load);
       await refreshActiveCount();
@@ -2096,7 +2124,7 @@ async function initAdminActivityPage() {
       if (paginationEl) paginationEl.innerHTML = "";
       render(
         ["Waktu", "Username", "Reason"],
-        `<tr><td colspan="3" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`
+        `<tr><td colspan="3" class="px-3 py-8 text-center text-red-400">${error.message}</td></tr>`,
       );
       return;
     }
@@ -2117,7 +2145,7 @@ async function initAdminActivityPage() {
   <td class="px-3 py-3 text-xs text-slate-600 dark:text-amber-200/80 break-all">${String(r.failure_reason || "-")}</td>
 </tr>`;
         })
-        .join("")
+        .join(""),
     );
     renderPagination(rows.length, load);
     await refreshActiveCount();
@@ -2212,7 +2240,7 @@ async function initAdminCatalogPage() {
           missing.map((m) => {
             const { max_limit, ...rest } = m;
             return rest;
-          })
+          }),
         );
       }
     } catch (e) {}
@@ -2318,17 +2346,17 @@ async function initAdminCatalogPage() {
                     .map((it) => {
                       let displayPrice = it.price;
                       let afterTax = getEffectivePrice(cat, displayPrice);
-                      
+
                       if (it.name === MICRO_FULL_ATTACHMENT_BUNDLE_NAME) {
                         afterTax = getMicroFullAttachmentBundlePrice();
                         displayPrice = Math.round(afterTax / 1.1);
                       }
-                      
+
                       return `
                     <tr class="hover:bg-amber-500/5 transition-colors group">
                       <td class="px-6 py-4">
                         <div class="font-bold text-amber-50/90 flex items-center gap-2">
-                          <div class="w-1.5 h-1.5 rounded-full ${it.is_active ? 'bg-amber-500/80' : 'bg-slate-600'}"></div>
+                          <div class="w-1.5 h-1.5 rounded-full ${it.is_active ? "bg-amber-500/80" : "bg-slate-600"}"></div>
                           ${it.name}
                         </div>
                         ${it.metadata?.note ? `<div class="text-[10px] text-amber-500/50 mt-1.5 ml-3.5 font-medium tracking-wide"><span class="px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">${it.metadata.note}</span></div>` : ""}
@@ -2342,17 +2370,21 @@ async function initAdminCatalogPage() {
                       <td class="px-6 py-4 font-mono text-amber-400 font-bold text-xs bg-amber-500/5 group-hover:bg-transparent transition-colors">${fmt(afterTax)}</td>
                       <td class="px-6 py-4">
                         <div class="flex items-center gap-1.5 font-mono text-slate-400 text-xs">
-                          ${it.scrap ? `
+                          ${
+                            it.scrap
+                              ? `
                           <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-amber-500/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                           </svg>
                           ${it.scrap}
-                          ` : '<span class="text-slate-600">-</span>'}
+                          `
+                              : '<span class="text-slate-600">-</span>'
+                          }
                         </div>
                       </td>
                       <td class="px-6 py-4">
                         <span class="inline-flex items-center px-2 py-1 rounded text-[10px] font-bold bg-[#1a1410] border border-white/5 text-amber-400">
-                          ${it.max_limit ? fmtNumber(it.max_limit) : '-'}
+                          ${it.max_limit ? fmtNumber(it.max_limit) : "-"}
                         </span>
                       </td>
                       <td class="px-6 py-4 text-center">
@@ -2367,7 +2399,7 @@ async function initAdminCatalogPage() {
                               <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                             </svg>
                           </button>
-                          <button class="p-2 rounded-xl border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg ${it.is_active ? "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white hover:shadow-[0_0_10px_rgba(239,68,68,0.2)]" : "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500 hover:text-white hover:shadow-[0_0_10px_rgba(34,197,94,0.2)]"} toggle-item" data-id="${it.id}" data-active="${it.is_active}" title="${it.is_active ? 'Nonaktifkan' : 'Aktifkan'}">
+                          <button class="p-2 rounded-xl border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg ${it.is_active ? "bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white hover:shadow-[0_0_10px_rgba(239,68,68,0.2)]" : "bg-green-500/10 border-green-500/20 text-green-400 hover:bg-green-500 hover:text-white hover:shadow-[0_0_10px_rgba(34,197,94,0.2)]"} toggle-item" data-id="${it.id}" data-active="${it.is_active}" title="${it.is_active ? "Nonaktifkan" : "Aktifkan"}">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
                               <path stroke-linecap="round" stroke-linejoin="round" d="M5.636 5.636a9 9 0 1 0 12.728 0M12 3v9" />
                             </svg>
@@ -2390,7 +2422,7 @@ async function initAdminCatalogPage() {
           const card = header.closest(".glass-card");
           const content = card.querySelector(".category-content");
           const icon = card.querySelector(".category-toggle-icon");
-          
+
           content.classList.toggle("hidden");
           icon.classList.toggle("rotate-180");
         });
@@ -2415,7 +2447,10 @@ async function initAdminCatalogPage() {
             .eq("id", id);
           if (error) showAlert(error.message, "error");
           else {
-            showAlert(`Item ${!cur ? "diaktifkan" : "dinonaktifkan"}`, "success");
+            showAlert(
+              `Item ${!cur ? "diaktifkan" : "dinonaktifkan"}`,
+              "success",
+            );
             load();
           }
         });
@@ -2446,7 +2481,8 @@ async function initAdminCatalogPage() {
           document.getElementById("modalPrice").value = item.price;
           document.getElementById("modalScrap").value = item.scrap || "";
           document.getElementById("modalMaxLimit").value = item.max_limit || "";
-          document.getElementById("modalNote").value = item.metadata?.note || "";
+          document.getElementById("modalNote").value =
+            item.metadata?.note || "";
         }
       },
       preConfirm: () => {
@@ -2458,7 +2494,10 @@ async function initAdminCatalogPage() {
         return {
           kategori: document.getElementById("modalKategori").value,
           name: document.getElementById("modalName").value.trim(),
-          price: parseInt(document.getElementById("modalPrice").value || "0", 10),
+          price: parseInt(
+            document.getElementById("modalPrice").value || "0",
+            10,
+          ),
           scrap: document.getElementById("modalScrap").value
             ? parseFloat(document.getElementById("modalScrap").value)
             : null,
@@ -2531,7 +2570,7 @@ async function initPriceListPage() {
     const safe = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return String(text || "").replace(
       new RegExp(`(${safe})`, "ig"),
-      "<mark>$1</mark>"
+      "<mark>$1</mark>",
     );
   };
 
@@ -2541,7 +2580,12 @@ async function initPriceListPage() {
       const categoryDisplay = getCategoryDisplay(item.kategori);
       if (activeCategory !== "ALL" && categoryDisplay !== activeCategory)
         return false;
-      if (query && !String(item.name || "").toLowerCase().includes(query))
+      if (
+        query &&
+        !String(item.name || "")
+          .toLowerCase()
+          .includes(query)
+      )
         return false;
       return true;
     });
@@ -2554,7 +2598,12 @@ async function initPriceListPage() {
       catalogRows.filter((item) => {
         if (cat !== "ALL" && getCategoryDisplay(item.kategori) !== cat)
           return false;
-        if (query && !String(item.name || "").toLowerCase().includes(query))
+        if (
+          query &&
+          !String(item.name || "")
+            .toLowerCase()
+            .includes(query)
+        )
           return false;
         return true;
       }).length;
@@ -2562,7 +2611,7 @@ async function initPriceListPage() {
     const tabs = [
       { id: "ALL", label: "Semua", count: countFor("ALL") },
       ...PRICE_CATEGORY_ORDER.filter((cat) =>
-        catalogRows.some((item) => getCategoryDisplay(item.kategori) === cat)
+        catalogRows.some((item) => getCategoryDisplay(item.kategori) === cat),
       ).map((cat) => ({ id: cat, label: cat, count: countFor(cat) })),
     ];
 
@@ -2578,7 +2627,7 @@ async function initPriceListPage() {
       >
         ${tab.label}
         <span class="price-tab-count">${tab.count}</span>
-      </button>`
+      </button>`,
       )
       .join("");
 
@@ -2652,7 +2701,7 @@ async function initPriceListPage() {
     if (activeCategory === "ALL") {
       PRICE_CATEGORY_ORDER.forEach((cat) => {
         const items = filtered.filter(
-          (item) => getCategoryDisplay(item.kategori) === cat
+          (item) => getCategoryDisplay(item.kategori) === cat,
         );
         if (!items.length) return;
         bodyHtml += `
@@ -2743,13 +2792,13 @@ async function initAdminArchivePage() {
     orders: [],
     members: [],
     drugs_sales: [],
-    rage_cash_logs: []
+    rage_cash_logs: [],
   };
 
   const setTabActive = (tabName) => {
     currentTab = tabName;
     if (tabContainer) {
-      tabContainer.querySelectorAll("[data-tab]").forEach(btn => {
+      tabContainer.querySelectorAll("[data-tab]").forEach((btn) => {
         const isCurrent = btn.getAttribute("data-tab") === tabName;
         btn.classList.toggle("bg-amber-600", isCurrent);
         btn.classList.toggle("text-[#1a1410]", isCurrent);
@@ -2762,7 +2811,7 @@ async function initAdminArchivePage() {
   };
 
   if (tabContainer) {
-    tabContainer.querySelectorAll("[data-tab]").forEach(btn => {
+    tabContainer.querySelectorAll("[data-tab]").forEach((btn) => {
       btn.addEventListener("click", () => {
         setTabActive(btn.getAttribute("data-tab"));
       });
@@ -2793,16 +2842,37 @@ async function initAdminArchivePage() {
         { data: delOrders, error: errOrders },
         { data: delMembers, error: errMembers },
         { data: delDrugs, error: errDrugs },
-        { data: delCash, error: errCash }
+        { data: delCash, error: errCash },
       ] = await Promise.all([
-        supabase.from("orders").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
-        supabase.from("members").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
-        supabase.from("drugs_sales").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false }),
-        supabase.from("rage_cash_logs").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false })
+        supabase
+          .from("orders")
+          .select("*")
+          .not("deleted_at", "is", null)
+          .order("deleted_at", { ascending: false }),
+        supabase
+          .from("members")
+          .select("*")
+          .not("deleted_at", "is", null)
+          .order("deleted_at", { ascending: false }),
+        supabase
+          .from("drugs_sales")
+          .select("*")
+          .not("deleted_at", "is", null)
+          .order("deleted_at", { ascending: false }),
+        supabase
+          .from("rage_cash_logs")
+          .select("*")
+          .not("deleted_at", "is", null)
+          .order("deleted_at", { ascending: false }),
       ]);
 
       if (errOrders || errMembers || errDrugs || errCash) {
-        console.error("Gagal memuat arsip:", { errOrders, errMembers, errDrugs, errCash });
+        console.error("Gagal memuat arsip:", {
+          errOrders,
+          errMembers,
+          errDrugs,
+          errCash,
+        });
         body.innerHTML = `<tr><td colspan="10" class="px-4 py-8 text-center text-red-400">Gagal memuat beberapa data dari Supabase. Pastikan RLS / kebijakan mengizinkan.</td></tr>`;
         return;
       }
@@ -2823,32 +2893,58 @@ async function initAdminArchivePage() {
     const list = archiveData[currentTab] || [];
     const search = searchInput ? searchInput.value.trim().toLowerCase() : "";
 
-    const filtered = list.filter(r => {
+    const filtered = list.filter((r) => {
       if (!search) return true;
       if (currentTab === "orders") {
         return (
-          String(r.item || "").toLowerCase().includes(search) ||
-          String(r.nama || "").toLowerCase().includes(search) ||
-          String(r.orderanke || "").toLowerCase().includes(search) ||
-          String(r.kategori || "").toLowerCase().includes(search)
+          String(r.item || "")
+            .toLowerCase()
+            .includes(search) ||
+          String(r.nama || "")
+            .toLowerCase()
+            .includes(search) ||
+          String(r.orderanke || "")
+            .toLowerCase()
+            .includes(search) ||
+          String(r.kategori || "")
+            .toLowerCase()
+            .includes(search)
         );
       } else if (currentTab === "members") {
         return (
-          String(r.nama || "").toLowerCase().includes(search) ||
-          String(r.role || "").toLowerCase().includes(search) ||
-          String(r.email || "").toLowerCase().includes(search)
+          String(r.nama || "")
+            .toLowerCase()
+            .includes(search) ||
+          String(r.role || "")
+            .toLowerCase()
+            .includes(search) ||
+          String(r.email || "")
+            .toLowerCase()
+            .includes(search)
         );
       } else if (currentTab === "drugs_sales") {
         return (
-          String(r.nama || "").toLowerCase().includes(search) ||
-          String(r.jenis || "").toLowerCase().includes(search) ||
-          String(r.periode_orderanke || "").toLowerCase().includes(search)
+          String(r.nama || "")
+            .toLowerCase()
+            .includes(search) ||
+          String(r.jenis || "")
+            .toLowerCase()
+            .includes(search) ||
+          String(r.periode_orderanke || "")
+            .toLowerCase()
+            .includes(search)
         );
       } else if (currentTab === "rage_cash_logs") {
         return (
-          String(r.category || "").toLowerCase().includes(search) ||
-          String(r.type || "").toLowerCase().includes(search) ||
-          String(r.note || "").toLowerCase().includes(search)
+          String(r.category || "")
+            .toLowerCase()
+            .includes(search) ||
+          String(r.type || "")
+            .toLowerCase()
+            .includes(search) ||
+          String(r.note || "")
+            .toLowerCase()
+            .includes(search)
         );
       }
       return false;
@@ -2914,17 +3010,18 @@ async function initAdminArchivePage() {
 
     empty.classList.add("hidden");
 
-    body.innerHTML = filtered.map((r, idx) => {
-      const delTime = r.deleted_at ? fmtDateTime(r.deleted_at) : "-";
-      const bg = idx % 2 === 0 ? "bg-transparent" : "bg-amber-500/5";
+    body.innerHTML = filtered
+      .map((r, idx) => {
+        const delTime = r.deleted_at ? fmtDateTime(r.deleted_at) : "-";
+        const bg = idx % 2 === 0 ? "bg-transparent" : "bg-amber-500/5";
 
-      if (currentTab === "orders") {
-        const orderTime = r.waktu ? fmtDateTime(r.waktu) : "-";
-        const v = parseInt(r.orderanke || 0, 10);
-        const m = Math.floor(v / 10);
-        const w = v % 10;
-        const oNo = v ? `M${m}-W${w} (#${v})` : "-";
-        return `
+        if (currentTab === "orders") {
+          const orderTime = r.waktu ? fmtDateTime(r.waktu) : "-";
+          const v = parseInt(r.orderanke || 0, 10);
+          const m = Math.floor(v / 10);
+          const w = v % 10;
+          const oNo = v ? `M${m}-W${w} (#${v})` : "-";
+          return `
           <tr class="transition-colors border-b border-amber-500/5 hover:bg-amber-900/10 ${bg}">
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-stone-400">${orderTime}</td>
             <td class="px-5 py-3.5 whitespace-nowrap font-mono text-xs font-bold text-amber-500">${oNo}</td>
@@ -2943,8 +3040,8 @@ async function initAdminArchivePage() {
             </td>
           </tr>
         `;
-      } else if (currentTab === "members") {
-        return `
+        } else if (currentTab === "members") {
+          return `
           <tr class="transition-colors border-b border-amber-500/5 hover:bg-amber-900/10 ${bg}">
             <td class="px-5 py-3.5 whitespace-nowrap font-bold text-amber-400">${r.nama}</td>
             <td class="px-5 py-3.5 whitespace-nowrap"><span class="px-2 py-0.5 rounded text-xs bg-[#0a0604] text-stone-300 border border-amber-500/10">${r.role || "Hoodlum"}</span></td>
@@ -2958,13 +3055,13 @@ async function initAdminArchivePage() {
             </td>
           </tr>
         `;
-      } else if (currentTab === "drugs_sales") {
-        const trTime = r.waktu ? fmtDateTime(r.waktu) : "-";
-        const v = parseInt(r.periode_orderanke || 0, 10);
-        const m = Math.floor((v >= 1000 ? v - 1000 : v) / 10);
-        const w = (v >= 1000 ? v - 1000 : v) % 10;
-        const oNo = v ? `M${m}-W${w} (#${v})` : "-";
-        return `
+        } else if (currentTab === "drugs_sales") {
+          const trTime = r.waktu ? fmtDateTime(r.waktu) : "-";
+          const v = parseInt(r.periode_orderanke || 0, 10);
+          const m = Math.floor((v >= 1000 ? v - 1000 : v) / 10);
+          const w = (v >= 1000 ? v - 1000 : v) % 10;
+          const oNo = v ? `M${m}-W${w} (#${v})` : "-";
+          return `
           <tr class="transition-colors border-b border-amber-500/5 hover:bg-amber-900/10 ${bg}">
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-stone-400">${trTime}</td>
             <td class="px-5 py-3.5 whitespace-nowrap font-mono text-xs font-bold text-amber-500">${oNo}</td>
@@ -2981,11 +3078,11 @@ async function initAdminArchivePage() {
             </td>
           </tr>
         `;
-      } else if (currentTab === "rage_cash_logs") {
-        const cashTime = r.waktu ? fmtDateTime(r.waktu) : "-";
-        const t = r.type === "IN" ? "IN" : "OUT";
-        const color = t === "IN" ? "text-green-400" : "text-red-400";
-        return `
+        } else if (currentTab === "rage_cash_logs") {
+          const cashTime = r.waktu ? fmtDateTime(r.waktu) : "-";
+          const t = r.type === "IN" ? "IN" : "OUT";
+          const color = t === "IN" ? "text-green-400" : "text-red-400";
+          return `
           <tr class="transition-colors border-b border-amber-500/5 hover:bg-amber-900/10 ${bg}">
             <td class="px-5 py-3.5 whitespace-nowrap text-xs text-stone-400">${cashTime}</td>
             <td class="px-5 py-3.5 whitespace-nowrap font-black text-xs ${color}">${t}</td>
@@ -3000,23 +3097,24 @@ async function initAdminArchivePage() {
             </td>
           </tr>
         `;
-      }
-      return "";
-    }).join("");
+        }
+        return "";
+      })
+      .join("");
 
     // Restore all button handler
     const restoreAllBtn = document.getElementById("restoreAllBtn");
     if (restoreAllBtn) {
       restoreAllBtn.addEventListener("click", async () => {
-        const ids = Array.from(body.querySelectorAll("[data-restore-id]")).
-          map(btn => parseInt(btn.getAttribute("data-restore-id") || "", 10)).
-          filter(id => id);
+        const ids = Array.from(body.querySelectorAll("[data-restore-id]"))
+          .map((btn) => parseInt(btn.getAttribute("data-restore-id") || "", 10))
+          .filter((id) => id);
         if (!ids.length) {
           await Swal.fire({
             title: "Tidak ada data untuk dipulihkan",
             icon: "info",
             background: "#1f1410",
-            color: "#fef3c7"
+            color: "#fef3c7",
           });
           return;
         }
@@ -3030,14 +3128,17 @@ async function initAdminArchivePage() {
           confirmButtonText: "Ya, pulihkan semua!",
           cancelButtonText: "Batal",
           background: "#1f1410",
-          color: "#fef3c7"
+          color: "#fef3c7",
         });
         if (!result.isConfirmed) return;
         try {
           for (const id of ids) {
             const { ok, error } = await restoreSoftDeletedById(currentTab, id);
             if (!ok) {
-              showAlert(`Gagal memulihkan id ${id}: ${error.message || "Unknown error"}`, "error");
+              showAlert(
+                `Gagal memulihkan id ${id}: ${error.message || "Unknown error"}`,
+                "error",
+              );
             }
           }
           showAlert("Semua data berhasil dipulihkan", "success");
@@ -3048,7 +3149,7 @@ async function initAdminArchivePage() {
       });
     }
 
-    body.querySelectorAll("[data-restore-id]").forEach(btn => {
+    body.querySelectorAll("[data-restore-id]").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const id = parseInt(btn.getAttribute("data-restore-id") || "", 10);
         if (!id) return;
@@ -3063,7 +3164,7 @@ async function initAdminArchivePage() {
           confirmButtonText: "Ya, pulihkan!",
           cancelButtonText: "Batal",
           background: "#1f1410",
-          color: "#fef3c7"
+          color: "#fef3c7",
         });
 
         if (!result.isConfirmed) return;
@@ -3071,7 +3172,10 @@ async function initAdminArchivePage() {
         try {
           const { ok, error } = await restoreSoftDeletedById(currentTab, id);
           if (!ok) {
-            showAlert(`Gagal memulihkan data: ${error.message || "Unknown error"}`, "error");
+            showAlert(
+              `Gagal memulihkan data: ${error.message || "Unknown error"}`,
+              "error",
+            );
             return;
           }
           showAlert("Data berhasil dipulihkan", "success");
@@ -3223,7 +3327,7 @@ async function init() {
       if (submitBtn2) submitBtn2.disabled = true;
       showAlert(
         "Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.",
-        "error"
+        "error",
       );
     }
     setOrderNoUI();
@@ -3274,7 +3378,8 @@ async function init() {
       [localStorage, sessionStorage].forEach((store) => {
         if (!store) return;
         Object.keys(store).forEach((k) => {
-          if (k.startsWith("sb-") && k.endsWith("-auth-token")) store.removeItem(k);
+          if (k.startsWith("sb-") && k.endsWith("-auth-token"))
+            store.removeItem(k);
         });
       });
     } catch (e) {}
@@ -3379,7 +3484,7 @@ function getRolePermissions(role) {
           ...BASE_ATTACHMENTS,
           "VEST MEDIUM",
           "LOCKPICK",
-        ])
+        ]),
       ),
       vestType: "VEST MEDIUM", // Merah
       vestLimit: 5,
@@ -3397,7 +3502,7 @@ function getRolePermissions(role) {
           "VEST MEDIUM",
           "VEST",
           "LOCKPICK",
-        ])
+        ]),
       ),
       vestType: "BOTH",
       vestLimit: 5,
@@ -3428,7 +3533,7 @@ async function addToCart() {
   }
   const hiddenId = parseInt(
     (document.getElementById("memberId") || {}).value || "",
-    10
+    10,
   );
   if (Number.isNaN(hiddenId) || !hiddenId) {
     showAlert("Pilih nama dari database", "error");
@@ -3478,11 +3583,11 @@ async function addToCart() {
 
     for (const entry of MICRO_FULL_ATTACHMENT_COMPONENTS) {
       const itemInCatalog = (CATALOG[entry.kategori] || []).find(
-        (i) => i.name === entry.name
+        (i) => i.name === entry.name,
       );
       if (!itemInCatalog) continue;
       const existing = state.cart.find(
-        (c) => c.item === entry.name && c.kategori === entry.kategori
+        (c) => c.item === entry.name && c.kategori === entry.kategori,
       );
       if (existing) existing.qty += qty;
       else
@@ -3550,7 +3655,7 @@ async function addToCart() {
 
   const item = CATALOG[kategori].find((i) => i.name === itemName);
   const existing = state.cart.find(
-    (c) => c.item === itemName && c.kategori === kategori
+    (c) => c.item === itemName && c.kategori === kategori,
   );
   if (existing) existing.qty += qty;
   else
@@ -3602,7 +3707,7 @@ function renderCart() {
 
   document.getElementById("total-items").textContent = state.cart.reduce(
     (a, c) => a + c.qty,
-    0
+    0,
   );
   if (emptyEl) emptyEl.classList.toggle("hidden", state.cart.length > 0);
   tbody.querySelectorAll("input[data-qty-idx]").forEach((inp) => {
@@ -3621,7 +3726,7 @@ function renderCart() {
       const i = parseInt(e.currentTarget.getAttribute("data-idx"), 10);
       state.cart.splice(i, 1);
       renderCart();
-    })
+    }),
   );
 }
 
@@ -3668,7 +3773,8 @@ function syncMyOrdersModeButtons(mode) {
 
 function getMyOrdersSelectedPeriod(mode) {
   const m = mode === "archive" ? "archive" : "active";
-  const key = m === "archive" ? "myOrdersPeriodArchiveV1" : "myOrdersPeriodActiveV1";
+  const key =
+    m === "archive" ? "myOrdersPeriodArchiveV1" : "myOrdersPeriodActiveV1";
   const stored = (() => {
     try {
       return localStorage.getItem(key) || "";
@@ -3682,7 +3788,8 @@ function getMyOrdersSelectedPeriod(mode) {
 
 function setMyOrdersSelectedPeriod(mode, period) {
   const m = mode === "archive" ? "archive" : "active";
-  const key = m === "archive" ? "myOrdersPeriodArchiveV1" : "myOrdersPeriodActiveV1";
+  const key =
+    m === "archive" ? "myOrdersPeriodArchiveV1" : "myOrdersPeriodActiveV1";
   try {
     if (period) localStorage.setItem(key, String(period));
     else localStorage.removeItem(key);
@@ -3749,9 +3856,9 @@ async function loadMyOrdersForSelection() {
     if (mode === "archive") {
       showAlert(
         `Arsip belum tersedia karena kolom deleted_at belum ada. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
-          "orders"
+          "orders",
         )}`,
-        "error"
+        "error",
       );
       renderMyOrders([], null, mode);
       return;
@@ -3771,7 +3878,7 @@ async function loadMyOrdersForSelection() {
     if (t > prev) periodMeta.set(p, t);
   });
   const periods = Array.from(periodMeta.entries())
-    .sort((a, b) => (b[1] - a[1]) || (b[0] - a[0]))
+    .sort((a, b) => b[1] - a[1] || b[0] - a[0])
     .map(([p]) => p);
   const sel = document.getElementById("myOrdersPeriodSelect");
   if (sel) {
@@ -3807,7 +3914,7 @@ function renderMyOrders(rows, useOrderanke, mode) {
   const resolvedMode = mode || getMyOrdersMode();
   const isArchive = resolvedMode === "archive";
   const items = (rows || []).filter((r) =>
-    useOrderanke ? parseInt(r.orderanke || 0, 10) === useOrderanke : true
+    useOrderanke ? parseInt(r.orderanke || 0, 10) === useOrderanke : true,
   );
   window.__myOrdersRows = items;
   if (items.length === 0) {
@@ -3828,25 +3935,23 @@ function renderMyOrders(rows, useOrderanke, mode) {
     .slice()
     .sort((a, b) => new Date(b.waktu).getTime() - new Date(a.waktu).getTime());
   body.innerHTML = list
-    .map(
-      (r) => {
-        const delTime =
-          isArchive && r.deleted_at ? fmtDateTime(r.deleted_at) : "";
-        const meta = delTime
-          ? `<div class="text-[10px] text-amber-500/60 uppercase tracking-widest mt-1">Arsip: ${delTime}</div>`
-          : "";
-        const actionBtn = isArchive
-          ? `<button class="px-2 py-1 rounded bg-emerald-700 text-white" data-restore-id="${r.id}">Pulihkan</button>`
-          : `<button class="px-2 py-1 rounded bg-red-700 text-white" data-del-id="${r.id}">Hapus</button>`;
-        return `<tr class="table-row-hover"><td class="px-2 py-2">${
-          r.item
-        }${meta}</td><td class="px-2 py-2 text-center">${
-          r.qty
-        }</td><td class="px-2 py-2 text-right">${fmt(
-          r.subtotal
-        )}</td><td class="px-2 py-2 text-right">${actionBtn}</td></tr>`;
-      }
-    )
+    .map((r) => {
+      const delTime =
+        isArchive && r.deleted_at ? fmtDateTime(r.deleted_at) : "";
+      const meta = delTime
+        ? `<div class="text-[10px] text-amber-500/60 uppercase tracking-widest mt-1">Arsip: ${delTime}</div>`
+        : "";
+      const actionBtn = isArchive
+        ? `<button class="px-2 py-1 rounded bg-emerald-700 text-white" data-restore-id="${r.id}">Pulihkan</button>`
+        : `<button class="px-2 py-1 rounded bg-red-700 text-white" data-del-id="${r.id}">Hapus</button>`;
+      return `<tr class="table-row-hover"><td class="px-2 py-2">${
+        r.item
+      }${meta}</td><td class="px-2 py-2 text-center">${
+        r.qty
+      }</td><td class="px-2 py-2 text-right">${fmt(
+        r.subtotal,
+      )}</td><td class="px-2 py-2 text-right">${actionBtn}</td></tr>`;
+    })
     .join("");
   const total = list.reduce((a, r) => a + (r.subtotal || 0), 0);
   totalEl.textContent = fmt(total);
@@ -3885,15 +3990,15 @@ function renderMyOrders(rows, useOrderanke, mode) {
             if (isMissingColumnError(error, "deleted_at")) {
               showAlert(
                 `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
-                  "orders"
+                  "orders",
                 )}`,
-                "error"
+                "error",
               );
               return;
             }
             showAlert(
               `Gagal memulihkan item: ${error.message || "Unknown error"}`,
-              "error"
+              "error",
             );
             return;
           }
@@ -3937,16 +4042,16 @@ function renderMyOrders(rows, useOrderanke, mode) {
           if (isMissingColumnError(error, "deleted_at")) {
             showAlert(
               `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
-                "orders"
+                "orders",
               )}`,
-              "error"
+              "error",
             );
             return;
           }
           console.error("Soft delete error:", error);
           showAlert(
             `Gagal menghapus item: ${error.message || "Unknown error"}`,
-            "error"
+            "error",
           );
           return;
         }
@@ -3971,7 +4076,7 @@ function renderMyOrders(rows, useOrderanke, mode) {
             } else {
               showAlert(
                 "Gagal memulihkan order: " + undoRes.error.message,
-                "error"
+                "error",
               );
             }
           }
@@ -4012,7 +4117,7 @@ function initStoran(member) {
     if (btn) btn.disabled = true;
     showAlert(
       "Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.",
-      "error"
+      "error",
     );
   }
   const reload = document.getElementById("storanReloadBtn");
@@ -4080,7 +4185,7 @@ function setupNitipNameSearch() {
         (r, i) =>
           `<div class="px-3 py-2 cursor-pointer ${
             i === active ? "bg-yellow-900/30" : ""
-          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`
+          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`,
       )
       .join("");
     dd.classList.toggle("hidden", items.length === 0);
@@ -4094,7 +4199,7 @@ function setupNitipNameSearch() {
           status.classList.remove("text-red-500");
           status.classList.add("text-green-500");
         }
-      })
+      }),
     );
   };
 
@@ -4136,7 +4241,8 @@ function updateNitipPutihPreview() {
   const putihEl = document.getElementById("nitipUangPutih");
   if (!merahEl || !putihEl) return;
   const merah = parseMoneyInput(merahEl.value);
-  const putih = Number.isFinite(merah) && merah > 0 ? merah * NITIP_CUCI_WHITE_RATE : 0;
+  const putih =
+    Number.isFinite(merah) && merah > 0 ? merah * NITIP_CUCI_WHITE_RATE : 0;
   putihEl.value = fmtIdMoney(putih);
 }
 
@@ -4216,7 +4322,8 @@ function initNitipCuci(member) {
 
   if (merahEl) merahEl.addEventListener("input", updateNitipPutihPreview);
   if (submitBtn) submitBtn.addEventListener("click", submitNitipCuci);
-  if (reloadBtn) reloadBtn.addEventListener("click", () => loadNitipCuciTable());
+  if (reloadBtn)
+    reloadBtn.addEventListener("click", () => loadNitipCuciTable());
   if (buktiEl) {
     buktiEl.addEventListener("change", (e) => {
       const f = e.target.files && e.target.files[0];
@@ -4235,7 +4342,8 @@ function initNitipCuci(member) {
     uploadZone.addEventListener("drop", (e) => {
       e.preventDefault();
       uploadZone.classList.remove("nitip-upload-zone--drag");
-      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      const f =
+        e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if (f) handleNitipBuktiFile(f);
     });
   }
@@ -4307,7 +4415,7 @@ async function submitNitipCuci() {
       console.error(uploadErr);
       showAlert(
         "Gagal upload gambar. Pastikan bucket nitip-cuci sudah dibuat di Supabase.",
-        "error"
+        "error",
       );
       return;
     }
@@ -4330,7 +4438,7 @@ async function submitNitipCuci() {
       console.error(logErr);
       showAlert(
         "Gagal simpan ke database. Jalankan migration nitip_cuci_logs di Supabase.",
-        "error"
+        "error",
       );
       return;
     }
@@ -4340,7 +4448,7 @@ async function submitNitipCuci() {
     if (periodeLabel) msg += `\nPeriode : ${periodeLabel}`;
     msg += `\nNama : ${nama}`;
     msg += `\nJumlah Uang merah : ${fmtIdMoney(uangMerah)}`;
-    msg += `\nUang putih (65%) : ${fmtIdMoney(uangPutih)}`;
+    msg += `\nUang putih : ${fmtIdMoney(uangPutih)}`;
     msg += `\nKeterangan : ${keterangan}`;
     msg += `\nWaktu : ${fmtDateTime(now.toISOString())}`;
     msg += "\n```";
@@ -4461,9 +4569,7 @@ async function loadNitipCuciTable() {
   }
 
   if (summaryWrap) {
-    const personKeys = Object.keys(byPerson).sort((a, b) =>
-      a.localeCompare(b)
-    );
+    const personKeys = Object.keys(byPerson).sort((a, b) => a.localeCompare(b));
     summaryWrap.classList.remove("hidden");
     summaryWrap.innerHTML = `
       <p class="text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">Total per orang (periode ini)</p>
@@ -4474,8 +4580,8 @@ async function loadNitipCuciTable() {
           <div class="nitip-summary-card">
             <p class="nitip-summary-name">${name}</p>
             <p class="nitip-summary-line"><span>Merah</span><strong>${fmtIdMoney(byPerson[name].merah)}</strong></p>
-            <p class="nitip-summary-line nitip-summary-line--putih"><span>Putih (65%)</span><strong>${fmtIdMoney(byPerson[name].putih)}</strong></p>
-          </div>`
+            <p class="nitip-summary-line nitip-summary-line--putih"><span>Putih</span><strong>${fmtIdMoney(byPerson[name].putih)}</strong></p>
+          </div>`,
           )
           .join("")}
       </div>`;
@@ -4675,7 +4781,7 @@ async function submitStoran() {
       !Number.isNaN(editingId) && editingId
         ? "Storan berhasil diupdate"
         : "Storan terkirim ke Discord",
-      "success"
+      "success",
     );
     resetStoranForm();
     if (typeof loadStoranTable === "function") {
@@ -4728,7 +4834,7 @@ async function loadStoranTable() {
       supabase
         .from("storan_logs")
         .select(
-          "id,member_id,nama,penerima,status,status_label,catatan,waktu,periode_orderanke"
+          "id,member_id,nama,penerima,status,status_label,catatan,waktu,periode_orderanke",
         )
         .eq("periode_orderanke", periodeValue)
         .order("waktu", { ascending: true }),
@@ -4811,7 +4917,7 @@ async function loadStoranTable() {
       Edit
     </button>
   </td>
-</tr>`
+</tr>`,
     )
     .join("");
   body.innerHTML = html;
@@ -4843,7 +4949,7 @@ function setupStoranNameSearch() {
         (r, i) =>
           `<div class="px-3 py-2 cursor-pointer ${
             i === active ? "bg-yellow-900/30" : ""
-          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`
+          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`,
       )
       .join("");
     dd.classList.toggle("hidden", items.length === 0);
@@ -4857,7 +4963,7 @@ function setupStoranNameSearch() {
           status.classList.remove("text-red-500");
           status.classList.add("text-green-500");
         }
-      })
+      }),
     );
   };
 
@@ -4916,11 +5022,11 @@ function setupStoranNameSearch() {
       dd.classList.add("hidden");
     }
     items.forEach((el, i) =>
-      el.classList.toggle("bg-yellow-900/30", i === active)
+      el.classList.toggle("bg-yellow-900/30", i === active),
     );
   });
   input.addEventListener("blur", () =>
-    setTimeout(() => dd.classList.add("hidden"), 150)
+    setTimeout(() => dd.classList.add("hidden"), 150),
   );
 }
 
@@ -4945,7 +5051,7 @@ function startEditMyOrders() {
   renderCart();
   showAlert(
     "Keranjang diisi dari order periode aktif. Silakan edit lalu Submit.",
-    "info"
+    "info",
   );
 }
 
@@ -5055,9 +5161,7 @@ async function submitOrder() {
 
   // 2. Validate Vest Limit (Database + Cart)
   if (!isLeo) {
-    const isVestItem = (name) =>
-      String(name || "")
-        .toUpperCase() === "VEST";
+    const isVestItem = (name) => String(name || "").toUpperCase() === "VEST";
     const cartVestCount = state.cart
       .filter((c) => isVestItem(c.item))
       .reduce((a, c) => a + (c.qty || 0), 0);
@@ -5091,7 +5195,7 @@ async function submitOrder() {
       const remaining = Math.max(0, perms.vestLimit - existingVest);
       showAlert(
         `Maksimal VEST per orang ${perms.vestLimit}. Tersisa ${remaining}.`,
-        "error"
+        "error",
       );
       endLoading();
       return;
@@ -5124,14 +5228,14 @@ async function submitOrder() {
         if (isMissingColumnError(softErr, "deleted_at")) {
           showAlert(
             `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
-              "orders"
+              "orders",
             )}`,
-            "error"
+            "error",
           );
         } else {
           showAlert(
             `Gagal mengarsipkan order lama: ${softErr.message || "unknown"}`,
-            "error"
+            "error",
           );
         }
         endLoading();
@@ -5145,7 +5249,7 @@ async function submitOrder() {
         : "";
       showAlert(
         `Gagal menyimpan: ${error.message || "unknown"}${hint}`,
-        "error"
+        "error",
       );
       endLoading();
       return;
@@ -5201,7 +5305,7 @@ async function submitOrder() {
       if (qError) throw qError;
       const items = fetched || [];
       const orderIds = Array.from(new Set(items.map((r) => r.order_id))).filter(
-        Boolean
+        Boolean,
       );
       const count = orderIds.length;
       const total = items.reduce((a, r) => a + (r.subtotal || 0), 0);
@@ -5229,15 +5333,15 @@ async function submitOrder() {
       });
 
       const maxLen = Math.max(
-        ...Object.values(grouped).map((r) => r.item.length)
+        ...Object.values(grouped).map((r) => r.item.length),
       );
       const details = Object.values(grouped)
         .sort((a, b) => a.item.localeCompare(b.item))
         .map(
           (r) =>
             `• ${String(r.qty).padStart(2)}x ${r.item.padEnd(maxLen)} : ${fmt(
-              (r.harga || 0) * (r.qty || 0)
-            )}`
+              (r.harga || 0) * (r.qty || 0),
+            )}`,
         )
         .join("\n");
 
@@ -5533,7 +5637,8 @@ async function fetchOrders(limit = 500) {
 async function fetchOrdersSafe(limit = 500) {
   const fullCols =
     "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered,paid,scrap_given";
-  const liteCols = "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal";
+  const liteCols =
+    "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal";
 
   const selectBase = (cols, withSoftDelete) => {
     let q = supabase
@@ -5642,7 +5747,7 @@ function setupCustomerSearch() {
         (r, i) =>
           `<div class="px-3 py-2 cursor-pointer ${
             i === active ? "bg-yellow-900/30" : ""
-          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`
+          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`,
       )
       .join("");
     dd.classList.toggle("hidden", items.length === 0);
@@ -5652,7 +5757,7 @@ function setupCustomerSearch() {
         hidden.value = e.currentTarget.getAttribute("data-id");
         dd.classList.add("hidden");
         updateNameValidity();
-      })
+      }),
     );
   };
   const run = debounce(async (term) => {
@@ -5701,11 +5806,11 @@ function setupCustomerSearch() {
       dd.classList.add("hidden");
     }
     items.forEach((el, i) =>
-      el.classList.toggle("bg-yellow-900/30", i === active)
+      el.classList.toggle("bg-yellow-900/30", i === active),
     );
   });
   input.addEventListener("blur", () =>
-    setTimeout(() => dd.classList.add("hidden"), 150)
+    setTimeout(() => dd.classList.add("hidden"), 150),
   );
 }
 function updateNameValidity() {
@@ -5927,7 +6032,7 @@ function renderDashboard(groups) {
   const container = document.getElementById("dashboardBody");
   if (!container) return;
   const keys = Object.keys(groups).sort(
-    (a, b) => parseInt(b, 10) - parseInt(a, 10)
+    (a, b) => parseInt(b, 10) - parseInt(a, 10),
   );
   const paidPeople = getPaidPersonSet();
   const scrapPeopleLocal = getScrapPersonSet();
@@ -5964,7 +6069,7 @@ function renderDashboard(groups) {
   });
   const userKeys = Object.keys(totalsByUser).sort(
     (a, b) =>
-      totalsByUser[b].total - totalsByUser[a].total || a.localeCompare(b)
+      totalsByUser[b].total - totalsByUser[a].total || a.localeCompare(b),
   );
   const getStatusSummary = (statusMap, labels) => {
     const statuses = Array.from((statusMap || new Map()).values());
@@ -6007,7 +6112,7 @@ function renderDashboard(groups) {
         return `<tr class=\"table-row-hover border-b border-yellow-900/20\"><td class=\"px-2 py-2\">${n}</td><td class=\"px-2 py-2 text-center\">${
           totalsByUser[n].count
         }</td><td class=\"px-2 py-2 text-right\">${fmt(
-          totalsByUser[n].total
+          totalsByUser[n].total,
         )}</td><td class=\"px-2 py-2 text-center\">${
           totalsByUser[n].scrap > 0
             ? parseFloat(totalsByUser[n].scrap.toFixed(2))
@@ -6068,7 +6173,7 @@ function renderDashboard(groups) {
               }</td><td class=\"px-2 py-2 text-center\">${
                 s.qty
               }</td><td class=\"px-2 py-2 text-right\">${fmt(
-                unit
+                unit,
               )}</td><td class=\"px-2 py-2 text-right\">${fmt(sub)}</td></tr>`;
             })
             .join("");
@@ -6077,7 +6182,7 @@ function renderDashboard(groups) {
             `<div class=\"overflow-x-auto\"><table class=\"w-full text-sm border border-[#f3e8d8] dark:border-[#3d342d] rounded-lg\"><thead class=\"border-b border-[#f3e8d8] dark:border-[#3d342d]\"><tr><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Harga</th><th class=\"text-right px-2 py-2\">Subtotal</th></tr></thead><tbody>` +
             body +
             `</tbody></table></div><div class=\"flex justify-end mt-2 text-sm font-semibold\">Total ${grp}: ${fmt(
-              totalGrp
+              totalGrp,
             )}</div></div>`
           );
         }).join("") +
@@ -6104,7 +6209,7 @@ function renderDashboard(groups) {
                   : "";
               const personTotal = arr.reduce(
                 (sum, x) => sum + (x.subtotal || 0),
-                0
+                0,
               );
               const personQty = arr.reduce((sum, x) => sum + (x.qty || 0), 0);
               const paidCell =
@@ -6126,13 +6231,13 @@ function renderDashboard(groups) {
               return `<tr class=\"${rowCls}\"><td class=\"px-2 py-2\">${
                 r.order_no || r.order_id
               }</td>${nameCell}<td class=\"px-2 py-2\">${new Date(
-                r.waktu
+                r.waktu,
               ).toLocaleString()}</td><td class=\"px-2 py-2\">${
                 r.item
               }</td><td class=\"px-2 py-2 text-center\">${
                 r.qty
               }</td><td class=\"px-2 py-2 text-right\">${fmt(
-                r.subtotal
+                r.subtotal,
               )}</td><td class=\"px-2 py-2 text-center\"><button data-row-id=\"${
                 r.id
               }" class="px-2 py-1 rounded ${
@@ -6140,12 +6245,14 @@ function renderDashboard(groups) {
                   ? "bg-green-700"
                   : "bg-yellow-700"
               } text-white">${
-                r.delivered || deliveredRows.has(String(r.id)) ? "Sudah" : "Belum"
+                r.delivered || deliveredRows.has(String(r.id))
+                  ? "Sudah"
+                  : "Belum"
               }</button></td>${paidCell}${scrapCell}<td class=\"px-2 py-2 text-right\"><button data-del-id=\"${
                 r.id
               }\" class=\"px-2 py-1 rounded bg-red-700 text-white\">Hapus</button></td></tr>`;
             })
-            .join("")
+            .join(""),
         )
         .join("");
       const orderDetails =
@@ -6177,7 +6284,7 @@ function renderDashboard(groups) {
         saveDeliveredRowSet(deliveredSet);
         patchDashboardOrdersInCache(
           (r) => parseInt(r.id, 10) === id,
-          () => ({ delivered: nowDelivered })
+          () => ({ delivered: nowDelivered }),
         );
         invalidateDashboardCache();
         await loadDashboard(true);
@@ -6189,7 +6296,7 @@ function renderDashboard(groups) {
         saveDeliveredRowSet(set);
         patchDashboardOrdersInCache(
           (r) => parseInt(r.id, 10) === id,
-          () => ({ delivered: nowDelivered })
+          () => ({ delivered: nowDelivered }),
         );
         rerenderDashboardFromCache();
         showAlert("Status diperbarui (lokal)", "success");
@@ -6216,13 +6323,14 @@ function renderDashboard(groups) {
           .ilike("nama", name)
           .select("id");
         if (error) throw error;
-        if (!data || !data.length) throw new Error("Tidak ada baris order yang cocok");
+        if (!data || !data.length)
+          throw new Error("Tidak ada baris order yang cocok");
         const paidSet = getPaidPersonSet();
         paidSet.delete(personKey);
         savePaidPersonSet(paidSet);
         patchDashboardOrdersInCache(
           (r) => isSamePersonOrder(r, batch, name),
-          () => ({ paid: nowPaid })
+          () => ({ paid: nowPaid }),
         );
         invalidateDashboardCache();
         await postWeaponPaymentLog({ batch, name, paid: nowPaid, total, qty });
@@ -6235,7 +6343,7 @@ function renderDashboard(groups) {
         savePaidPersonSet(set);
         patchDashboardOrdersInCache(
           (r) => isSamePersonOrder(r, batch, name),
-          () => ({ paid: nowPaid })
+          () => ({ paid: nowPaid }),
         );
         rerenderDashboardFromCache();
         showAlert("Status bayar diperbarui (lokal)", "success");
@@ -6260,13 +6368,14 @@ function renderDashboard(groups) {
           .ilike("nama", name)
           .select("id");
         if (error) throw error;
-        if (!data || !data.length) throw new Error("Tidak ada baris order yang cocok");
+        if (!data || !data.length)
+          throw new Error("Tidak ada baris order yang cocok");
         const scrapSet = getScrapPersonSet();
         scrapSet.delete(personKey);
         saveScrapPersonSet(scrapSet);
         patchDashboardOrdersInCache(
           (r) => isSamePersonOrder(r, batch, name),
-          () => ({ scrap_given: nowGiven })
+          () => ({ scrap_given: nowGiven }),
         );
         invalidateDashboardCache();
         await loadDashboard(true);
@@ -6278,7 +6387,7 @@ function renderDashboard(groups) {
         saveScrapPersonSet(set);
         patchDashboardOrdersInCache(
           (r) => isSamePersonOrder(r, batch, name),
-          () => ({ scrap_given: nowGiven })
+          () => ({ scrap_given: nowGiven }),
         );
         rerenderDashboardFromCache();
         showAlert("Status metal scrap diperbarui (lokal)", "success");
@@ -6313,16 +6422,16 @@ function renderDashboard(groups) {
           if (isMissingColumnError(error, "deleted_at")) {
             showAlert(
               `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
-                "orders"
+                "orders",
               )}`,
-              "error"
+              "error",
             );
             return;
           }
           console.error("Dashboard soft delete error:", error);
           showAlert(
             `Gagal menghapus item: ${error.message || "Unknown error"}`,
-            "error"
+            "error",
           );
           return;
         }
@@ -6403,7 +6512,8 @@ function addChatMessage(role, text, isTemp = false, id = null) {
   div.className = `flex ${role === "user" ? "justify-end" : "justify-start"}`;
 
   const bubble = document.createElement("div");
-  const baseCls = "p-3 rounded-2xl max-w-[85%] text-[13px] shadow-sm animate-fade-in leading-relaxed";
+  const baseCls =
+    "p-3 rounded-2xl max-w-[85%] text-[13px] shadow-sm animate-fade-in leading-relaxed";
 
   if (role === "user") {
     bubble.className = `${baseCls} bg-amber-600 text-white rounded-tr-none`;
@@ -6513,7 +6623,12 @@ function generateBotResponse(msg) {
   const isAskingPrice = lower.includes("harga") || lower.includes("berapa");
 
   // 1. Greeting
-  if (lower.includes("halo") || lower.includes("hi") || lower.includes("pagi") || lower.includes("malam")) {
+  if (
+    lower.includes("halo") ||
+    lower.includes("hi") ||
+    lower.includes("pagi") ||
+    lower.includes("malam")
+  ) {
     return "Selamat datang di R.A.G.E Order System! Saya Deri, ada yang bisa saya bantu mengenai info senjata, ammo, atau attachment?";
   }
 
@@ -6521,7 +6636,7 @@ function generateBotResponse(msg) {
   const item = findItemInCatalog(lower);
   if (item) {
     let response = `**${item.name}**\n`;
-    
+
     // Jika tanya harga atau jika item bukan kategori "Gun"
     if (isAskingPrice) {
       response += `Harga: **${fmt(item.price)}**\n`;
@@ -6529,25 +6644,35 @@ function generateBotResponse(msg) {
     }
 
     const weaponDetails = {
-      "kvr": "Ammo: **AMMO .45**\nAttachment:\n- Tactical Suppressor\n- Grip\n- Medium Scope",
-      "x17": "Ammo: **AMMO 9MM**\nAttachment:\n- Tactical Flashlight\n- Modern Extended Drum\n- Modern Suppressor Short\n- Holo Scope",
-      "p50": "Ammo: **AMMO .50**\nAttachment:\n- Tactical Suppressor\n- Extended Pistol Clip",
-      ".50": "Ammo: **AMMO .50**\nAttachment:\n- Tactical Suppressor\n- Extended Pistol Clip",
-      "tech9": "Ammo: **AMMO 9MM**\nAttachment:\n- SMG Drum\n- Suppressor",
+      kvr: "Ammo: **AMMO .45**\nAttachment:\n- Tactical Suppressor\n- Grip\n- Medium Scope",
+      x17: "Ammo: **AMMO 9MM**\nAttachment:\n- Tactical Flashlight\n- Modern Extended Drum\n- Modern Suppressor Short\n- Holo Scope",
+      p50: "Ammo: **AMMO .50**\nAttachment:\n- Tactical Suppressor\n- Extended Pistol Clip",
+      ".50":
+        "Ammo: **AMMO .50**\nAttachment:\n- Tactical Suppressor\n- Extended Pistol Clip",
+      tech9: "Ammo: **AMMO 9MM**\nAttachment:\n- SMG Drum\n- Suppressor",
       "tech 9": "Ammo: **AMMO 9MM**\nAttachment:\n- SMG Drum\n- Suppressor",
       "mini smg": "Ammo: **AMMO 9MM**\nAttachment:\n- Extended SMG Clip",
-      "micro smg": "Ammo: **AMMO 9MM**\nAttachment:\n- Tactical Suppressor\n- Tactical Flash\n- Extended SMG\n- Macro Scope",
-      "smg": "Ammo: **AMMO 9MM**\nAttachment:\n- SMG Drum\n- Suppressor\n- Tactical Flash\n- Macro Scope",
-      "shotgun": "Ammo: **AMMO 12 GAUGE**\nAttachment:\n- Tactical Suppressor\n- Tactical Flashlight",
-      "assault": "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
-      "ak-47": "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
-      "ak47": "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
-      "ceramic": "Ammo: **AMMO 9MM**\nAttachment:\n- Extended Pistol\n- Suppressor",
-      "carbine": "Ammo: **Ammo 556**\nAttachment:\n- Extended Rifle Clip\n- Rifle Drum\n- Medium Scope\n- Grip\n- Tactical Suppressor",
-      "virtus": "Ammo: **Ammo 556**\nAttachment:\n- Tactical Suppressor\n- Extended Rifle Clip"
+      "micro smg":
+        "Ammo: **AMMO 9MM**\nAttachment:\n- Tactical Suppressor\n- Tactical Flash\n- Extended SMG\n- Macro Scope",
+      smg: "Ammo: **AMMO 9MM**\nAttachment:\n- SMG Drum\n- Suppressor\n- Tactical Flash\n- Macro Scope",
+      shotgun:
+        "Ammo: **AMMO 12 GAUGE**\nAttachment:\n- Tactical Suppressor\n- Tactical Flashlight",
+      assault:
+        "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
+      "ak-47":
+        "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
+      ak47: "Ammo: **Ammo 762**\nAttachment:\n- Tactical Flashlight\n- Grip\n- Rifle Drum\n- Extended Rifle\n- Macro Scope\n- Tactical Suppressor",
+      ceramic:
+        "Ammo: **AMMO 9MM**\nAttachment:\n- Extended Pistol\n- Suppressor",
+      carbine:
+        "Ammo: **Ammo 556**\nAttachment:\n- Extended Rifle Clip\n- Rifle Drum\n- Medium Scope\n- Grip\n- Tactical Suppressor",
+      virtus:
+        "Ammo: **Ammo 556**\nAttachment:\n- Tactical Suppressor\n- Extended Rifle Clip",
     };
 
-    const weaponKey = Object.keys(weaponDetails).find(k => item.name.toLowerCase().includes(k));
+    const weaponKey = Object.keys(weaponDetails).find((k) =>
+      item.name.toLowerCase().includes(k),
+    );
     if (weaponKey) {
       response += weaponDetails[weaponKey];
     } else if (!isAskingPrice) {
@@ -6560,21 +6685,37 @@ function generateBotResponse(msg) {
   // 3. General Ammo Questions
   if (lower.includes("ammo") || lower.includes("peluru")) {
     if (lower.includes(".50")) return "Ammo .50 cocok untuk Pistol .50.";
-    if (lower.includes("9mm")) return "Ammo 9mm cocok untuk Ceramic, Tech 9, Mini SMG, Micro SMG, SMG, dan Pistol X17.";
-    if (lower.includes("44") || lower.includes("magnum")) return "Ammo 44 Magnum cocok untuk Navy Revolver dan Black Revolver.";
+    if (lower.includes("9mm"))
+      return "Ammo 9mm cocok untuk Ceramic, Tech 9, Mini SMG, Micro SMG, SMG, dan Pistol X17.";
+    if (lower.includes("44") || lower.includes("magnum"))
+      return "Ammo 44 Magnum cocok untuk Navy Revolver dan Black Revolver.";
     if (lower.includes("45")) return "Ammo .45 cocok untuk KVR.";
-    if (lower.includes("762")) return "Peluru 762 digunakan untuk Assault Rifle (AK-47).";
-    if (lower.includes("556")) return "Peluru 556 digunakan untuk Carbine Rifle dan Virtus#3.";
+    if (lower.includes("762"))
+      return "Peluru 762 digunakan untuk Assault Rifle (AK-47).";
+    if (lower.includes("556"))
+      return "Peluru 556 digunakan untuk Carbine Rifle dan Virtus#3.";
     return "Kami punya berbagai jenis ammo: 9mm, .50, .45, 44 Magnum, 762, dan 556. Kakak cari untuk senjata apa?";
   }
 
   // 4. General Attachment Questions
-  if (lower.includes("attachment") || lower.includes("pasang") || lower.includes("scope") || lower.includes("clip") || lower.includes("suppressor") || lower.includes("flash") || lower.includes("grip")) {
+  if (
+    lower.includes("attachment") ||
+    lower.includes("pasang") ||
+    lower.includes("scope") ||
+    lower.includes("clip") ||
+    lower.includes("suppressor") ||
+    lower.includes("flash") ||
+    lower.includes("grip")
+  ) {
     return "Tersedia Suppressor, Extended Clip, Scope, Flashlight, dan Grip. Kakak ingin tahu attachment untuk senjata apa? (Contoh: 'attachment kvr')";
   }
 
   // 5. Stock/Ready Questions
-  if (lower.includes("ready") || lower.includes("stok") || lower.includes("ada")) {
+  if (
+    lower.includes("ready") ||
+    lower.includes("stok") ||
+    lower.includes("ada")
+  ) {
     return "Semua barang yang ada di list katalog statusnya **Ready Stock**. Silakan langsung diorder ya Kak.";
   }
 
@@ -6604,20 +6745,39 @@ function findItemInCatalog(text) {
 
   // 2. Reverse Substring Match (Text inside Item name)
   // Useful for "Virtus" -> "Virtus#3"
-  const keywords = ["virtus", "carbine", "ak", "x17", "tech", "smg", "pistol", "rifle", "vest", "ammo", "clip", "scope", "suppressor"];
+  const keywords = [
+    "virtus",
+    "carbine",
+    "ak",
+    "x17",
+    "tech",
+    "smg",
+    "pistol",
+    "rifle",
+    "vest",
+    "ammo",
+    "clip",
+    "scope",
+    "suppressor",
+  ];
   for (const kw of keywords) {
     if (lowerText.includes(kw)) {
-      const found = allItems.find(i => i.name.toLowerCase().includes(kw));
+      const found = allItems.find((i) => i.name.toLowerCase().includes(kw));
       if (found) return found;
     }
   }
 
   // 3. Manual Overrides / Aliases
-  if (lowerText.includes("ak47") || lowerText.includes("ak-47")) return allItems.find(i => i.name === "Assault Rifle");
-  if (lowerText.includes("carbine") || lowerText.includes("carbin")) return allItems.find(i => i.name === "Carbine Rifle");
-  if (lowerText.includes("ak")) return allItems.find(i => i.name === "Assault Rifle");
-  if (lowerText.includes("p50")) return allItems.find(i => i.name.includes(".50"));
-  if (lowerText.includes("vest")) return allItems.find(i => i.name === "VEST");
+  if (lowerText.includes("ak47") || lowerText.includes("ak-47"))
+    return allItems.find((i) => i.name === "Assault Rifle");
+  if (lowerText.includes("carbine") || lowerText.includes("carbin"))
+    return allItems.find((i) => i.name === "Carbine Rifle");
+  if (lowerText.includes("ak"))
+    return allItems.find((i) => i.name === "Assault Rifle");
+  if (lowerText.includes("p50"))
+    return allItems.find((i) => i.name.includes(".50"));
+  if (lowerText.includes("vest"))
+    return allItems.find((i) => i.name === "VEST");
 
   return null;
 }
@@ -6692,7 +6852,7 @@ async function loadDashboard(force = false) {
       if (wSel && weekVal) {
         const target = month * 10 + (Number.isNaN(wInt) ? 0 : wInt);
         const exists = windows.some(
-          (w) => parseInt(w.orderanke, 10) === target
+          (w) => parseInt(w.orderanke, 10) === target,
         );
         if (exists) ensureGroup(target);
       } else {
@@ -6902,20 +7062,17 @@ async function createOrderWindow() {
     try {
       const duplicated = await hasDuplicateOrderWindow(
         orderanke,
-        window.__editingWindowId || null
+        window.__editingWindowId || null,
       );
       if (duplicated) {
         showAlert(
           `Periode M${m}-W${w} sudah pernah dibuat. Pilih periode lain.`,
-          "error"
+          "error",
         );
         return;
       }
     } catch (err) {
-      showAlert(
-        "Gagal memvalidasi periode. Coba lagi sebentar.",
-        "error"
-      );
+      showAlert("Gagal memvalidasi periode. Coba lagi sebentar.", "error");
       return;
     }
   }
@@ -6957,7 +7114,7 @@ function renderOrderWindows(rows) {
   const body = document.getElementById("windowsTableBody");
   if (!body) return;
   const displayRows = (rows || []).filter(
-    (r) => !(parseInt((r || {}).orderanke || 0, 10) >= 1000)
+    (r) => !(parseInt((r || {}).orderanke || 0, 10) >= 1000),
   );
   body.innerHTML = displayRows
     .map((r) => {
@@ -6974,9 +7131,9 @@ function renderOrderWindows(rows) {
             ? "Berakhir"
             : "Aktif sekarang";
       return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${label}</td><td class=\"px-2 py-2\">${fmtDateTime(
-        r.start_time
+        r.start_time,
       )}</td><td class=\"px-2 py-2\">${fmtDateTime(
-        r.end_time
+        r.end_time,
       )}</td><td class=\"px-2 py-2\">${st}</td><td class=\"px-2 py-2\"><div class=\"flex gap-2\"><button class=\"px-3 py-1 rounded border border-yellow-600 text-yellow-200\" data-edit-id=\"${
         r.id
       }\">Edit</button><button class=\"px-3 py-1 rounded bg-red-600 text-white\" data-del-id=\"${
@@ -7075,7 +7232,7 @@ function initDashboard() {
   if (mSel) {
     mSel.innerHTML = Array.from(
       { length: 12 },
-      (_, i) => `<option value="${i + 1}">${i + 1}</option>`
+      (_, i) => `<option value="${i + 1}">${i + 1}</option>`,
     ).join("");
     const now = new Date();
     mSel.value = String(now.getMonth() + 1);
@@ -7085,7 +7242,7 @@ function initDashboard() {
       `<option value="">Semua</option>` +
       Array.from(
         { length: 5 },
-        (_, i) => `<option value="${i + 1}">${i + 1}</option>`
+        (_, i) => `<option value="${i + 1}">${i + 1}</option>`,
       ).join("");
     wSel.value = "";
   }
@@ -7342,7 +7499,7 @@ async function shareDashboardToDiscord() {
   }
   const groups = groupOrdersByBatch(filtered);
   const keys = Object.keys(groups).sort(
-    (a, b) => parseInt(a, 10) - parseInt(b, 10)
+    (a, b) => parseInt(a, 10) - parseInt(b, 10),
   );
   const lines = [];
   lines.push("Total Qty per Item");
@@ -7394,19 +7551,19 @@ async function shareDashboardToDiscord() {
       });
       const itemW = Math.max(
         "Item".length,
-        ...itemsWithPrice.map((x) => x.item.length)
+        ...itemsWithPrice.map((x) => x.item.length),
       );
       const qtyW = Math.max(
         "Qty".length,
-        ...itemsWithPrice.map((x) => String(x.qty).length)
+        ...itemsWithPrice.map((x) => String(x.qty).length),
       );
       const hargaW = Math.max(
         "Harga".length,
-        ...itemsWithPrice.map((x) => x.unitFmt.length)
+        ...itemsWithPrice.map((x) => x.unitFmt.length),
       );
       const subW = Math.max(
         "Subtotal".length,
-        ...itemsWithPrice.map((x) => x.subFmt.length)
+        ...itemsWithPrice.map((x) => x.subFmt.length),
       );
       const header =
         "Item".padEnd(itemW) +
@@ -7436,14 +7593,14 @@ async function shareDashboardToDiscord() {
             " | " +
             x.unitFmt.padStart(hargaW) +
             " | " +
-            x.subFmt.padStart(subW)
+            x.subFmt.padStart(subW),
         );
       });
       const label = "Total : ".padEnd(itemW + 3 + qtyW + 3 + hargaW);
       lines.push(label + " | " + fmt(totalGrp).padStart(subW));
 
       const gKey = Object.keys(groupTotals).find(
-        (k) => k.trim().toUpperCase() === grp.trim().toUpperCase()
+        (k) => k.trim().toUpperCase() === grp.trim().toUpperCase(),
       );
       if (gKey) {
         groupTotals[gKey] += totalGrp;
@@ -7561,16 +7718,16 @@ async function sharePaymentStatusToDiscord() {
     });
     const maxLabel = entriesText.reduce(
       (max, r) => Math.max(max, r.label.length),
-      4
+      4,
     );
     const maxTotal = entriesText.reduce(
       (max, r) => Math.max(max, r.total.length),
-      5
+      5,
     );
     const allNames = [
       "```yaml",
       ...entriesText.map(
-        (r) => `${r.label.padEnd(maxLabel)} : ${r.total.padStart(maxTotal)}`
+        (r) => `${r.label.padEnd(maxLabel)} : ${r.total.padStart(maxTotal)}`,
       ),
       "```",
     ].join("\n");
@@ -7585,7 +7742,7 @@ async function sharePaymentStatusToDiscord() {
   };
 
   const batchLabels = Array.from(
-    new Set(entries.map((x) => fmtBatch(x.batch)))
+    new Set(entries.map((x) => fmtBatch(x.batch))),
   );
   const singleBatchLabel = batchLabels.length === 1 ? batchLabels[0] : "";
   const periodText = singleBatchLabel
@@ -7830,7 +7987,8 @@ function getRoleDropdownLayer() {
   layer = document.createElement("div");
   layer.id = ROLE_DROPDOWN_LAYER_ID;
   layer.className = "fixed inset-0 z-[250] pointer-events-none";
-  layer.innerHTML = '<div class="role-dropdown-floating pointer-events-auto hidden"></div>';
+  layer.innerHTML =
+    '<div class="role-dropdown-floating pointer-events-auto hidden"></div>';
   document.body.appendChild(layer);
   return layer;
 }
@@ -7848,12 +8006,16 @@ window.toggleRoleDropdown = function (id) {
   const floatingId = `floating-dropdown-${id}`;
   const layer = getRoleDropdownLayer();
   const floating = layer.querySelector(".role-dropdown-floating");
-  if (floating && floating.getAttribute("data-current-id") === id && !floating.classList.contains("hidden")) {
+  if (
+    floating &&
+    floating.getAttribute("data-current-id") === id &&
+    !floating.classList.contains("hidden")
+  ) {
     closeRoleDropdownLayer();
     if (window.event) window.event.stopPropagation();
     return;
   }
-  
+
   document
     .querySelectorAll(".role-dropdown-menu")
     .forEach((d) => d.classList.add("hidden"));
@@ -8083,9 +8245,9 @@ window.deleteMember = async function (id, name) {
         if (isMissingColumnError(error, "deleted_at")) {
           showAlert(
             `Soft delete belum aktif untuk ${d.table}. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
-              d.table
+              d.table,
             )}`,
-            "error"
+            "error",
           );
           return;
         }
@@ -8094,14 +8256,17 @@ window.deleteMember = async function (id, name) {
       }
     }
 
-    const { ok: memOk, error: memErr } = await softDeleteById("members", memberId);
+    const { ok: memOk, error: memErr } = await softDeleteById(
+      "members",
+      memberId,
+    );
     if (!memOk) {
       if (isMissingColumnError(memErr, "deleted_at")) {
         showAlert(
           `Soft delete belum aktif untuk members. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
-            "members"
+            "members",
           )}`,
-          "error"
+          "error",
         );
         return;
       }
@@ -8127,7 +8292,9 @@ async function hydrateDrugsBatchFilter() {
   const filterEl = document.getElementById("drugsBatchFilter");
   if (!filterEl) return;
   const already =
-    filterEl.dataset && filterEl.dataset.hydrated === "1" && filterEl.options.length > 2;
+    filterEl.dataset &&
+    filterEl.dataset.hydrated === "1" &&
+    filterEl.options.length > 2;
   if (already) return;
 
   if (!currentDrugsBatch) {
@@ -8211,7 +8378,9 @@ async function loadDrugsBatchFilterOptions() {
   }
   if (!prev && drugsBatchList.length) {
     prev =
-      drugsBatchList.length > 1 ? drugsBatchList[1].orderanke : drugsBatchList[0].orderanke;
+      drugsBatchList.length > 1
+        ? drugsBatchList[1].orderanke
+        : drugsBatchList[0].orderanke;
   }
 
   const makeLabel = (orderanke, active) => {
@@ -8294,7 +8463,7 @@ async function initDrugs(member) {
     if (submitBtn0) submitBtn0.disabled = true;
     showAlert(
       "Akun kamu belum terhubung ke data member. Hubungkan dulu di tabel members.",
-      "error"
+      "error",
     );
   }
   await checkDrugsSalesJenisJumlahSchema();
@@ -8326,7 +8495,7 @@ async function initDrugs(member) {
   }
   if (cancelEditBtn) {
     cancelEditBtn.addEventListener("click", () =>
-      resetDrugsForm(window.__currentMember || null)
+      resetDrugsForm(window.__currentMember || null),
     );
   }
 
@@ -8360,7 +8529,7 @@ async function initDrugs(member) {
     if (isAdmin)
       setActiveBatchBtn.addEventListener(
         "click",
-        openSelectActiveDrugsBatchModal
+        openSelectActiveDrugsBatchModal,
       );
     else setActiveBatchBtn.classList.add("hidden");
   }
@@ -8427,7 +8596,7 @@ function startEditDrugsRow(row) {
   if (duitEl) duitEl.value = String(parseFloat(row.uang_merah) || 0);
   if (estimasiEl)
     estimasiEl.textContent = fmt(
-      (parseFloat(row.uang_merah) || 0) * 0.25 * 0.65
+      (parseFloat(row.uang_merah) || 0) * 0.25 * 0.65,
     );
   if (statusEl) {
     statusEl.textContent = "Mode edit data drugs";
@@ -8456,7 +8625,7 @@ async function checkDrugsSalesJenisJumlahSchema() {
     drugsSalesHasJenisJumlah = false;
     showAlert(
       "Kolom 'jenis' & 'jumlah' belum ada di database (drugs_sales). Tambahkan dulu di Supabase supaya tampil di riwayat.",
-      "warning"
+      "warning",
     );
     return drugsSalesHasJenisJumlah;
   }
@@ -8501,7 +8670,7 @@ async function openSelectActiveDrugsBatchModal() {
 
   const current = rows.find(
     (r) =>
-      parseInt(r.orderanke || 0, 10) === parseInt(currentDrugsBatch || 0, 10)
+      parseInt(r.orderanke || 0, 10) === parseInt(currentDrugsBatch || 0, 10),
   );
   const res = await Swal.fire({
     title: "Atur Periode Aktif Drugs",
@@ -8572,9 +8741,9 @@ async function openSelectActiveDrugsBatchModal() {
         if (isMissingColumnError(softErr, "deleted_at")) {
           showAlert(
             `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
-              "drugs_sales"
+              "drugs_sales",
             )}`,
-            "error"
+            "error",
           );
           return;
         }
@@ -8706,10 +8875,7 @@ async function openCreateBatchModal() {
         return;
       }
     } catch (err) {
-      showAlert(
-        "Gagal memvalidasi batch drugs. Coba lagi sebentar.",
-        "error"
-      );
+      showAlert("Gagal memvalidasi batch drugs. Coba lagi sebentar.", "error");
       return;
     }
     const now = new Date();
@@ -8754,7 +8920,7 @@ function setupDrugsNameSearch() {
         (r, i) =>
           `<div class="px-4 py-2.5 cursor-pointer hover:bg-amber-500/20 border-b border-white/5 last:border-0 transition ${
             i === active ? "bg-amber-500/30" : ""
-          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`
+          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`,
       )
       .join("");
     dd.classList.toggle("hidden", items.length === 0);
@@ -8765,7 +8931,7 @@ function setupDrugsNameSearch() {
         hidden.value = e.currentTarget.getAttribute("data-id");
         dd.classList.add("hidden");
         updateDrugsNameValidity();
-      })
+      }),
     );
   };
 
@@ -8817,11 +8983,11 @@ function setupDrugsNameSearch() {
       dd.classList.add("hidden");
     }
     items.forEach((el, i) =>
-      el.classList.toggle("bg-amber-500/30", i === active)
+      el.classList.toggle("bg-amber-500/30", i === active),
     );
   });
   input.addEventListener("blur", () =>
-    setTimeout(() => dd.classList.add("hidden"), 200)
+    setTimeout(() => dd.classList.add("hidden"), 200),
   );
 }
 
@@ -9246,11 +9412,15 @@ function renderDrugsTable(data) {
     body.innerHTML = "";
     empty.classList.remove("hidden");
     const statusLabel =
-      paid === "paid" ? " (Sudah Dibayar)" : paid === "unpaid" ? " (Belum Dibayar)" : "";
+      paid === "paid"
+        ? " (Sudah Dibayar)"
+        : paid === "unpaid"
+          ? " (Belum Dibayar)"
+          : "";
     renderDrugsEmptyState(
       term || paid !== "all"
         ? `Tidak ada data yang cocok${statusLabel}`
-        : "Belum ada data penjualan"
+        : "Belum ada data penjualan",
     );
     return;
   }
@@ -9354,9 +9524,9 @@ function renderDrugsTable(data) {
           if (isMissingColumnError(error, "deleted_at")) {
             showAlert(
               `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
-                "drugs_sales"
+                "drugs_sales",
               )}`,
-              "error"
+              "error",
             );
             return;
           }
@@ -9378,7 +9548,7 @@ function renderDrugsTable(data) {
         }).then(async (res) => {
           if (res.dismiss === Swal.DismissReason.cancel) {
             const promises = ids.map((id) =>
-              restoreSoftDeletedById("drugs_sales", id)
+              restoreSoftDeletedById("drugs_sales", id),
             );
             const results = await Promise.all(promises);
             const failed = results.filter((r) => !r.ok);
@@ -9450,7 +9620,8 @@ async function loadDrugsTable() {
       } else if (v.startsWith("orderanke:")) {
         const raw = v.split(":")[1] || "";
         const picked = parseInt(raw, 10);
-        if (!Number.isNaN(picked) && picked) q = q.eq("periode_orderanke", picked);
+        if (!Number.isNaN(picked) && picked)
+          q = q.eq("periode_orderanke", picked);
       }
     }
     return q;
@@ -9482,14 +9653,20 @@ async function toggleDrugsPaidStatus(idsOrId, nextStatus) {
     const { error } = await q;
 
     if (error) {
-      if (error.message.includes("column \"is_paid\" does not exist")) {
-        showAlert("Kolom 'is_paid' belum ada di database drugs_sales.", "error");
+      if (error.message.includes('column "is_paid" does not exist')) {
+        showAlert(
+          "Kolom 'is_paid' belum ada di database drugs_sales.",
+          "error",
+        );
       } else {
         showAlert("Gagal update status: " + error.message, "error");
       }
       return;
     }
-    showAlert(nextStatus ? "Ditandai LUNAS" : "Ditandai BELUM LUNAS", "success");
+    showAlert(
+      nextStatus ? "Ditandai LUNAS" : "Ditandai BELUM LUNAS",
+      "success",
+    );
     loadDrugsTable();
   } catch (e) {
     showAlert("Gagal update status (network)", "error");
@@ -9548,13 +9725,13 @@ async function submitRageCash() {
   const amount =
     parseFloat((document.getElementById("rageCashAmount") || {}).value) || 0;
   const category = String(
-    (document.getElementById("rageCashCategory") || {}).value || ""
+    (document.getElementById("rageCashCategory") || {}).value || "",
   ).trim();
   const note = String(
-    (document.getElementById("rageCashNote") || {}).value || ""
+    (document.getElementById("rageCashNote") || {}).value || "",
   ).trim();
   const timeVal = String(
-    (document.getElementById("rageCashTime") || {}).value || ""
+    (document.getElementById("rageCashTime") || {}).value || "",
   ).trim();
 
   if (!type || (type !== "IN" && type !== "OUT")) {
@@ -9813,7 +9990,7 @@ async function loadRekapData() {
       orderWin && orderWin.orderanke
         ? (() => {
             const { m, w, raw } = decodeOrderanke(
-              parseInt(orderWin.orderanke, 10)
+              parseInt(orderWin.orderanke, 10),
             );
             return `${isOrderFallback ? "Periode Order Terakhir" : "Periode Order"}: M${m}-W${w} (#${raw})`;
           })()
@@ -9822,7 +9999,7 @@ async function loadRekapData() {
       drugsWin && drugsWin.orderanke
         ? (() => {
             const { m, w, raw } = decodeOrderanke(
-              parseInt(drugsWin.orderanke, 10)
+              parseInt(drugsWin.orderanke, 10),
             );
             return `${isDrugsFallback ? "Batch Drugs Terakhir" : "Batch Drugs"}: M${m}-W${w} (#${raw})`;
           })()
@@ -9868,7 +10045,7 @@ async function loadRekapData() {
         const totalMoney = rows.reduce((a, r) => a + (r.subtotal || 0), 0);
         const totalScr = rows.reduce(
           (a, r) => a + getCatalogScrap(r.item) * (r.qty || 0),
-          0
+          0,
         );
         if (orderCount) orderCount.textContent = String(orderIds.size);
         if (orderItems) orderItems.textContent = String(totalQty);
@@ -9888,7 +10065,7 @@ async function loadRekapData() {
             ? top
                 .map(
                   ([name, qty]) =>
-                    `<div class="flex justify-between gap-4"><span class="truncate">${name}</span><span class="font-mono font-bold">${fmtNumber(qty)}</span></div>`
+                    `<div class="flex justify-between gap-4"><span class="truncate">${name}</span><span class="font-mono font-bold">${fmtNumber(qty)}</span></div>`,
                 )
                 .join("")
             : '<div class="text-slate-500 dark:text-amber-200/60">Belum ada order</div>';
@@ -9936,15 +10113,15 @@ async function loadRekapData() {
         const rows = data || [];
         const totalMerah = rows.reduce(
           (a, r) => a + (parseFloat(r.uang_merah) || 0),
-          0
+          0,
         );
         const totalGaji = rows.reduce(
           (a, r) => a + (parseFloat(r.upah_putih) || 0),
-          0
+          0,
         );
         const totalRage = rows.reduce(
           (a, r) => a + (parseFloat(r.uang_rage) || 0),
-          0
+          0,
         );
         if (drugsMerah) drugsMerah.textContent = fmt(totalMerah);
         if (drugsGaji) drugsGaji.textContent = fmt(totalGaji);
@@ -9997,7 +10174,7 @@ async function loadRekapData() {
         if (tCur >= tPrev) latestByMember[key] = r;
       });
       const done = Object.values(latestByMember).filter(
-        (r) => String(r.status || "") === "SUDAH"
+        (r) => String(r.status || "") === "SUDAH",
       ).length;
       const totalMembers = memberCount || 0;
       const pending = Math.max(0, totalMembers - done);
@@ -10051,14 +10228,17 @@ async function deleteRageCashEntry(id) {
   const pinOk = await confirmDeletePin();
   if (!pinOk) return;
 
-  const { ok: delOk, error: delErr } = await softDeleteById("rage_cash_logs", id);
+  const { ok: delOk, error: delErr } = await softDeleteById(
+    "rage_cash_logs",
+    id,
+  );
   if (!delOk) {
     if (isMissingColumnError(delErr, "deleted_at")) {
       showAlert(
         `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
-          "rage_cash_logs"
+          "rage_cash_logs",
         )}`,
-        "error"
+        "error",
       );
       return;
     }
@@ -10076,7 +10256,7 @@ async function deleteRageCashEntry(id) {
     confirmButtonText: "Tutup",
     cancelButtonText: "Batalkan (Undo)",
     background: "#1f1410",
-    color: "#fef3c7"
+    color: "#fef3c7",
   }).then(async (res) => {
     if (res.dismiss === Swal.DismissReason.cancel) {
       const undoRes = await restoreSoftDeletedById("rage_cash_logs", id);
@@ -10084,7 +10264,10 @@ async function deleteRageCashEntry(id) {
         showAlert("Penghapusan dibatalkan", "success");
         loadRageCashTable();
       } else {
-        showAlert("Gagal memulihkan catatan: " + undoRes.error.message, "error");
+        showAlert(
+          "Gagal memulihkan catatan: " + undoRes.error.message,
+          "error",
+        );
       }
     }
   });
