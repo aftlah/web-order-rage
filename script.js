@@ -337,18 +337,345 @@ async function softDeleteByMemberId(tableName, memberId) {
 async function restoreSoftDeletedById(tableName, id) {
   if (!supabase)
     return { ok: false, error: { message: "Supabase tidak terhubung" } };
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from(tableName)
     .update({ deleted_at: null })
-    .eq("id", id)
-    .select("id");
+    .eq("id", id);
   if (error) return { ok: false, error };
-  if (!data || !data.length)
-    return {
-      ok: false,
-      error: { message: "Tidak bisa memulihkan data (RLS/policy menolak)" },
-    };
   return { ok: true, error: null };
+}
+
+const DISCORD_RESYNC_TABLES = new Set([
+  "nitip_cuci_logs",
+  "drugs_sales",
+  "rage_cash_logs",
+  "orders",
+]);
+
+function getDiscordWebhookForTable(tableName) {
+  switch (tableName) {
+    case "nitip_cuci_logs":
+      return getNitipCuciWebhookUrl();
+    case "drugs_sales":
+      return getDrugsWebhookUrl();
+    case "rage_cash_logs":
+      return getRageCashWebhookUrl();
+    case "orders":
+      return getOrderWebhookUrl();
+    default:
+      return "";
+  }
+}
+
+async function clearDiscordMessageIdsOnRows(tableName, rowIds) {
+  if (!supabase || !tableName) return;
+  const ids = normalizeRowIds(rowIds, tableName);
+  if (!ids.length) return;
+  const { error } = await supabase
+    .from(tableName)
+    .update({ discord_message_id: null })
+    .in("id", ids);
+  if (error && !isMissingColumnError(error, "discord_message_id")) {
+    console.warn(`Gagal clear discord_message_id di ${tableName}:`, error);
+  }
+}
+
+async function purgeDiscordOnArchive(tableName, rowIds) {
+  const empty = { attempted: 0, deleted: 0, skipped: false, hadIds: false };
+  if (!DISCORD_RESYNC_TABLES.has(tableName)) return empty;
+  const webhook = getDiscordWebhookForTable(tableName);
+  if (!webhook) return { ...empty, skipped: true, reason: "no_webhook" };
+
+  if (tableName === "orders") {
+    const ids = (Array.isArray(rowIds) ? rowIds : [rowIds])
+      .map((x) => parseInt(String(x), 10))
+      .filter((n) => !Number.isNaN(n) && n > 0);
+    if (!ids.length || !supabase) return empty;
+    const { data: rows, error } = await supabase
+      .from("orders")
+      .select("id,discord_message_id")
+      .in("id", ids);
+    if (error) {
+      if (isMissingColumnError(error, "discord_message_id")) {
+        return { ...empty, skipped: true, reason: "missing_column" };
+      }
+      return { ...empty, error };
+    }
+    const messageIds = [
+      ...new Set(
+        (rows || [])
+          .map((r) => normalizeDiscordMessageId(r.discord_message_id))
+          .filter(Boolean),
+      ),
+    ];
+    let deleted = 0;
+    for (const mid of messageIds) {
+      if (await deleteDiscordWebhookMessage(webhook, mid)) deleted += 1;
+    }
+    if (messageIds.length) {
+      for (const mid of messageIds) {
+        await supabase
+          .from("orders")
+          .update({ discord_message_id: null })
+          .eq("discord_message_id", mid);
+      }
+    }
+    await clearDiscordMessageIdsOnRows("orders", ids);
+    return {
+      attempted: messageIds.length,
+      deleted,
+      hadIds: messageIds.length > 0,
+      skipped: false,
+    };
+  }
+
+  const purgeRes = await deleteDiscordMessagesForTableRows(
+    tableName,
+    rowIds,
+    webhook,
+  );
+  await clearDiscordMessageIdsOnRows(tableName, rowIds);
+  return {
+    attempted: purgeRes.attempted || 0,
+    deleted: purgeRes.deleted || 0,
+    hadIds: (purgeRes.attempted || 0) > 0,
+    skipped: !!purgeRes.skipped,
+    reason:
+      purgeRes.reason ||
+      (purgeRes.skipped ? "missing_column" : null) ||
+      null,
+    error: purgeRes.error || null,
+  };
+}
+
+async function fetchImageFileFromUrl(url, filename = "bukti.png") {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Gagal mengambil gambar bukti");
+  const blob = await res.blob();
+  return new File([blob], filename, { type: blob.type || "image/png" });
+}
+
+function buildOrderDiscordMessage(items, nama, effectiveOrderanke) {
+  const orderIds = Array.from(new Set(items.map((r) => r.order_id))).filter(
+    Boolean,
+  );
+  const count = orderIds.length;
+  const total = items.reduce((a, r) => a + (r.subtotal || 0), 0);
+  let totalScrap = 0;
+  items.forEach((r) => {
+    let scrap = 0;
+    for (const cat in CATALOG) {
+      const found = CATALOG[cat].find((i) => i.name === r.item);
+      if (found) {
+        scrap = found.scrap || 0;
+        break;
+      }
+    }
+    totalScrap += scrap * (r.qty || 0);
+  });
+  const m = Math.floor(effectiveOrderanke / 10);
+  const w = effectiveOrderanke % 10;
+  const grouped = {};
+  items.forEach((r) => {
+    const key = r.item;
+    if (!grouped[key]) grouped[key] = { ...r, qty: 0 };
+    grouped[key].qty += r.qty;
+  });
+  const maxLen = Math.max(
+    ...Object.values(grouped).map((r) => String(r.item || "").length),
+    1,
+  );
+  const details = Object.values(grouped)
+    .sort((a, b) => String(a.item).localeCompare(String(b.item)))
+    .map(
+      (r) =>
+        `• ${String(r.qty).padStart(2)}x ${String(r.item).padEnd(maxLen)} : ${fmt(
+          (r.harga || 0) * (r.qty || 0),
+        )}`,
+    )
+    .join("\n");
+  return (
+    "```\n" +
+    `Periode: M${m}-W${w} (#${effectiveOrderanke})\n` +
+    `Nama  : ${nama}\n` +
+    `Order : ${count}\n` +
+    `Total : ${fmt(total)}\n` +
+    (totalScrap > 0 ? `Total Scrap : ${totalScrap}\n` : "") +
+    `\n` +
+    `Detail Orderan :\n` +
+    details +
+    "```"
+  );
+}
+
+async function saveDiscordMessageIdOnMemberOrders(memberId, orderanke, messageId) {
+  if (!supabase || !memberId || !orderanke || !messageId) return;
+  const { error } = await supabase
+    .from("orders")
+    .update({ discord_message_id: normalizeDiscordMessageId(messageId) })
+    .eq("member_id", memberId)
+    .eq("orderanke", orderanke)
+    .is("deleted_at", null);
+  if (error && isMissingColumnError(error, "discord_message_id")) {
+    console.warn("Kolom discord_message_id belum ada di orders");
+  }
+}
+
+async function sendMemberOrdersDiscord(memberId, nama, orderanke) {
+  if (!supabase || !memberId || !orderanke) return null;
+  let includeDelivered = true;
+  let filterActiveOnly = true;
+  let items = null;
+  let qError = null;
+  for (let i = 0; i < 3; i += 1) {
+    const fields = includeDelivered
+      ? "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered"
+      : "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal";
+    let q = supabase
+      .from("orders")
+      .select(fields)
+      .eq("member_id", memberId)
+      .eq("orderanke", orderanke)
+      .order("waktu", { ascending: false })
+      .limit(200);
+    if (filterActiveOnly) q = q.is("deleted_at", null);
+    const res = await q;
+    items = res.data || null;
+    qError = res.error || null;
+    if (!qError) break;
+    if (isMissingColumnError(qError, "deleted_at")) {
+      filterActiveOnly = false;
+      continue;
+    }
+    if (String(qError.message || "").includes("delivered")) {
+      includeDelivered = false;
+      continue;
+    }
+    break;
+  }
+  if (qError || !items || !items.length) return null;
+  const msg = buildOrderDiscordMessage(items, nama, orderanke);
+  const discordMessageId = await postToDiscord(msg);
+  if (discordMessageId) {
+    await saveDiscordMessageIdOnMemberOrders(memberId, orderanke, discordMessageId);
+  }
+  return discordMessageId;
+}
+
+async function resendDiscordForRestoredRow(tableName, id) {
+  if (!supabase || !DISCORD_RESYNC_TABLES.has(tableName)) return;
+  const rowId = normalizeTableRowId(tableName, id);
+  if (rowId == null) return;
+
+  if (tableName === "nitip_cuci_logs") {
+    const { data: row } = await supabase
+      .from("nitip_cuci_logs")
+      .select("*")
+      .eq("id", rowId)
+      .maybeSingle();
+    if (!row) return;
+    let periodeLabel = "";
+    if (row.periode_orderanke) {
+      const v = parseInt(row.periode_orderanke, 10);
+      if (!Number.isNaN(v) && v > 0) {
+        const m = Math.floor(v / 10);
+        const w = v % 10;
+        periodeLabel = `M${m}-W${w} (#${v})`;
+      }
+    }
+    const payload = buildNitipCuciDiscordPayload({
+      nama: row.nama,
+      uangMerah: row.uang_merah,
+      uangPutih: row.uang_putih,
+      keterangan: row.keterangan,
+      periodeLabel,
+      waktu: row.waktu,
+      actor: "",
+    });
+    let messageId = null;
+    if (row.image_url) {
+      try {
+        const file = await fetchImageFileFromUrl(row.image_url);
+        messageId = await postToDiscordWithFile({
+          message: payload.content,
+          file,
+        });
+      } catch (e) {
+        messageId = await postToDiscord(
+          payload.content,
+          getNitipCuciWebhookUrl(),
+        );
+      }
+    } else {
+      messageId = await postToDiscord(
+        payload.content,
+        getNitipCuciWebhookUrl(),
+      );
+    }
+    if (messageId) {
+      await saveDiscordMessageIdOnRow("nitip_cuci_logs", rowId, messageId);
+    }
+    return;
+  }
+
+  if (tableName === "drugs_sales") {
+    const { data: row } = await supabase
+      .from("drugs_sales")
+      .select("*")
+      .eq("id", rowId)
+      .maybeSingle();
+    if (!row) return;
+    const messageId = await sendDrugsEntryToDiscord({
+      nama: row.nama,
+      periode_orderanke: row.periode_orderanke,
+      jenis: row.jenis,
+      jumlahTotal: row.jumlah,
+      duitMerahTotal: row.uang_merah,
+      upahPutihTotal: row.upah_putih,
+      uangRageTotal: row.uang_rage,
+      waktu: row.waktu,
+      mode: "insert",
+    });
+    if (messageId) {
+      await saveDiscordMessageIdOnRow("drugs_sales", rowId, messageId);
+    }
+    return;
+  }
+
+  if (tableName === "rage_cash_logs") {
+    const { data: row } = await supabase
+      .from("rage_cash_logs")
+      .select("*")
+      .eq("id", rowId)
+      .maybeSingle();
+    if (!row) return;
+    const messageId = await sendRageCashToDiscord(row);
+    if (messageId) {
+      await saveDiscordMessageIdOnRow("rage_cash_logs", rowId, messageId);
+    }
+    return;
+  }
+
+  if (tableName === "orders") {
+    const { data: row } = await supabase
+      .from("orders")
+      .select("id,member_id,nama,orderanke")
+      .eq("id", rowId)
+      .maybeSingle();
+    if (!row || !row.member_id || !row.orderanke) return;
+    await sendMemberOrdersDiscord(row.member_id, row.nama, row.orderanke);
+  }
+}
+
+async function restoreArchivedRowWithDiscord(tableName, id) {
+  const res = await restoreSoftDeletedById(tableName, id);
+  if (!res.ok) return res;
+  try {
+    await resendDiscordForRestoredRow(tableName, id);
+  } catch (e) {
+    console.warn("Gagal kirim ulang Discord setelah pulihkan:", e);
+  }
+  return res;
 }
 
 // Delete rows that have been in the archive for more than 3 days
@@ -369,7 +696,9 @@ async function purgeOldArchives(tableName) {
 
 async function postToDiscord(message, overrideUrl) {
   try {
-    const url = overrideUrl || (window && window.DISCORD_WEBHOOK_URL) || "";
+    const url = discordWebhookWaitUrl(
+      overrideUrl || (window && window.DISCORD_WEBHOOK_URL) || "",
+    );
     const enabled = window.DISCORD_ENABLED !== false;
     if (!url || !enabled || !message || typeof message !== "string") return null;
     let content = message;
@@ -433,7 +762,9 @@ async function postToDiscord(message, overrideUrl) {
 
 async function postToDiscordEmbed(embed, overrideUrl, contentOverride) {
   try {
-    const url = overrideUrl || (window && window.DISCORD_WEBHOOK_URL) || "";
+    const url = discordWebhookWaitUrl(
+      overrideUrl || (window && window.DISCORD_WEBHOOK_URL) || "",
+    );
     const enabled = window.DISCORD_ENABLED !== false;
     if (!url || !enabled || !embed || typeof embed !== "object") return null;
 
@@ -489,32 +820,283 @@ function getOrderWebhookUrl() {
   return (window && window.DISCORD_WEBHOOK_URL) || "";
 }
 
+function discordWebhookWaitUrl(url) {
+  if (!url || typeof url !== "string") return url;
+  if (/[?&]wait=true/i.test(url)) return url;
+  return url.includes("?") ? `${url}&wait=true` : `${url}?wait=true`;
+}
+
 async function readDiscordMessageIdFromResponse(res) {
-  if (!res || !res.ok) return null;
+  if (!res || !res.ok) {
+    if (res) {
+      try {
+        const errText = await res.text();
+        console.warn(
+          "Discord webhook gagal:",
+          res.status,
+          errText.slice(0, 200),
+        );
+      } catch (e) {}
+    }
+    return null;
+  }
   try {
-    const data = await res.json();
-    return (data && data.id) || null;
+    const text = await res.text();
+    if (!text || !text.trim()) {
+      if (res.status === 204) {
+        console.warn(
+          "Discord webhook 204 tanpa body — URL harus memakai ?wait=true",
+        );
+      }
+      return null;
+    }
+    const quoted = text.match(/"id"\s*:\s*"(\d{10,22})"/);
+    if (quoted) return quoted[1];
+    const bare = text.match(/"id"\s*:\s*(\d{10,22})\b/);
+    if (bare) return bare[1];
+    const data = JSON.parse(text);
+    if (data && typeof data.id === "string") {
+      return normalizeDiscordMessageId(data.id);
+    }
+    console.warn(
+      "Discord response tanpa message id:",
+      text.slice(0, 300),
+    );
+    return null;
   } catch (e) {
+    console.warn("Gagal baca message id Discord:", e);
     return null;
   }
 }
 
-async function saveDiscordMessageIdOnRow(tableName, rowId, messageId) {
-  if (!supabase || !tableName || !rowId || !messageId) return;
-  const { error } = await supabase
-    .from(tableName)
-    .update({ discord_message_id: String(messageId) })
-    .eq("id", rowId);
-  if (error && isMissingColumnError(error, "discord_message_id")) {
-    console.warn(`Kolom discord_message_id belum ada di ${tableName}`);
+function normalizeDiscordMessageId(value) {
+  if (value == null || value === "") return null;
+  if (typeof value === "bigint") {
+    const s = value.toString();
+    return /^\d{10,22}$/.test(s) ? s : null;
   }
+  const s = String(value).trim();
+  return /^\d{10,22}$/.test(s) ? s : null;
+}
+
+const DISCORD_MESSAGE_ID_RPC = {
+  drugs_sales: "set_drugs_discord_message_id",
+  nitip_cuci_logs: "set_nitip_cuci_discord_message_id",
+  rage_cash_logs: "set_rage_cash_discord_message_id",
+};
+
+const DISCORD_MESSAGE_ID_GET_RPC = {
+  drugs_sales: "get_drugs_discord_message_ids",
+  nitip_cuci_logs: "get_nitip_cuci_discord_message_ids",
+  rage_cash_logs: "get_rage_cash_discord_message_ids",
+};
+
+const DISCORD_MSG_CACHE_KEY = "rage_discord_msg_cache_v1";
+
+const TABLE_ROW_ID_UUID = new Set(["drugs_sales"]);
+
+function isUuidString(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "").trim(),
+  );
+}
+
+function normalizeTableRowId(tableName, value) {
+  const s = String(value ?? "").trim();
+  if (!s) return null;
+  if (TABLE_ROW_ID_UUID.has(tableName) || isUuidString(s)) {
+    return isUuidString(s) ? s : null;
+  }
+  const n = parseInt(s, 10);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+function normalizeRowIds(rowIds, tableName) {
+  const list = Array.isArray(rowIds) ? rowIds : [rowIds];
+  const out = [];
+  const seen = new Set();
+  for (const raw of list) {
+    const id = normalizeTableRowId(tableName, raw);
+    if (id == null) continue;
+    const key = String(id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(id);
+  }
+  return out;
+}
+
+function readDiscordMsgCacheAll() {
+  if (!window.__rageDiscordMsgCache) {
+    window.__rageDiscordMsgCache = {};
+    try {
+      const raw = localStorage.getItem(DISCORD_MSG_CACHE_KEY);
+      if (raw) Object.assign(window.__rageDiscordMsgCache, JSON.parse(raw));
+    } catch (e) {}
+  }
+  return window.__rageDiscordMsgCache;
+}
+
+function cacheDiscordMsgId(tableName, rowId, messageId) {
+  const mid = normalizeDiscordMessageId(messageId);
+  const id = normalizeTableRowId(tableName, rowId);
+  if (!tableName || id == null || !mid) return;
+  const key = `${tableName}:${id}`;
+  const cache = readDiscordMsgCacheAll();
+  cache[key] = mid;
+  try {
+    localStorage.setItem(DISCORD_MSG_CACHE_KEY, JSON.stringify(cache));
+  } catch (e) {}
+}
+
+function readCachedDiscordMsgId(tableName, rowId) {
+  const id = normalizeTableRowId(tableName, rowId);
+  if (!tableName || id == null) return null;
+  const cache = readDiscordMsgCacheAll();
+  return normalizeDiscordMessageId(cache[`${tableName}:${id}`]);
+}
+
+function clearCachedDiscordMsgIds(tableName, rowIds) {
+  const ids = normalizeRowIds(rowIds, tableName);
+  if (!tableName || !ids.length) return;
+  const cache = readDiscordMsgCacheAll();
+  let changed = false;
+  ids.forEach((id) => {
+    const key = `${tableName}:${id}`;
+    if (cache[key]) {
+      delete cache[key];
+      changed = true;
+    }
+  });
+  if (!changed) return;
+  try {
+    localStorage.setItem(DISCORD_MSG_CACHE_KEY, JSON.stringify(cache));
+  } catch (e) {}
+}
+
+async function fetchDiscordMessageIdsForRows(tableName, rowIds) {
+  const ids = normalizeRowIds(rowIds, tableName);
+  if (!supabase || !tableName || !ids.length) return [];
+
+  const byId = new Map();
+
+  const getRpc = DISCORD_MESSAGE_ID_GET_RPC[tableName];
+  if (getRpc) {
+    const { data, error } = await supabase.rpc(getRpc, { p_ids: ids });
+    if (!error && Array.isArray(data)) {
+      data.forEach((row) => {
+        const mid = normalizeDiscordMessageId(row.discord_message_id);
+        if (mid) byId.set(String(row.id), mid);
+      });
+    }
+  }
+
+  if (byId.size < ids.length) {
+    const { data, error } = await supabase
+      .from(tableName)
+      .select("id,discord_message_id")
+      .in("id", ids);
+    if (!error) {
+      (data || []).forEach((row) => {
+        const mid = normalizeDiscordMessageId(row.discord_message_id);
+        if (mid) byId.set(String(row.id), mid);
+      });
+    }
+  }
+
+  ids.forEach((id) => {
+    if (!byId.has(String(id))) {
+      const cached = readCachedDiscordMsgId(tableName, id);
+      if (cached) byId.set(String(id), cached);
+    }
+  });
+
+  return [...new Set([...byId.values()])];
+}
+
+async function persistDiscordMessageId(tableName, rowId, messageId) {
+  const mid = normalizeDiscordMessageId(messageId);
+  const id = normalizeTableRowId(tableName, rowId);
+  if (!supabase || !tableName || id == null || !mid) {
+    return { ok: false, reason: "invalid_args" };
+  }
+
+  cacheDiscordMsgId(tableName, id, mid);
+
+  const rpcName = DISCORD_MESSAGE_ID_RPC[tableName];
+  if (rpcName) {
+    const { data: rpcOk, error: rpcErr } = await supabase.rpc(rpcName, {
+      p_id: id,
+      p_message_id: mid,
+    });
+    if (!rpcErr && rpcOk === true) {
+      return { ok: true, via: "rpc" };
+    }
+    if (
+      rpcErr &&
+      String(rpcErr.code || "") !== "PGRST202" &&
+      !String(rpcErr.message || "").includes(rpcName)
+    ) {
+      console.warn(`RPC ${rpcName} gagal:`, rpcErr);
+    }
+  }
+
+  const { error: directErr } = await supabase
+    .from(tableName)
+    .update({ discord_message_id: mid })
+    .eq("id", id);
+
+  if (!directErr) {
+    return { ok: true, via: "update" };
+  }
+
+  if (directErr && isMissingColumnError(directErr, "discord_message_id")) {
+    return { ok: false, reason: "missing_column" };
+  }
+  if (directErr) {
+    console.warn(`Gagal simpan discord_message_id di ${tableName}:`, directErr);
+  }
+  // Cache lokal tetap ada — purge masih bisa hapus Discord di browser ini
+  return { ok: true, via: "cache_only", dbFailed: true };
+}
+
+function discordPurgeArchiveNote(purgeRes) {
+  if (!purgeRes) return "";
+  if (
+    purgeRes.reason === "missing_column" ||
+    (purgeRes.skipped && purgeRes.reason === "missing_column")
+  ) {
+    return "\n\nKolom discord_message_id belum ada. Jalankan migration 20260620_discord_message_id_rpc.sql di Supabase.";
+  }
+  if (!purgeRes.hadIds) {
+    return "\n\nID pesan Discord tidak tersimpan untuk data ini — hapus manual di channel Discord.";
+  }
+  if (purgeRes.attempted > 0 && purgeRes.deleted < purgeRes.attempted) {
+    return "\n\nBeberapa pesan Discord gagal dihapus — cek channel dan hapus manual jika perlu.";
+  }
+  return "";
+}
+
+function discordPersistFailNote(persistRes) {
+  if (!persistRes || persistRes.ok) return "";
+  if (persistRes.reason === "missing_column") {
+    return " Jalankan migration 20260620_discord_message_id_rpc.sql di Supabase SQL Editor.";
+  }
+  if (persistRes.reason === "invalid_args") {
+    return " Discord tidak mengembalikan message ID (hard refresh Ctrl+Shift+R lalu coba lagi).";
+  }
+  return " Cek console browser (F12) untuk detail.";
+}
+
+async function saveDiscordMessageIdOnRow(tableName, rowId, messageId) {
+  return persistDiscordMessageId(tableName, rowId, messageId);
 }
 
 async function saveDiscordMessageIdOnOrderBatch(orderId, messageId) {
   if (!supabase || !orderId || !messageId) return;
   const { error } = await supabase
     .from("orders")
-    .update({ discord_message_id: String(messageId) })
+    .update({ discord_message_id: normalizeDiscordMessageId(messageId) })
     .eq("order_id", orderId)
     .is("deleted_at", null);
   if (error && isMissingColumnError(error, "discord_message_id")) {
@@ -524,33 +1106,33 @@ async function saveDiscordMessageIdOnOrderBatch(orderId, messageId) {
 
 async function deleteDiscordMessagesForTableRows(tableName, rowIds, webhookUrl) {
   if (!supabase || !webhookUrl) return { attempted: 0, deleted: 0 };
-  const ids = (Array.isArray(rowIds) ? rowIds : [rowIds])
-    .map((x) => parseInt(String(x), 10))
-    .filter((n) => !Number.isNaN(n) && n > 0);
+  const ids = normalizeRowIds(rowIds, tableName);
   if (!ids.length) return { attempted: 0, deleted: 0 };
 
-  const { data, error } = await supabase
-    .from(tableName)
-    .select("id,discord_message_id")
-    .in("id", ids);
-  if (error) {
-    if (isMissingColumnError(error, "discord_message_id")) {
-      return { attempted: 0, deleted: 0, skipped: true };
-    }
-    return { attempted: 0, deleted: 0, error };
+  let messageIds = [];
+  try {
+    messageIds = await fetchDiscordMessageIdsForRows(tableName, ids);
+  } catch (e) {
+    console.warn("Gagal ambil discord_message_id:", e);
   }
 
-  const messageIds = [
-    ...new Set(
-      (data || [])
-        .map((r) => String(r.discord_message_id || "").trim())
-        .filter(Boolean),
-    ),
-  ];
+  if (!messageIds.length) {
+    const { error } = await supabase
+      .from(tableName)
+      .select("id")
+      .in("id", ids)
+      .limit(1);
+    if (error && isMissingColumnError(error, "discord_message_id")) {
+      return { attempted: 0, deleted: 0, skipped: true, reason: "missing_column" };
+    }
+    return { attempted: 0, deleted: 0 };
+  }
+
   let deleted = 0;
   for (const mid of messageIds) {
     if (await deleteDiscordWebhookMessage(webhookUrl, mid)) deleted += 1;
   }
+  if (deleted > 0) clearCachedDiscordMsgIds(tableName, ids);
   return { attempted: messageIds.length, deleted };
 }
 
@@ -578,25 +1160,8 @@ async function softDeleteOrderById(id) {
   const rowId = parseInt(String(id || ""), 10);
   if (!rowId) return { ok: false, error: { message: "ID tidak valid" } };
 
-  let discordMsgId = "";
-  const { data: row, error: fetchErr } = await supabase
-    .from("orders")
-    .select("id,discord_message_id")
-    .eq("id", rowId)
-    .maybeSingle();
-  if (!fetchErr && row) discordMsgId = String(row.discord_message_id || "").trim();
-
-  const res = await softDeleteById("orders", rowId);
-  if (!res.ok) return res;
-
-  if (discordMsgId) {
-    await maybeDeleteDiscordMessageIfUnused(
-      "orders",
-      discordMsgId,
-      getOrderWebhookUrl(),
-    );
-  }
-  return res;
+  await purgeDiscordOnArchive("orders", [rowId]);
+  return softDeleteById("orders", rowId);
 }
 
 function parseDiscordWebhookUrl(url) {
@@ -608,19 +1173,22 @@ function parseDiscordWebhookUrl(url) {
 async function deleteDiscordWebhookMessage(webhookUrl, messageId) {
   const parsed = parseDiscordWebhookUrl(webhookUrl);
   const enabled = window.DISCORD_ENABLED !== false;
-  const mid = String(messageId || "").trim();
+  const mid = normalizeDiscordMessageId(messageId);
   if (!parsed || !mid || !enabled) return false;
   try {
-    const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${mid}`;
+    const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${encodeURIComponent(mid)}`;
     const res = await fetch(url, { method: "DELETE" });
-    return res.ok || res.status === 404;
+    if (res.ok || res.status === 404) return true;
+    console.warn("Gagal hapus pesan Discord:", res.status, await res.text());
+    return false;
   } catch (e) {
+    console.warn("Gagal hapus pesan Discord:", e);
     return false;
   }
 }
 
 async function postToDiscordWithFile({ message, file, embeds, overrideUrl }) {
-  const url = overrideUrl || getNitipCuciWebhookUrl();
+  const url = discordWebhookWaitUrl(overrideUrl || getNitipCuciWebhookUrl());
   const enabled = window.DISCORD_ENABLED !== false;
   if (!url || !enabled) return null;
   const now = Date.now();
@@ -3330,8 +3898,11 @@ async function initAdminArchivePage() {
         });
         if (!result.isConfirmed) return;
         try {
+          const restoreFn = DISCORD_RESYNC_TABLES.has(currentTab)
+            ? restoreArchivedRowWithDiscord
+            : restoreSoftDeletedById;
           for (const id of ids) {
-            const { ok, error } = await restoreSoftDeletedById(currentTab, id);
+            const { ok, error } = await restoreFn(currentTab, id);
             if (!ok) {
               showAlert(
                 `Gagal memulihkan id ${id}: ${error.message || "Unknown error"}`,
@@ -3368,7 +3939,10 @@ async function initAdminArchivePage() {
         if (!result.isConfirmed) return;
 
         try {
-          const { ok, error } = await restoreSoftDeletedById(currentTab, id);
+          const restoreFn = DISCORD_RESYNC_TABLES.has(currentTab)
+            ? restoreArchivedRowWithDiscord
+            : restoreSoftDeletedById;
+          const { ok, error } = await restoreFn(currentTab, id);
           if (!ok) {
             showAlert(
               `Gagal memulihkan data: ${error.message || "Unknown error"}`,
@@ -4183,7 +4757,7 @@ function renderMyOrders(rows, useOrderanke, mode) {
         if (!result.isConfirmed) return;
 
         try {
-          const { ok, error } = await restoreSoftDeletedById("orders", id);
+          const { ok, error } = await restoreArchivedRowWithDiscord("orders", id);
           if (!ok) {
             if (isMissingColumnError(error, "deleted_at")) {
               showAlert(
@@ -4267,7 +4841,7 @@ function renderMyOrders(rows, useOrderanke, mode) {
           color: "#fef3c7",
         }).then(async (res) => {
           if (res.dismiss === Swal.DismissReason.cancel) {
-            const undoRes = await restoreSoftDeletedById("orders", id);
+            const undoRes = await restoreArchivedRowWithDiscord("orders", id);
             if (undoRes.ok) {
               showAlert("Penghapusan dibatalkan", "success");
               await loadMyOrdersForSelection();
@@ -4864,16 +5438,7 @@ async function deleteNitipCuciRow(row) {
   }
 
   try {
-    let discordDelete = null;
-    if (row.discord_message_id) {
-      const delRes = await deleteDiscordMessagesForTableRows(
-        "nitip_cuci_logs",
-        [row.id],
-        getNitipCuciWebhookUrl(),
-      );
-      discordDelete =
-        delRes.attempted > 0 ? delRes.deleted > 0 : null;
-    }
+    await purgeDiscordOnArchive("nitip_cuci_logs", [row.id]);
 
     let ok = false;
     let error = null;
@@ -4923,12 +5488,7 @@ async function deleteNitipCuciRow(row) {
       showAlert(`Gagal menghapus: ${msg || "Unknown error"}`, "error");
       return;
     }
-    showAlert(
-      discordDelete === false
-        ? "Data dihapus, tapi pesan Discord tidak bisa dihapus (mungkin sudah dihapus manual)"
-        : "Nitip cuci dihapus",
-      discordDelete === false ? "warning" : "success",
-    );
+    showAlert("Nitip cuci dihapus", "success");
     await loadNitipCuciTable();
   } catch (e) {
     showAlert("Gagal menghapus (network)", "error");
@@ -5607,105 +6167,7 @@ async function submitOrder() {
     await refreshItemTotals(effectiveOrderanke);
     await loadMyOrdersForSelection();
     try {
-      let fetched = null;
-      let qError = null;
-      const fetchOrdersForDiscord = async ({
-        includeDelivered,
-        filterActiveOnly,
-      }) => {
-        const fields = includeDelivered
-          ? "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal,delivered"
-          : "id,order_id,order_no,nama,orderanke,waktu,kategori,item,harga,qty,subtotal";
-        let q = supabase
-          .from("orders")
-          .select(fields)
-          .eq("member_id", member_id)
-          .eq("orderanke", effectiveOrderanke)
-          .order("waktu", { ascending: false })
-          .limit(200);
-        if (filterActiveOnly) q = q.is("deleted_at", null);
-        return await q;
-      };
-
-      let includeDelivered = true;
-      let filterActiveOnly = true;
-      for (let i = 0; i < 3; i += 1) {
-        const res = await fetchOrdersForDiscord({
-          includeDelivered,
-          filterActiveOnly,
-        });
-        fetched = res.data || null;
-        qError = res.error || null;
-        if (!qError) break;
-        if (isMissingColumnError(qError, "deleted_at")) {
-          filterActiveOnly = false;
-          continue;
-        }
-        if (String(qError.message || "").includes("delivered")) {
-          includeDelivered = false;
-          continue;
-        }
-        break;
-      }
-      if (qError) throw qError;
-      const items = fetched || [];
-      const orderIds = Array.from(new Set(items.map((r) => r.order_id))).filter(
-        Boolean,
-      );
-      const count = orderIds.length;
-      const total = items.reduce((a, r) => a + (r.subtotal || 0), 0);
-      let totalScrap = 0;
-      items.forEach((r) => {
-        let scrap = 0;
-        for (const cat in CATALOG) {
-          const found = CATALOG[cat].find((i) => i.name === r.item);
-          if (found) {
-            scrap = found.scrap || 0;
-            break;
-          }
-        }
-        totalScrap += scrap * (r.qty || 0);
-      });
-      const m = Math.floor(effectiveOrderanke / 10);
-      const w = effectiveOrderanke % 10;
-      const itemList = items.map((r) => `• ${r.qty}x ${r.item}`).join("\n");
-
-      const grouped = {};
-      items.forEach((r) => {
-        const key = r.item;
-        if (!grouped[key]) grouped[key] = { ...r, qty: 0 };
-        grouped[key].qty += r.qty;
-      });
-
-      const maxLen = Math.max(
-        ...Object.values(grouped).map((r) => r.item.length),
-      );
-      const details = Object.values(grouped)
-        .sort((a, b) => a.item.localeCompare(b.item))
-        .map(
-          (r) =>
-            `• ${String(r.qty).padStart(2)}x ${r.item.padEnd(maxLen)} : ${fmt(
-              (r.harga || 0) * (r.qty || 0),
-            )}`,
-        )
-        .join("\n");
-
-      const msg =
-        "```\n" +
-        `Periode: M${m}-W${w} (#${effectiveOrderanke})\n` +
-        `Nama  : ${nama}\n` +
-        `Order : ${count}\n` +
-        `Total : ${fmt(total)}\n` +
-        (totalScrap > 0 ? `Total Scrap : ${totalScrap}\n` : "") +
-        `\n` +
-        `Detail Orderan :\n` +
-        details +
-        "```";
-
-      const discordMessageId = await postToDiscord(msg);
-      if (discordMessageId && orderId) {
-        await saveDiscordMessageIdOnOrderBatch(orderId, discordMessageId);
-      }
+      await sendMemberOrdersDiscord(member_id, nama, effectiveOrderanke);
     } catch (e) {}
     endLoading();
   } catch (e) {
@@ -9080,6 +9542,17 @@ async function openSelectActiveDrugsBatchModal() {
 
     const periodeOrderanke = parseInt(picked.orderanke || 0, 10);
     if (periodeOrderanke) {
+      const { data: rowsToArchive } = await supabase
+        .from("drugs_sales")
+        .select("id")
+        .eq("periode_orderanke", periodeOrderanke)
+        .is("deleted_at", null);
+      const archiveIds = (rowsToArchive || [])
+        .map((r) => r.id)
+        .filter(Boolean);
+      if (archiveIds.length) {
+        await purgeDiscordOnArchive("drugs_sales", archiveIds);
+      }
       const nowIso = new Date().toISOString();
       const { error: softErr } = await supabase
         .from("drugs_sales")
@@ -9464,9 +9937,9 @@ async function submitDrugsData() {
         .select("discord_message_id")
         .eq("id", editingId)
         .maybeSingle();
-      prevDiscordMsgId = String(
-        (prev && prev.discord_message_id) || "",
-      ).trim();
+      prevDiscordMsgId = normalizeDiscordMessageId(
+        prev && prev.discord_message_id,
+      );
     } catch (e) {}
     showAlert("Data drugs berhasil diupdate", "success");
     if (prevDiscordMsgId) {
@@ -9487,11 +9960,18 @@ async function submitDrugsData() {
       mode: "edit",
     });
     if (discordMessageId) {
-      await saveDiscordMessageIdOnRow(
+      const persistRes = await persistDiscordMessageId(
         "drugs_sales",
         editingId,
         discordMessageId,
       );
+      if (!persistRes.ok) {
+        showAlert(
+          "Data diupdate, tapi ID pesan Discord gagal dicatat." +
+            discordPersistFailNote(persistRes),
+          "warning",
+        );
+      }
     }
     resetDrugsForm(currentMember);
     loadDrugsTable();
@@ -9508,12 +9988,36 @@ async function submitDrugsData() {
     jenis,
     jumlah,
   };
+  const discordMessageId = await sendDrugsEntryToDiscord({
+    nama,
+    periode_orderanke: targetBatch,
+    jenis,
+    jumlahTotal: jumlah,
+    duitMerahDelta: duitMerah,
+    upahPutihDelta: upahPutih,
+    uangRageDelta: uangRage,
+    duitMerahTotal: duitMerah,
+    upahPutihTotal: upahPutih,
+    uangRageTotal: uangRage,
+    waktu: nowIso,
+    mode: "insert",
+  });
+  if (discordMessageId) insertPayload.discord_message_id = discordMessageId;
   let { data: inserted, error } = await supabase
     .from("drugs_sales")
     .insert(insertPayload)
-    .select("id")
+    .select("id,discord_message_id")
     .single();
-  if (
+  if (error && isMissingColumnError(error, "discord_message_id")) {
+    delete insertPayload.discord_message_id;
+    const res2 = await supabase
+      .from("drugs_sales")
+      .insert(insertPayload)
+      .select("id")
+      .single();
+    inserted = res2.data || null;
+    error = res2.error || null;
+  } else if (
     error &&
     String(error.message || "")
       .toLowerCase()
@@ -9541,26 +10045,33 @@ async function submitDrugsData() {
     showAlert("Gagal menyimpan data: " + error.message, "error");
     return;
   }
-  showAlert("Data penjualan drugs berhasil disimpan", "success");
-  const discordMessageId = await sendDrugsEntryToDiscord({
-    nama,
-    periode_orderanke: targetBatch,
-    jenis,
-    jumlahTotal: jumlah,
-    duitMerahDelta: duitMerah,
-    upahPutihDelta: upahPutih,
-    uangRageDelta: uangRage,
-    duitMerahTotal: duitMerah,
-    upahPutihTotal: upahPutih,
-    uangRageTotal: uangRage,
-    waktu: nowIso,
-    mode: "insert",
-  });
+
+  let persistRes = { ok: false, reason: "invalid_args" };
   if (discordMessageId && inserted && inserted.id) {
-    await saveDiscordMessageIdOnRow(
+    persistRes = await persistDiscordMessageId(
       "drugs_sales",
       inserted.id,
       discordMessageId,
+    );
+  }
+
+  if (persistRes.ok && !persistRes.dbFailed) {
+    showAlert("Data penjualan drugs berhasil disimpan", "success");
+  } else if (persistRes.ok && persistRes.via === "cache_only") {
+    showAlert(
+      "Data tersimpan. ID Discord tercatat lokal — jalankan migration 20260620_discord_message_id_rpc.sql di Supabase agar tersimpan permanen di database.",
+      "warning",
+    );
+  } else if (discordMessageId) {
+    showAlert(
+      "Data tersimpan, tapi ID pesan Discord gagal dicatat." +
+        discordPersistFailNote(persistRes),
+      "warning",
+    );
+  } else {
+    showAlert(
+      "Data tersimpan, tapi Discord tidak mengembalikan message ID. Hard refresh (Ctrl+Shift+R) lalu coba lagi.",
+      "warning",
     );
   }
 
@@ -9902,11 +10413,7 @@ function renderDrugsTable(data) {
       });
 
       if (result.isConfirmed) {
-        await deleteDiscordMessagesForTableRows(
-          "drugs_sales",
-          ids,
-          getDrugsWebhookUrl(),
-        );
+        const purgeRes = await purgeDiscordOnArchive("drugs_sales", ids);
         const { ok, error } = await softDeleteByIds("drugs_sales", ids);
         if (!ok) {
           if (isMissingColumnError(error, "deleted_at")) {
@@ -9922,9 +10429,11 @@ function renderDrugsTable(data) {
           return;
         }
         loadDrugsTable();
+        const archiveNote =
+          "Data dipindahkan ke arsip." + discordPurgeArchiveNote(purgeRes);
         Swal.fire({
           title: "Data Drugs Diarsipkan",
-          text: "Data dipindahkan ke arsip.",
+          text: archiveNote,
           icon: "success",
           showCancelButton: true,
           confirmButtonColor: "#3d342d",
@@ -9936,7 +10445,7 @@ function renderDrugsTable(data) {
         }).then(async (res) => {
           if (res.dismiss === Swal.DismissReason.cancel) {
             const promises = ids.map((id) =>
-              restoreSoftDeletedById("drugs_sales", id),
+              restoreArchivedRowWithDiscord("drugs_sales", id),
             );
             const results = await Promise.all(promises);
             const failed = results.filter((r) => !r.ok);
@@ -10026,6 +10535,11 @@ async function loadDrugsTable() {
   }
 
   window.__drugsRowsRaw = data || [];
+  (window.__drugsRowsRaw || []).forEach((r) => {
+    if (r && r.id && r.discord_message_id) {
+      cacheDiscordMsgId("drugs_sales", r.id, r.discord_message_id);
+    }
+  });
   renderDrugsTable(window.__drugsRowsRaw);
 }
 
@@ -10627,11 +11141,7 @@ async function deleteRageCashEntry(id) {
   const pinOk = await confirmDeletePin();
   if (!pinOk) return;
 
-  await deleteDiscordMessagesForTableRows(
-    "rage_cash_logs",
-    [id],
-    getRageCashWebhookUrl(),
-  );
+  await purgeDiscordOnArchive("rage_cash_logs", [id]);
 
   const { ok: delOk, error: delErr } = await softDeleteById(
     "rage_cash_logs",
@@ -10664,7 +11174,7 @@ async function deleteRageCashEntry(id) {
     color: "#fef3c7",
   }).then(async (res) => {
     if (res.dismiss === Swal.DismissReason.cancel) {
-      const undoRes = await restoreSoftDeletedById("rage_cash_logs", id);
+      const undoRes = await restoreArchivedRowWithDiscord("rage_cash_logs", id);
       if (undoRes.ok) {
         showAlert("Penghapusan dibatalkan", "success");
         loadRageCashTable();
