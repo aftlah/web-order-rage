@@ -464,15 +464,45 @@ function getNitipCuciWebhookUrl() {
   );
 }
 
+function parseDiscordWebhookUrl(url) {
+  const m = String(url || "").match(/webhooks\/(\d+)\/([^/?]+)/i);
+  if (!m) return null;
+  return { webhookId: m[1], webhookToken: m[2] };
+}
+
+async function deleteDiscordWebhookMessage(webhookUrl, messageId) {
+  const parsed = parseDiscordWebhookUrl(webhookUrl);
+  const enabled = window.DISCORD_ENABLED !== false;
+  const mid = String(messageId || "").trim();
+  if (!parsed || !mid || !enabled) return false;
+  try {
+    const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${mid}`;
+    const res = await fetch(url, { method: "DELETE" });
+    return res.ok || res.status === 404;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function postToDiscordWithFile({ message, file, embeds, overrideUrl }) {
   const url = overrideUrl || getNitipCuciWebhookUrl();
   const enabled = window.DISCORD_ENABLED !== false;
-  if (!url || !enabled) return;
+  if (!url || !enabled) return null;
   const now = Date.now();
   const last = window.__discordLastSent || 0;
   const wait = Math.max(0, 4200 - (now - last));
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   window.__discordLastSent = Date.now();
+
+  const readMessageId = async (res) => {
+    if (!res || !res.ok) return null;
+    try {
+      const data = await res.json();
+      return (data && data.id) || null;
+    } catch (e) {
+      return null;
+    }
+  };
 
   if (file) {
     const form = new FormData();
@@ -481,14 +511,23 @@ async function postToDiscordWithFile({ message, file, embeds, overrideUrl }) {
     if (embeds && embeds.length) payload.embeds = embeds;
     form.append("payload_json", JSON.stringify(payload));
     form.append("files[0]", file, file.name || "bukti.png");
-    await fetch(url, { method: "POST", body: form });
-    return;
+    const res = await fetch(url, { method: "POST", body: form });
+    return readMessageId(res);
   }
   if (embeds && embeds.length) {
-    await postToDiscordEmbed(embeds[0], url, message);
-    return;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: message || undefined, embeds }),
+    });
+    return readMessageId(res);
   }
-  await postToDiscord(message, url);
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: message || "" }),
+  });
+  return readMessageId(res);
 }
 
 function buildNitipCuciDiscordPayload({
@@ -4463,9 +4502,11 @@ async function submitNitipCuci() {
       waktu: now.toISOString(),
     };
 
-    const { error: logErr } = await supabase
+    const { data: inserted, error: logErr } = await supabase
       .from("nitip_cuci_logs")
-      .insert(payload);
+      .insert(payload)
+      .select("id")
+      .single();
     if (logErr) {
       console.error(logErr);
       showAlert(
@@ -4489,10 +4530,19 @@ async function submitNitipCuci() {
       actor,
     });
 
-    await postToDiscordWithFile({
+    const discordMessageId = await postToDiscordWithFile({
       message: discordPayload.content,
       file: buktiFile,
     });
+    if (discordMessageId && inserted && inserted.id) {
+      const { error: discordIdErr } = await supabase
+        .from("nitip_cuci_logs")
+        .update({ discord_message_id: String(discordMessageId) })
+        .eq("id", inserted.id);
+      if (discordIdErr && isMissingColumnError(discordIdErr, "discord_message_id")) {
+        console.warn("Kolom discord_message_id belum ada — jalankan migration 20260618");
+      }
+    }
 
     showAlert("Nitip cuci berhasil dikirim", "success");
     merahEl.value = "";
@@ -4689,6 +4739,14 @@ async function deleteNitipCuciRow(row) {
   }
 
   try {
+    let discordDeleted = null;
+    if (row.discord_message_id) {
+      discordDeleted = await deleteDiscordWebhookMessage(
+        getNitipCuciWebhookUrl(),
+        row.discord_message_id,
+      );
+    }
+
     let ok = false;
     let error = null;
 
@@ -4737,7 +4795,12 @@ async function deleteNitipCuciRow(row) {
       showAlert(`Gagal menghapus: ${msg || "Unknown error"}`, "error");
       return;
     }
-    showAlert("Nitip cuci dihapus", "success");
+    showAlert(
+      discordDeleted === false
+        ? "Data dihapus, tapi pesan Discord tidak bisa dihapus (mungkin sudah dihapus manual)"
+        : "Nitip cuci dihapus",
+      discordDeleted === false ? "warning" : "success",
+    );
     await loadNitipCuciTable();
   } catch (e) {
     showAlert("Gagal menghapus (network)", "error");
