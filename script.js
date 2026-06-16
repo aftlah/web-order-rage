@@ -444,6 +444,38 @@ async function postToDiscordEmbed(embed, overrideUrl, contentOverride) {
   } catch (e) {}
 }
 
+function getNitipCuciWebhookUrl() {
+  return (
+    (window && window.DISCORD_NITIP_CUCI_WEBHOOK_URL) ||
+    (window && window.DISCORD_STORAN_WEBHOOK_URL) ||
+    (window && window.DISCORD_WEBHOOK_URL) ||
+    ""
+  );
+}
+
+async function postToDiscordWithFile({ message, file, overrideUrl }) {
+  const url = overrideUrl || getNitipCuciWebhookUrl();
+  const enabled = window.DISCORD_ENABLED !== false;
+  if (!url || !enabled) return;
+  const now = Date.now();
+  const last = window.__discordLastSent || 0;
+  const wait = Math.max(0, 4200 - (now - last));
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  window.__discordLastSent = Date.now();
+
+  if (file) {
+    const form = new FormData();
+    form.append(
+      "payload_json",
+      JSON.stringify({ content: message || undefined })
+    );
+    form.append("files[0]", file, file.name || "bukti.png");
+    await fetch(url, { method: "POST", body: form });
+    return;
+  }
+  await postToDiscord(message, url);
+}
+
 async function postWeaponPaymentLog(payload) {
   try {
     const hook =
@@ -652,6 +684,28 @@ function fmtNumber(n) {
   const safe = Number.isFinite(v) ? v : 0;
   return new Intl.NumberFormat("en-US").format(safe);
 }
+
+function fmtIdMoney(n) {
+  const v = typeof n === "number" ? n : parseFloat(n || "0");
+  const safe = Number.isFinite(v) ? v : 0;
+  return new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 }).format(
+    safe
+  );
+}
+
+function parseMoneyInput(raw) {
+  const s = String(raw || "")
+    .trim()
+    .replace(/\s/g, "");
+  if (!s) return NaN;
+  const cleaned = s.replace(/\./g, "").replace(/,/g, "");
+  const v = parseFloat(cleaned);
+  return Number.isFinite(v) ? v : NaN;
+}
+
+const NITIP_CUCI_WHITE_RATE = 0.65;
+const NITIP_CUCI_BUCKET = "nitip-cuci";
+const NITIP_CUCI_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 async function getSession() {
   const { data } = await supabase.auth.getSession();
   return data ? data.session : null;
@@ -3930,6 +3984,7 @@ function renderMyOrders(rows, useOrderanke, mode) {
 }
 
 function initStoran(member) {
+  initStoranTabs();
   const btn = document.getElementById("storanSubmit");
   if (btn) btn.addEventListener("click", submitStoran);
   const cancelEditBtn = document.getElementById("storanCancelEdit");
@@ -3963,6 +4018,485 @@ function initStoran(member) {
   const reload = document.getElementById("storanReloadBtn");
   if (reload) reload.addEventListener("click", () => loadStoranTable());
   loadStoranTable();
+  initNitipCuci(member);
+}
+
+function initStoranTabs() {
+  const tabs = document.querySelectorAll("[data-storan-panel]");
+  const panels = {
+    mingguan: document.getElementById("storanPanelMingguan"),
+    nitip: document.getElementById("storanPanelNitip"),
+  };
+  document.querySelectorAll(".storan-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const key = tab.getAttribute("data-storan-panel") || "mingguan";
+      document.querySelectorAll(".storan-tab").forEach((t) => {
+        const active = t === tab;
+        t.classList.toggle("storan-tab--active", active);
+        t.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      Object.keys(panels).forEach((k) => {
+        if (panels[k]) panels[k].classList.toggle("hidden", k !== key);
+      });
+      if (key === "nitip" && typeof loadNitipCuciTable === "function") {
+        loadNitipCuciTable();
+      }
+    });
+  });
+}
+
+function applyCurrentMemberToNitipUI(member) {
+  const nameInput = document.getElementById("nitipNama");
+  const hidden = document.getElementById("nitipMemberId");
+  const status = document.getElementById("nitipNamaStatus");
+  const dd = document.getElementById("nitipNamaDropdown");
+  if (nameInput && member && member.nama) {
+    nameInput.value = member.nama;
+    nameInput.disabled = true;
+  }
+  if (hidden && member && member.id) hidden.value = String(member.id);
+  if (dd) dd.classList.add("hidden");
+  if (status) {
+    status.textContent =
+      member && member.id
+        ? "Login: Nama valid"
+        : "Akun belum terhubung ke member";
+    status.classList.toggle("text-green-500", !!(member && member.id));
+    status.classList.toggle("text-red-500", !(member && member.id));
+  }
+}
+
+function setupNitipNameSearch() {
+  const input = document.getElementById("nitipNama");
+  const dd = document.getElementById("nitipNamaDropdown");
+  const hidden = document.getElementById("nitipMemberId");
+  const status = document.getElementById("nitipNamaStatus");
+  if (!input || !dd || !hidden) return;
+
+  let active = -1;
+  const render = (items) => {
+    dd.innerHTML = items
+      .map(
+        (r, i) =>
+          `<div class="px-3 py-2 cursor-pointer ${
+            i === active ? "bg-yellow-900/30" : ""
+          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`
+      )
+      .join("");
+    dd.classList.toggle("hidden", items.length === 0);
+    dd.querySelectorAll("[data-id]").forEach((el) =>
+      el.addEventListener("mousedown", (e) => {
+        input.value = e.currentTarget.getAttribute("data-name");
+        hidden.value = e.currentTarget.getAttribute("data-id");
+        dd.classList.add("hidden");
+        if (status) {
+          status.textContent = "Nama valid";
+          status.classList.remove("text-red-500");
+          status.classList.add("text-green-500");
+        }
+      })
+    );
+  };
+
+  const run = debounce(async (term) => {
+    if (!supabase) return;
+    let q = term
+      ? supabase
+          .from("members")
+          .select("id,nama")
+          .ilike("nama", `%${term}%`)
+          .order("nama", { ascending: true })
+          .limit(20)
+      : supabase
+          .from("members")
+          .select("id,nama")
+          .order("nama", { ascending: true })
+          .limit(20);
+    const { data, error } = await q;
+    if (error) return;
+    active = -1;
+    render(data || []);
+  }, 200);
+
+  input.addEventListener("input", (e) => {
+    hidden.value = "";
+    if (status) {
+      status.textContent = "Pilih nama dari database";
+      status.classList.remove("text-green-500");
+      status.classList.add("text-red-500");
+    }
+    run(e.target.value.trim());
+  });
+  input.addEventListener("focus", () => run(""));
+  input.addEventListener("click", () => run(input.value.trim()));
+}
+
+function updateNitipPutihPreview() {
+  const merahEl = document.getElementById("nitipUangMerah");
+  const putihEl = document.getElementById("nitipUangPutih");
+  if (!merahEl || !putihEl) return;
+  const merah = parseMoneyInput(merahEl.value);
+  const putih = Number.isFinite(merah) && merah > 0 ? merah * NITIP_CUCI_WHITE_RATE : 0;
+  putihEl.value = fmtIdMoney(putih);
+}
+
+function resetNitipBuktiPreview() {
+  const input = document.getElementById("nitipBukti");
+  const wrap = document.getElementById("nitipPreviewWrap");
+  const img = document.getElementById("nitipPreviewImg");
+  const label = document.getElementById("nitipUploadLabel");
+  if (input) input.value = "";
+  if (wrap) wrap.classList.add("hidden");
+  if (img) img.removeAttribute("src");
+  if (label) label.textContent = "Klik atau drag gambar bukti dirty money";
+}
+
+function handleNitipBuktiFile(file) {
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    showAlert("File harus berupa gambar", "error");
+    return;
+  }
+  if (file.size > NITIP_CUCI_MAX_IMAGE_BYTES) {
+    showAlert("Ukuran gambar maksimal 5MB", "error");
+    return;
+  }
+  const wrap = document.getElementById("nitipPreviewWrap");
+  const img = document.getElementById("nitipPreviewImg");
+  const label = document.getElementById("nitipUploadLabel");
+  const input = document.getElementById("nitipBukti");
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  if (input) input.files = dt.files;
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (img) img.src = reader.result;
+    if (wrap) wrap.classList.remove("hidden");
+    if (label) label.textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadNitipCuciImage(file, memberId) {
+  if (!supabase || !file) return "";
+  const ext = (file.name || "png").split(".").pop() || "png";
+  const path = `${memberId || "unknown"}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage
+    .from(NITIP_CUCI_BUCKET)
+    .upload(path, file, { cacheControl: "3600", upsert: false });
+  if (error) throw error;
+  const { data } = supabase.storage.from(NITIP_CUCI_BUCKET).getPublicUrl(path);
+  return (data && data.publicUrl) || "";
+}
+
+function initNitipCuci(member) {
+  const submitBtn = document.getElementById("nitipSubmit");
+  const reloadBtn = document.getElementById("nitipReloadBtn");
+  const merahEl = document.getElementById("nitipUangMerah");
+  const buktiEl = document.getElementById("nitipBukti");
+  const clearBtn = document.getElementById("nitipPreviewClear");
+  const uploadZone = document.querySelector(".nitip-upload-zone");
+  const adminMode = isAdminMember(member);
+
+  if (adminMode) {
+    setupNitipNameSearch();
+    const nameInput = document.getElementById("nitipNama");
+    const hidden = document.getElementById("nitipMemberId");
+    if (nameInput) {
+      nameInput.disabled = false;
+      nameInput.value = "";
+    }
+    if (hidden) hidden.value = "";
+  } else if (member && member.id) {
+    applyCurrentMemberToNitipUI(member);
+  } else {
+    setupNitipNameSearch();
+    if (submitBtn) submitBtn.disabled = true;
+  }
+
+  if (merahEl) merahEl.addEventListener("input", updateNitipPutihPreview);
+  if (submitBtn) submitBtn.addEventListener("click", submitNitipCuci);
+  if (reloadBtn) reloadBtn.addEventListener("click", () => loadNitipCuciTable());
+  if (buktiEl) {
+    buktiEl.addEventListener("change", (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (f) handleNitipBuktiFile(f);
+    });
+  }
+  if (clearBtn) clearBtn.addEventListener("click", resetNitipBuktiPreview);
+  if (uploadZone) {
+    uploadZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      uploadZone.classList.add("nitip-upload-zone--drag");
+    });
+    uploadZone.addEventListener("dragleave", () => {
+      uploadZone.classList.remove("nitip-upload-zone--drag");
+    });
+    uploadZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove("nitip-upload-zone--drag");
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) handleNitipBuktiFile(f);
+    });
+  }
+  loadNitipCuciTable();
+}
+
+async function submitNitipCuci() {
+  const nameEl = document.getElementById("nitipNama");
+  const memberIdEl = document.getElementById("nitipMemberId");
+  const merahEl = document.getElementById("nitipUangMerah");
+  const ketEl = document.getElementById("nitipKeterangan");
+  const buktiEl = document.getElementById("nitipBukti");
+  const submitBtn = document.getElementById("nitipSubmit");
+  if (!nameEl || !merahEl || !submitBtn) return;
+
+  const currentMember = window.__currentMember || null;
+  const adminMode = isAdminMember(currentMember);
+  const nama =
+    !adminMode && currentMember && currentMember.nama
+      ? String(currentMember.nama)
+      : nameEl.value.trim();
+  const memberId =
+    !adminMode && currentMember && currentMember.id
+      ? parseInt(String(currentMember.id), 10)
+      : parseInt(memberIdEl ? memberIdEl.value || "" : "", 10);
+  const uangMerah = parseMoneyInput(merahEl.value);
+  const keterangan = (ketEl && ketEl.value.trim()) || "Nitip cuci";
+  const buktiFile =
+    buktiEl && buktiEl.files && buktiEl.files[0] ? buktiEl.files[0] : null;
+
+  if (!nama || Number.isNaN(memberId) || !memberId) {
+    showAlert("Pilih nama dari database", "error");
+    return;
+  }
+  if (!Number.isFinite(uangMerah) || uangMerah <= 0) {
+    showAlert("Jumlah uang merah wajib diisi", "error");
+    return;
+  }
+  if (!buktiFile) {
+    showAlert("Upload bukti screenshot wajib", "error");
+    return;
+  }
+
+  const uangPutih = Math.round(uangMerah * NITIP_CUCI_WHITE_RATE);
+  const now = new Date();
+  submitBtn.disabled = true;
+
+  let periodeValue = null;
+  let periodeLabel = "";
+  try {
+    const win = await fetchActiveOrderWindow(null);
+    const fallbackWin = win || (await fetchLatestOrderWindow("order"));
+    if (fallbackWin && fallbackWin.orderanke) {
+      const v = parseInt(fallbackWin.orderanke, 10);
+      if (!Number.isNaN(v) && v > 0) {
+        periodeValue = v;
+        const m = Math.floor(v / 10);
+        const w = v % 10;
+        periodeLabel = `M${m}-W${w} (#${v})`;
+      }
+    }
+  } catch (e) {}
+
+  try {
+    let imageUrl = "";
+    try {
+      imageUrl = await uploadNitipCuciImage(buktiFile, memberId);
+    } catch (uploadErr) {
+      console.error(uploadErr);
+      showAlert(
+        "Gagal upload gambar. Pastikan bucket nitip-cuci sudah dibuat di Supabase.",
+        "error"
+      );
+      return;
+    }
+
+    const payload = {
+      member_id: memberId,
+      nama,
+      uang_merah: uangMerah,
+      uang_putih: uangPutih,
+      keterangan,
+      image_url: imageUrl || null,
+      periode_orderanke: periodeValue,
+      waktu: now.toISOString(),
+    };
+
+    const { error: logErr } = await supabase
+      .from("nitip_cuci_logs")
+      .insert(payload);
+    if (logErr) {
+      console.error(logErr);
+      showAlert(
+        "Gagal simpan ke database. Jalankan migration nitip_cuci_logs di Supabase.",
+        "error"
+      );
+      return;
+    }
+
+    let msg = "```";
+    msg += `\nNITIP CUCI UANG MERAH`;
+    if (periodeLabel) msg += `\nPeriode : ${periodeLabel}`;
+    msg += `\nNama : ${nama}`;
+    msg += `\nJumlah Uang merah : ${fmtIdMoney(uangMerah)}`;
+    msg += `\nUang putih (65%) : ${fmtIdMoney(uangPutih)}`;
+    msg += `\nKeterangan : ${keterangan}`;
+    msg += `\nWaktu : ${fmtDateTime(now.toISOString())}`;
+    msg += "\n```";
+
+    await postToDiscordWithFile({
+      message: msg,
+      file: buktiFile,
+    });
+
+    showAlert("Nitip cuci berhasil dikirim", "success");
+    merahEl.value = "";
+    updateNitipPutihPreview();
+    if (ketEl) ketEl.value = "Nitip cuci";
+    resetNitipBuktiPreview();
+    if (!adminMode) applyCurrentMemberToNitipUI(currentMember);
+    await loadNitipCuciTable();
+  } catch (e) {
+    console.error(e);
+    showAlert("Gagal mengirim nitip cuci", "error");
+  } finally {
+    submitBtn.disabled = false;
+  }
+}
+
+async function loadNitipCuciTable() {
+  if (!supabase) return;
+  const body = document.getElementById("nitipTableBody");
+  const empty = document.getElementById("nitipTableEmpty");
+  const labelEl = document.getElementById("nitipPeriodeLabel");
+  const summaryWrap = document.getElementById("nitipSummaryWrap");
+  const statsEl = document.getElementById("nitipCuciStats");
+  if (!body || !empty || !labelEl) return;
+
+  body.innerHTML = "";
+  empty.classList.remove("hidden");
+  empty.textContent = "Memuat data...";
+
+  let periodeValue = null;
+  let periodeLabel = "";
+  try {
+    const win = await fetchActiveOrderWindow(null);
+    const fallbackWin = win || (await fetchLatestOrderWindow("order"));
+    if (fallbackWin && fallbackWin.orderanke) {
+      const v = parseInt(fallbackWin.orderanke, 10);
+      if (!Number.isNaN(v) && v > 0) {
+        periodeValue = v;
+        const m = Math.floor(v / 10);
+        const w = v % 10;
+        periodeLabel = `M${m}-W${w} (#${v})`;
+      }
+    }
+  } catch (e) {}
+
+  labelEl.textContent = periodeLabel || "Periode aktif";
+
+  let q = supabase
+    .from("nitip_cuci_logs")
+    .select("*")
+    .order("waktu", { ascending: false })
+    .limit(200);
+  q = q.is("deleted_at", null);
+  if (periodeValue) q = q.eq("periode_orderanke", periodeValue);
+
+  let { data, error } = await q;
+  if (error && isMissingColumnError(error, "deleted_at")) {
+    let q2 = supabase
+      .from("nitip_cuci_logs")
+      .select("*")
+      .order("waktu", { ascending: false })
+      .limit(200);
+    if (periodeValue) q2 = q2.eq("periode_orderanke", periodeValue);
+    ({ data, error } = await q2);
+  }
+
+  if (error) {
+    empty.textContent = "Gagal memuat data (jalankan migration Supabase)";
+    return;
+  }
+
+  const rows = data || [];
+  if (!rows.length) {
+    empty.classList.remove("hidden");
+    empty.textContent = "Belum ada nitip cuci di periode ini";
+    if (summaryWrap) {
+      summaryWrap.classList.add("hidden");
+      summaryWrap.innerHTML = "";
+    }
+    if (statsEl) statsEl.innerHTML = "";
+    return;
+  }
+
+  empty.classList.add("hidden");
+
+  const byPerson = {};
+  let totalMerah = 0;
+  let totalPutih = 0;
+  rows.forEach((r) => {
+    const key = r.nama || "Unknown";
+    if (!byPerson[key]) byPerson[key] = { merah: 0, putih: 0 };
+    const merah = parseFloat(r.uang_merah) || 0;
+    const putih = parseFloat(r.uang_putih) || 0;
+    byPerson[key].merah += merah;
+    byPerson[key].putih += putih;
+    totalMerah += merah;
+    totalPutih += putih;
+  });
+
+  if (statsEl) {
+    statsEl.innerHTML = `
+      <div class="stat-card text-center min-w-[90px]">
+        <p class="text-[10px] font-black text-red-400/80 uppercase tracking-widest">Total Merah</p>
+        <p class="text-sm font-black text-red-300 font-mono mt-1">${fmtIdMoney(totalMerah)}</p>
+      </div>
+      <div class="stat-card text-center min-w-[90px]">
+        <p class="text-[10px] font-black text-emerald-400/80 uppercase tracking-widest">Total Putih</p>
+        <p class="text-sm font-black text-emerald-300 font-mono mt-1">${fmtIdMoney(totalPutih)}</p>
+      </div>`;
+  }
+
+  if (summaryWrap) {
+    const personKeys = Object.keys(byPerson).sort((a, b) =>
+      a.localeCompare(b)
+    );
+    summaryWrap.classList.remove("hidden");
+    summaryWrap.innerHTML = `
+      <p class="text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">Total per orang (periode ini)</p>
+      <div class="nitip-summary-grid">
+        ${personKeys
+          .map(
+            (name) => `
+          <div class="nitip-summary-card">
+            <p class="nitip-summary-name">${name}</p>
+            <p class="nitip-summary-line"><span>Merah</span><strong>${fmtIdMoney(byPerson[name].merah)}</strong></p>
+            <p class="nitip-summary-line nitip-summary-line--putih"><span>Putih (65%)</span><strong>${fmtIdMoney(byPerson[name].putih)}</strong></p>
+          </div>`
+          )
+          .join("")}
+      </div>`;
+  }
+
+  body.innerHTML = rows
+    .map((r) => {
+      const waktu = r.waktu ? new Date(r.waktu).toLocaleString("id-ID") : "-";
+      const bukti = r.image_url
+        ? `<a href="${r.image_url}" target="_blank" rel="noopener" class="text-amber-400 hover:underline text-xs font-bold">Lihat</a>`
+        : `<span class="text-stone-600">—</span>`;
+      return `<tr>
+        <td class="px-4 py-3 font-semibold">${r.nama || "-"}</td>
+        <td class="px-4 py-3 text-right font-mono text-red-300">${fmtIdMoney(r.uang_merah)}</td>
+        <td class="px-4 py-3 text-right font-mono text-emerald-300">${fmtIdMoney(r.uang_putih)}</td>
+        <td class="px-4 py-3 hidden md:table-cell text-stone-400 text-xs">${r.keterangan || "-"}</td>
+        <td class="px-4 py-3 text-center">${bukti}</td>
+        <td class="px-4 py-3 hidden sm:table-cell text-xs text-stone-500 whitespace-nowrap">${waktu}</td>
+      </tr>`;
+    })
+    .join("");
 }
 
 function setStoranFormMode(isEditing) {
