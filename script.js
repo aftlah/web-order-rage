@@ -583,7 +583,7 @@ async function resendDiscordForRestoredRow(tableName, id) {
         periodeLabel = `M${m}-W${w} (#${v})`;
       }
     }
-    const messageId = await sendNitipCuciToDiscord({
+    const discordMeta = await sendNitipCuciToDiscord({
       nama: row.nama,
       uangMerah: row.uang_merah,
       uangPutih: row.uang_putih,
@@ -592,10 +592,18 @@ async function resendDiscordForRestoredRow(tableName, id) {
       waktu: row.waktu,
       actor: "",
       imageUrl: row.image_url,
-      isPaid: row.is_paid,
     });
-    if (messageId) {
-      await saveDiscordMessageIdOnRow("nitip_cuci_logs", rowId, messageId);
+    if (discordMeta && discordMeta.messageId) {
+      rememberNitipDiscordMessageId(
+        rowId,
+        discordMeta.messageId,
+        discordMeta.channelId,
+      );
+      await saveDiscordMessageIdOnRow(
+        "nitip_cuci_logs",
+        rowId,
+        discordMeta.messageId,
+      );
     }
     return;
   }
@@ -808,7 +816,7 @@ function discordWebhookWaitUrl(url) {
   return url.includes("?") ? `${url}&wait=true` : `${url}?wait=true`;
 }
 
-async function readDiscordMessageIdFromResponse(res) {
+async function readDiscordSendMetaFromResponse(res) {
   if (!res || !res.ok) {
     if (res) {
       try {
@@ -832,32 +840,53 @@ async function readDiscordMessageIdFromResponse(res) {
       }
       return null;
     }
+    let messageId = null;
+    let channelId = null;
     const quoted = text.match(/"id"\s*:\s*"(\d{10,22})"/);
-    if (quoted) return quoted[1];
-    const bare = text.match(/"id"\s*:\s*(\d{10,22})\b/);
-    if (bare) return bare[1];
+    if (quoted) messageId = quoted[1];
+    else {
+      const bare = text.match(/"id"\s*:\s*(\d{10,22})\b/);
+      if (bare) messageId = bare[1];
+    }
+    const chQuoted = text.match(/"channel_id"\s*:\s*"(\d{10,22})"/);
+    if (chQuoted) channelId = chQuoted[1];
+    else {
+      const chBare = text.match(/"channel_id"\s*:\s*(\d{10,22})\b/);
+      if (chBare) channelId = chBare[1];
+    }
     try {
       const data = JSON.parse(text);
-      if (data && data.id != null) {
+      if (data && data.id != null && !messageId) {
         if (typeof data.id === "string") {
-          return normalizeDiscordMessageId(data.id);
-        }
-        if (typeof data.id === "number" && Number.isSafeInteger(data.id)) {
-          return String(data.id);
+          messageId = normalizeDiscordMessageId(data.id);
+        } else if (typeof data.id === "number" && Number.isSafeInteger(data.id)) {
+          messageId = String(data.id);
         }
       }
-    } catch (parseErr) {
-      /* raw regex above is primary for snowflakes */
+      if (data && data.channel_id != null && !channelId) {
+        channelId = String(data.channel_id);
+      }
+    } catch (parseErr) {}
+    if (!messageId) {
+      console.warn(
+        "Discord response tanpa message id:",
+        text.slice(0, 300),
+      );
+      return null;
     }
-    console.warn(
-      "Discord response tanpa message id:",
-      text.slice(0, 300),
-    );
-    return null;
+    return {
+      messageId: normalizeDiscordMessageId(messageId),
+      channelId: channelId ? String(channelId) : null,
+    };
   } catch (e) {
-    console.warn("Gagal baca message id Discord:", e);
+    console.warn("Gagal baca response Discord:", e);
     return null;
   }
+}
+
+async function readDiscordMessageIdFromResponse(res) {
+  const meta = await readDiscordSendMetaFromResponse(res);
+  return meta && meta.messageId ? meta.messageId : null;
 }
 
 function normalizeDiscordMessageId(value) {
@@ -884,13 +913,65 @@ const DISCORD_MESSAGE_ID_GET_RPC = {
 
 const DISCORD_MSG_CACHE_KEY = "rage_discord_msg_cache_v1";
 
-function rememberNitipDiscordMessageId(rowId, messageId) {
+function rememberNitipDiscordMessageId(rowId, messageId, channelId) {
   const id = parseInt(String(rowId || ""), 10);
   const mid = normalizeDiscordMessageId(messageId);
   if (!id || !mid) return;
   if (!window.__nitipDiscordByRowId) window.__nitipDiscordByRowId = {};
   window.__nitipDiscordByRowId[id] = mid;
   cacheDiscordMsgId("nitip_cuci_logs", id, mid);
+  const cid = String(channelId || "").trim();
+  if (cid) rememberNitipDiscordChannelId(id, cid);
+}
+
+const NITIP_DISCORD_CHANNEL_CACHE_KEY = "rage_nitip_discord_channel_v1";
+
+function rememberNitipDiscordChannelId(rowId, channelId) {
+  const id = parseInt(String(rowId || ""), 10);
+  const cid = String(channelId || "").trim();
+  if (!id || !cid) return;
+  if (!window.__nitipDiscordChannelByRowId) {
+    window.__nitipDiscordChannelByRowId = {};
+  }
+  window.__nitipDiscordChannelByRowId[id] = cid;
+  try {
+    const raw = localStorage.getItem(NITIP_DISCORD_CHANNEL_CACHE_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    map[String(id)] = cid;
+    localStorage.setItem(NITIP_DISCORD_CHANNEL_CACHE_KEY, JSON.stringify(map));
+  } catch (e) {}
+}
+
+function readRememberedNitipDiscordChannelId(rowId) {
+  const id = parseInt(String(rowId || ""), 10);
+  if (!id) return null;
+  if (
+    window.__nitipDiscordChannelByRowId &&
+    window.__nitipDiscordChannelByRowId[id]
+  ) {
+    return String(window.__nitipDiscordChannelByRowId[id]);
+  }
+  try {
+    const raw = localStorage.getItem(NITIP_DISCORD_CHANNEL_CACHE_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    return map[String(id)] ? String(map[String(id)]) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function resolveNitipDiscordChannelId(row) {
+  if (!row) return null;
+  if (row.discord_channel_id) return String(row.discord_channel_id).trim();
+  if (row.id != null) {
+    const cached = readRememberedNitipDiscordChannelId(row.id);
+    if (cached) return cached;
+  }
+  const fromConfig =
+    window && window.DISCORD_NITIP_CUCI_CHANNEL_ID
+      ? String(window.DISCORD_NITIP_CUCI_CHANNEL_ID).trim()
+      : "";
+  return fromConfig || null;
 }
 
 function readRememberedNitipDiscordMessageId(rowId) {
@@ -1287,6 +1368,7 @@ async function discordWebhookReactionRequest(
   messageId,
   method,
   emoji = NITIP_DONE_DISCORD_REACTION,
+  channelId = "",
 ) {
   const parsed = parseDiscordWebhookUrl(webhookUrl);
   const enabled = window.DISCORD_ENABLED !== false;
@@ -1301,6 +1383,7 @@ async function discordWebhookReactionRequest(
     action: "reaction",
     method,
     emoji,
+    channelId: String(channelId || "").trim() || undefined,
   });
   if (proxyRes) return proxyRes;
 
@@ -1341,6 +1424,19 @@ async function removeDiscordWebhookReaction(
   return res.ok;
 }
 
+function parseDiscordApiError(detail) {
+  if (!detail) return { message: "", code: 0 };
+  try {
+    const j = JSON.parse(detail);
+    return {
+      message: j && j.message ? String(j.message) : "",
+      code: j && j.code != null ? Number(j.code) : 0,
+    };
+  } catch (e) {
+    return { message: String(detail).slice(0, 120), code: 0 };
+  }
+}
+
 function explainNitipDiscordSyncFailure(syncRes) {
   if (!syncRes) return "Tidak diketahui.";
   if (syncRes.skipped && syncRes.reason === "no_message_id") {
@@ -1350,17 +1446,21 @@ function explainNitipDiscordSyncFailure(syncRes) {
     return "DISCORD_NITIP_CUCI_WEBHOOK_URL belum diisi di config.js.";
   }
   const st = syncRes.reactionStatus || 0;
+  const apiErr = parseDiscordApiError(syncRes.detail);
   if (st === 404) {
-    return "Pesan tidak ditemukan di Discord (ID salah, pesan sudah dihapus, atau bukan dari webhook ini).";
+    if (apiErr.code === 10008) {
+      return "Pesan tidak ditemukan — ID salah atau pesan sudah dihapus. Coba input nitip BARU.";
+    }
+    return "Pesan tidak ditemukan di Discord (data lama sebelum fix, atau pesan sudah dihapus). Input nitip BARU lalu toggle lagi.";
   }
   if (st === 403) {
-    return "Webhook tidak punya akses ke pesan ini (biasanya pesan lama sebelum fix, atau webhook URL berubah).";
+    return "Webhook tidak bisa edit pesan ini — biasanya data lama (ID salah) atau pesan dari webhook lain. Coba input nitip BARU.";
   }
   if (st === 401) {
     return "Token webhook Discord tidak valid — regenerate webhook di Discord Server Settings.";
   }
   if (st === 0) {
-    return "Browser diblokir Discord (CORS) untuk reaction/edit/hapus — hanya kirim pesan baru yang bisa langsung. Deploy Edge Function discord-webhook-proxy di Supabase, atau status akan dikirim sebagai pesan baru.";
+    return "Gagal hubungi Discord. Pastikan Edge Function discord-webhook-proxy sudah di-deploy di Supabase.";
   }
   if (syncRes.detail) {
     try {
@@ -1401,26 +1501,6 @@ async function patchDiscordWebhookMessage(webhookUrl, messageId, payload) {
   return direct;
 }
 
-async function postNitipPaidDiscordNotice(row, isPaid) {
-  const hook = getNitipCuciWebhookUrl();
-  const enabled = window.DISCORD_ENABLED !== false;
-  if (!hook || !enabled || !row) {
-    return { ok: false, status: 0, detail: "webhook tidak ada" };
-  }
-  const nama = String(row.nama || "-").trim();
-  const putih = fmtIdMoney(row.uang_putih);
-  const content = isPaid
-    ? `✅ **SUDAH DIKASIH** uang putih — **${nama}** · ${putih}`
-    : `⏳ **BELUM DIKASIH** (status dibatalkan) — **${nama}** · ${putih}`;
-  const url = discordWebhookWaitUrl(hook);
-  const direct = await discordWebhookDirectFetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
-  });
-  return direct;
-}
-
 async function syncNitipPaidDiscordMark(row, isPaid) {
   const webhook = getNitipCuciWebhookUrl();
   const messageId = await resolveDiscordMessageIdForRow("nitip_cuci_logs", row);
@@ -1429,19 +1509,6 @@ async function syncNitipPaidDiscordMark(row, isPaid) {
   }
   if (!webhook) {
     return { ok: false, skipped: true, reason: "no_webhook" };
-  }
-
-  const reactionRes = isPaid
-    ? await discordWebhookReactionRequest(webhook, messageId, "PUT")
-    : await discordWebhookReactionRequest(webhook, messageId, "DELETE");
-  if (reactionRes.ok) {
-    return {
-      ok: true,
-      skipped: false,
-      mode: "reaction",
-      reactionStatus: reactionRes.status,
-      messageId,
-    };
   }
 
   let periodeLabel = "";
@@ -1453,6 +1520,7 @@ async function syncNitipPaidDiscordMark(row, isPaid) {
       periodeLabel = `M${m}-W${w} (#${v})`;
     }
   }
+
   const discordPayload = buildNitipCuciDiscordEmbed({
     nama: row.nama,
     uangMerah: row.uang_merah,
@@ -1464,37 +1532,18 @@ async function syncNitipPaidDiscordMark(row, isPaid) {
     imageUrl: row.image_url,
     isPaid: !!isPaid,
   });
+
   const patchRes = await patchDiscordWebhookMessage(webhook, messageId, {
     content: discordPayload.content,
     embeds: [discordPayload.embed],
   });
-  if (patchRes.ok) {
-    return {
-      ok: true,
-      skipped: false,
-      mode: "patch",
-      reactionStatus: patchRes.status,
-      messageId,
-    };
-  }
-
-  const postRes = await postNitipPaidDiscordNotice(row, !!isPaid);
-  if (postRes.ok) {
-    return {
-      ok: true,
-      skipped: false,
-      mode: "post_fallback",
-      reactionStatus: postRes.status,
-      messageId,
-    };
-  }
 
   return {
-    ok: false,
+    ok: patchRes.ok,
     skipped: false,
-    mode: "failed",
-    reactionStatus: reactionRes.status || patchRes.status || postRes.status,
-    detail: reactionRes.detail || patchRes.detail || postRes.detail,
+    mode: patchRes.ok ? "patch" : "failed",
+    reactionStatus: patchRes.status,
+    detail: patchRes.detail,
     messageId,
   };
 }
@@ -1545,7 +1594,6 @@ function buildNitipCuciDiscordPayload({
   periodeLabel,
   waktu,
   actor,
-  isPaid,
 }) {
   const ts = waktu || new Date().toISOString();
   const actorName = String(actor || "").trim();
@@ -1563,11 +1611,6 @@ function buildNitipCuciDiscordPayload({
     lines.push(`Dicatat    : ${actorName}`);
   }
   lines.push(`Waktu      : ${fmtDateTime(ts)}`);
-  if (isPaid === true) {
-    lines.push(`Status     : ✅ SUDAH DIKASIH`);
-  } else if (isPaid === false) {
-    lines.push(`Status     : BELUM DIKASIH`);
-  }
 
   return {
     content: "```\n" + lines.join("\n") + "\n```",
@@ -1577,9 +1620,16 @@ function buildNitipCuciDiscordPayload({
 
 function buildNitipCuciDiscordEmbed(opts) {
   const payload = buildNitipCuciDiscordPayload(opts);
+  const paid = opts && opts.isPaid === true;
+  const unpaid = opts && opts.isPaid === false;
   const embed = {
-    color: opts && opts.isPaid ? 0x22c55e : 0xf59e0b,
+    color: paid ? 0x22c55e : 0xf59e0b,
   };
+  if (paid) {
+    embed.footer = { text: "✅ SUDAH DIKASIH uang putih" };
+  } else if (unpaid) {
+    embed.footer = { text: "⏳ BELUM DIKASIH" };
+  }
   if (opts && opts.imageUrl) {
     embed.image = { url: String(opts.imageUrl) };
   }
@@ -1603,7 +1653,7 @@ async function sendNitipCuciToDiscord(opts) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content, embeds: [embed] }),
     });
-    return readDiscordMessageIdFromResponse(res);
+    return readDiscordSendMetaFromResponse(res);
   } catch (e) {
     console.warn("Gagal kirim nitip cuci ke Discord:", e);
     return null;
@@ -5564,7 +5614,7 @@ async function submitNitipCuci() {
       (currentMember && currentMember.nama) ||
       (window.__currentMember && window.__currentMember.nama) ||
       "";
-    const discordMessageId = await sendNitipCuciToDiscord({
+    const discordMeta = await sendNitipCuciToDiscord({
       nama,
       uangMerah,
       uangPutih,
@@ -5574,6 +5624,8 @@ async function submitNitipCuci() {
       actor,
       imageUrl,
     });
+    const discordMessageId =
+      discordMeta && discordMeta.messageId ? discordMeta.messageId : null;
     if (discordMessageId) payload.discord_message_id = discordMessageId;
 
     let { data: inserted, error: logErr } = await supabase
@@ -5599,7 +5651,11 @@ async function submitNitipCuci() {
     }
 
     if (discordMessageId && inserted && inserted.id) {
-      rememberNitipDiscordMessageId(inserted.id, discordMessageId);
+      rememberNitipDiscordMessageId(
+        inserted.id,
+        discordMessageId,
+        discordMeta && discordMeta.channelId,
+      );
       const persistRes = await persistDiscordMessageId(
         "nitip_cuci_logs",
         inserted.id,
@@ -5937,18 +5993,10 @@ async function toggleNitipPaidStatus(id, nextStatus) {
       msg +=
         ". Discord gagal diupdate — " +
         explainNitipDiscordSyncFailure(discordRes);
-    } else if (discordRes.mode === "post_fallback") {
-      msg += nextStatus
-        ? ". Notif ✅ dikirim sebagai pesan baru di Discord (browser tidak bisa reaction langsung)."
-        : ". Notif status dikirim sebagai pesan baru di Discord.";
-    } else if (discordRes.mode === "patch") {
-      msg += nextStatus
-        ? ". Pesan Discord diupdate (✅ SUDAH DIKASIH)."
-        : ". Pesan Discord diupdate (BELUM DIKASIH).";
     } else if (nextStatus) {
-      msg += ". Ceklis ✅ ditambahkan di Discord.";
+      msg += ". Pesan Discord diupdate (hijau + ✅ SUDAH DIKASIH).";
     } else {
-      msg += ". Ceklis di Discord dihapus.";
+      msg += ". Pesan Discord diupdate (kembali BELUM).";
     }
 
     showAlert(msg, discordRes.ok || discordRes.skipped ? "success" : "warning");
