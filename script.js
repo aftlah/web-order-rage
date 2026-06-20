@@ -1220,45 +1220,111 @@ function parseDiscordWebhookUrl(url) {
   return { webhookId: m[1], webhookToken: m[2] };
 }
 
+async function discordWebhookProxyRequest(payload) {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.functions.invoke(
+      "discord-webhook-proxy",
+      { body: payload },
+    );
+    if (error) {
+      console.warn("Discord proxy invoke error:", error);
+      return null;
+    }
+    if (data && typeof data.ok === "boolean") return data;
+    return null;
+  } catch (e) {
+    console.warn("Discord proxy error:", e);
+    return null;
+  }
+}
+
+async function discordWebhookDirectFetch(url, init) {
+  try {
+    const res = await fetch(url, init);
+    const detail = await res.text();
+    const method = (init && init.method) || "GET";
+    const ok =
+      res.ok ||
+      res.status === 204 ||
+      (method === "DELETE" && res.status === 404);
+    return { ok, status: res.status, detail: detail.slice(0, 300) };
+  } catch (e) {
+    return {
+      ok: false,
+      status: 0,
+      detail: String(e && e.message ? e.message : e),
+    };
+  }
+}
+
 async function deleteDiscordWebhookMessage(webhookUrl, messageId) {
   const parsed = parseDiscordWebhookUrl(webhookUrl);
   const enabled = window.DISCORD_ENABLED !== false;
   const mid = normalizeDiscordMessageId(messageId);
   if (!parsed || !mid || !enabled) return false;
-  try {
-    const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${encodeURIComponent(mid)}`;
-    const res = await fetch(url, { method: "DELETE" });
-    if (res.ok || res.status === 404) return true;
-    console.warn("Gagal hapus pesan Discord:", res.status, await res.text());
-    return false;
-  } catch (e) {
-    console.warn("Gagal hapus pesan Discord:", e);
-    return false;
+
+  const proxyRes = await discordWebhookProxyRequest({
+    webhookUrl,
+    messageId: mid,
+    action: "delete_message",
+    method: "DELETE",
+  });
+  if (proxyRes) return proxyRes.ok;
+
+  const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${encodeURIComponent(mid)}`;
+  const direct = await discordWebhookDirectFetch(url, { method: "DELETE" });
+  if (!direct.ok) {
+    console.warn("Gagal hapus pesan Discord:", direct.status, direct.detail);
   }
+  return direct.ok;
 }
 
 const NITIP_DONE_DISCORD_REACTION = "✅";
+
+async function discordWebhookReactionRequest(
+  webhookUrl,
+  messageId,
+  method,
+  emoji = NITIP_DONE_DISCORD_REACTION,
+) {
+  const parsed = parseDiscordWebhookUrl(webhookUrl);
+  const enabled = window.DISCORD_ENABLED !== false;
+  const mid = normalizeDiscordMessageId(messageId);
+  if (!parsed || !mid || !enabled || !emoji) {
+    return { ok: false, status: 0, detail: "webhook atau message id tidak valid" };
+  }
+
+  const proxyRes = await discordWebhookProxyRequest({
+    webhookUrl,
+    messageId: mid,
+    action: "reaction",
+    method,
+    emoji,
+  });
+  if (proxyRes) return proxyRes;
+
+  const enc = encodeURIComponent(emoji);
+  const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${encodeURIComponent(mid)}/reactions/${enc}/@me`;
+  const direct = await discordWebhookDirectFetch(url, { method });
+  if (!direct.ok) {
+    console.warn(`Discord reaction ${method} gagal:`, direct.status, direct.detail);
+  }
+  return direct;
+}
 
 async function addDiscordWebhookReaction(
   webhookUrl,
   messageId,
   emoji = NITIP_DONE_DISCORD_REACTION,
 ) {
-  const parsed = parseDiscordWebhookUrl(webhookUrl);
-  const enabled = window.DISCORD_ENABLED !== false;
-  const mid = normalizeDiscordMessageId(messageId);
-  if (!parsed || !mid || !enabled || !emoji) return false;
-  try {
-    const enc = encodeURIComponent(emoji);
-    const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${encodeURIComponent(mid)}/reactions/${enc}/@me`;
-    const res = await fetch(url, { method: "PUT" });
-    if (res.ok || res.status === 204) return true;
-    console.warn("Gagal tambah reaction Discord:", res.status, await res.text());
-    return false;
-  } catch (e) {
-    console.warn("Gagal tambah reaction Discord:", e);
-    return false;
-  }
+  const res = await discordWebhookReactionRequest(
+    webhookUrl,
+    messageId,
+    "PUT",
+    emoji,
+  );
+  return res.ok;
 }
 
 async function removeDiscordWebhookReaction(
@@ -1266,48 +1332,117 @@ async function removeDiscordWebhookReaction(
   messageId,
   emoji = NITIP_DONE_DISCORD_REACTION,
 ) {
-  const parsed = parseDiscordWebhookUrl(webhookUrl);
-  const enabled = window.DISCORD_ENABLED !== false;
-  const mid = normalizeDiscordMessageId(messageId);
-  if (!parsed || !mid || !enabled || !emoji) return false;
-  try {
-    const enc = encodeURIComponent(emoji);
-    const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${encodeURIComponent(mid)}/reactions/${enc}/@me`;
-    const res = await fetch(url, { method: "DELETE" });
-    if (res.ok || res.status === 204 || res.status === 404) return true;
-    console.warn("Gagal hapus reaction Discord:", res.status, await res.text());
-    return false;
-  } catch (e) {
-    console.warn("Gagal hapus reaction Discord:", e);
-    return false;
+  const res = await discordWebhookReactionRequest(
+    webhookUrl,
+    messageId,
+    "DELETE",
+    emoji,
+  );
+  return res.ok;
+}
+
+function explainNitipDiscordSyncFailure(syncRes) {
+  if (!syncRes) return "Tidak diketahui.";
+  if (syncRes.skipped && syncRes.reason === "no_message_id") {
+    return "discord_message_id kosong — data lama tidak punya ID. Kirim nitip cuci BARU (setelah refresh), lalu cek kolom di Supabase harus terisi angka.";
   }
+  if (syncRes.skipped && syncRes.reason === "no_webhook") {
+    return "DISCORD_NITIP_CUCI_WEBHOOK_URL belum diisi di config.js.";
+  }
+  const st = syncRes.reactionStatus || 0;
+  if (st === 404) {
+    return "Pesan tidak ditemukan di Discord (ID salah, pesan sudah dihapus, atau bukan dari webhook ini).";
+  }
+  if (st === 403) {
+    return "Webhook tidak punya akses ke pesan ini (biasanya pesan lama sebelum fix, atau webhook URL berubah).";
+  }
+  if (st === 401) {
+    return "Token webhook Discord tidak valid — regenerate webhook di Discord Server Settings.";
+  }
+  if (st === 0) {
+    return "Browser diblokir Discord (CORS) untuk reaction/edit/hapus — hanya kirim pesan baru yang bisa langsung. Deploy Edge Function discord-webhook-proxy di Supabase, atau status akan dikirim sebagai pesan baru.";
+  }
+  if (syncRes.detail) {
+    try {
+      const j = JSON.parse(syncRes.detail);
+      if (j.message) return String(j.message);
+    } catch (e) {}
+    return syncRes.detail.slice(0, 120);
+  }
+  return `Discord API error HTTP ${st}`;
 }
 
 async function patchDiscordWebhookMessage(webhookUrl, messageId, payload) {
   const parsed = parseDiscordWebhookUrl(webhookUrl);
   const enabled = window.DISCORD_ENABLED !== false;
   const mid = normalizeDiscordMessageId(messageId);
-  if (!parsed || !mid || !enabled || !payload) return false;
-  try {
-    const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${encodeURIComponent(mid)}`;
-    const res = await fetch(url, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) return true;
-    console.warn("Gagal edit pesan Discord:", res.status, await res.text());
-    return false;
-  } catch (e) {
-    console.warn("Gagal edit pesan Discord:", e);
-    return false;
+  if (!parsed || !mid || !enabled || !payload) {
+    return { ok: false, status: 0, detail: "payload tidak valid" };
   }
+
+  const proxyRes = await discordWebhookProxyRequest({
+    webhookUrl,
+    messageId: mid,
+    action: "patch_message",
+    method: "PATCH",
+    body: payload,
+  });
+  if (proxyRes) return proxyRes;
+
+  const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${encodeURIComponent(mid)}`;
+  const direct = await discordWebhookDirectFetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!direct.ok) {
+    console.warn("Gagal edit pesan Discord:", direct.status, direct.detail);
+  }
+  return direct;
+}
+
+async function postNitipPaidDiscordNotice(row, isPaid) {
+  const hook = getNitipCuciWebhookUrl();
+  const enabled = window.DISCORD_ENABLED !== false;
+  if (!hook || !enabled || !row) {
+    return { ok: false, status: 0, detail: "webhook tidak ada" };
+  }
+  const nama = String(row.nama || "-").trim();
+  const putih = fmtIdMoney(row.uang_putih);
+  const content = isPaid
+    ? `✅ **SUDAH DIKASIH** uang putih — **${nama}** · ${putih}`
+    : `⏳ **BELUM DIKASIH** (status dibatalkan) — **${nama}** · ${putih}`;
+  const url = discordWebhookWaitUrl(hook);
+  const direct = await discordWebhookDirectFetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  return direct;
 }
 
 async function syncNitipPaidDiscordMark(row, isPaid) {
   const webhook = getNitipCuciWebhookUrl();
   const messageId = await resolveDiscordMessageIdForRow("nitip_cuci_logs", row);
-  if (!messageId || !webhook) return { ok: false, skipped: true };
+  if (!messageId) {
+    return { ok: false, skipped: true, reason: "no_message_id" };
+  }
+  if (!webhook) {
+    return { ok: false, skipped: true, reason: "no_webhook" };
+  }
+
+  const reactionRes = isPaid
+    ? await discordWebhookReactionRequest(webhook, messageId, "PUT")
+    : await discordWebhookReactionRequest(webhook, messageId, "DELETE");
+  if (reactionRes.ok) {
+    return {
+      ok: true,
+      skipped: false,
+      mode: "reaction",
+      reactionStatus: reactionRes.status,
+      messageId,
+    };
+  }
 
   let periodeLabel = "";
   if (row && row.periode_orderanke) {
@@ -1318,8 +1453,7 @@ async function syncNitipPaidDiscordMark(row, isPaid) {
       periodeLabel = `M${m}-W${w} (#${v})`;
     }
   }
-
-  const payload = buildNitipCuciDiscordEmbed({
+  const discordPayload = buildNitipCuciDiscordEmbed({
     nama: row.nama,
     uangMerah: row.uang_merah,
     uangPutih: row.uang_putih,
@@ -1330,24 +1464,38 @@ async function syncNitipPaidDiscordMark(row, isPaid) {
     imageUrl: row.image_url,
     isPaid: !!isPaid,
   });
-
-  const edited = await patchDiscordWebhookMessage(webhook, messageId, {
-    content: payload.content,
-    embeds: [payload.embed],
+  const patchRes = await patchDiscordWebhookMessage(webhook, messageId, {
+    content: discordPayload.content,
+    embeds: [discordPayload.embed],
   });
+  if (patchRes.ok) {
+    return {
+      ok: true,
+      skipped: false,
+      mode: "patch",
+      reactionStatus: patchRes.status,
+      messageId,
+    };
+  }
 
-  let reacted = false;
-  if (isPaid) {
-    reacted = await addDiscordWebhookReaction(webhook, messageId);
-  } else {
-    reacted = await removeDiscordWebhookReaction(webhook, messageId);
+  const postRes = await postNitipPaidDiscordNotice(row, !!isPaid);
+  if (postRes.ok) {
+    return {
+      ok: true,
+      skipped: false,
+      mode: "post_fallback",
+      reactionStatus: postRes.status,
+      messageId,
+    };
   }
 
   return {
-    ok: edited || reacted,
+    ok: false,
     skipped: false,
-    edited,
-    reacted,
+    mode: "failed",
+    reactionStatus: reactionRes.status || patchRes.status || postRes.status,
+    detail: reactionRes.detail || patchRes.detail || postRes.detail,
+    messageId,
   };
 }
 
@@ -5782,9 +5930,21 @@ async function toggleNitipPaidStatus(id, nextStatus) {
     const discordRes = await syncNitipPaidDiscordMark(row, !!nextStatus);
     let msg = nextStatus ? "Ditandai SUDAH dikasih" : "Ditandai BELUM dikasih";
     if (discordRes.skipped) {
-      msg += ". Pesan Discord tidak terhubung (ID tidak tersimpan) — update manual di channel.";
+      msg +=
+        ". Discord tidak terhubung — " +
+        explainNitipDiscordSyncFailure(discordRes);
     } else if (!discordRes.ok) {
-      msg += ". Status tersimpan, tapi Discord gagal diupdate.";
+      msg +=
+        ". Discord gagal diupdate — " +
+        explainNitipDiscordSyncFailure(discordRes);
+    } else if (discordRes.mode === "post_fallback") {
+      msg += nextStatus
+        ? ". Notif ✅ dikirim sebagai pesan baru di Discord (browser tidak bisa reaction langsung)."
+        : ". Notif status dikirim sebagai pesan baru di Discord.";
+    } else if (discordRes.mode === "patch") {
+      msg += nextStatus
+        ? ". Pesan Discord diupdate (✅ SUDAH DIKASIH)."
+        : ". Pesan Discord diupdate (BELUM DIKASIH).";
     } else if (nextStatus) {
       msg += ". Ceklis ✅ ditambahkan di Discord.";
     } else {
