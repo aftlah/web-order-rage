@@ -1546,3 +1546,15 @@ select option:active {
 .nitip-summary-line--putih strong {
   color: #6ee7b7;
 }
+
+.nitip-summary-line--pending strong {
+  color: #fbbf24;
+}
+
+tr.nitip-row--pending {
+  background: rgba(245, 158, 11, 0.04);
+}
+
+tr.nitip-row--pending:hover {
+  background: rgba(245, 158, 11, 0.08);
+}

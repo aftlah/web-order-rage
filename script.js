@@ -583,7 +583,7 @@ async function resendDiscordForRestoredRow(tableName, id) {
         periodeLabel = `M${m}-W${w} (#${v})`;
       }
     }
-    const payload = buildNitipCuciDiscordPayload({
+    const messageId = await sendNitipCuciToDiscord({
       nama: row.nama,
       uangMerah: row.uang_merah,
       uangPutih: row.uang_putih,
@@ -591,27 +591,9 @@ async function resendDiscordForRestoredRow(tableName, id) {
       periodeLabel,
       waktu: row.waktu,
       actor: "",
+      imageUrl: row.image_url,
+      isPaid: row.is_paid,
     });
-    let messageId = null;
-    if (row.image_url) {
-      try {
-        const file = await fetchImageFileFromUrl(row.image_url);
-        messageId = await postToDiscordWithFile({
-          message: payload.content,
-          file,
-        });
-      } catch (e) {
-        messageId = await postToDiscord(
-          payload.content,
-          getNitipCuciWebhookUrl(),
-        );
-      }
-    } else {
-      messageId = await postToDiscord(
-        payload.content,
-        getNitipCuciWebhookUrl(),
-      );
-    }
     if (messageId) {
       await saveDiscordMessageIdOnRow("nitip_cuci_logs", rowId, messageId);
     }
@@ -854,9 +836,18 @@ async function readDiscordMessageIdFromResponse(res) {
     if (quoted) return quoted[1];
     const bare = text.match(/"id"\s*:\s*(\d{10,22})\b/);
     if (bare) return bare[1];
-    const data = JSON.parse(text);
-    if (data && typeof data.id === "string") {
-      return normalizeDiscordMessageId(data.id);
+    try {
+      const data = JSON.parse(text);
+      if (data && data.id != null) {
+        if (typeof data.id === "string") {
+          return normalizeDiscordMessageId(data.id);
+        }
+        if (typeof data.id === "number" && Number.isSafeInteger(data.id)) {
+          return String(data.id);
+        }
+      }
+    } catch (parseErr) {
+      /* raw regex above is primary for snowflakes */
     }
     console.warn(
       "Discord response tanpa message id:",
@@ -892,6 +883,24 @@ const DISCORD_MESSAGE_ID_GET_RPC = {
 };
 
 const DISCORD_MSG_CACHE_KEY = "rage_discord_msg_cache_v1";
+
+function rememberNitipDiscordMessageId(rowId, messageId) {
+  const id = parseInt(String(rowId || ""), 10);
+  const mid = normalizeDiscordMessageId(messageId);
+  if (!id || !mid) return;
+  if (!window.__nitipDiscordByRowId) window.__nitipDiscordByRowId = {};
+  window.__nitipDiscordByRowId[id] = mid;
+  cacheDiscordMsgId("nitip_cuci_logs", id, mid);
+}
+
+function readRememberedNitipDiscordMessageId(rowId) {
+  const id = parseInt(String(rowId || ""), 10);
+  if (!id) return null;
+  if (window.__nitipDiscordByRowId && window.__nitipDiscordByRowId[id]) {
+    return normalizeDiscordMessageId(window.__nitipDiscordByRowId[id]);
+  }
+  return readCachedDiscordMsgId("nitip_cuci_logs", id);
+}
 
 const TABLE_ROW_ID_UUID = new Set(["drugs_sales"]);
 
@@ -1012,6 +1021,47 @@ async function fetchDiscordMessageIdsForRows(tableName, rowIds) {
   });
 
   return [...new Set([...byId.values()])];
+}
+
+async function resolveDiscordMessageIdForRow(tableName, row) {
+  if (!row) return null;
+  let mid = normalizeDiscordMessageId(row.discord_message_id);
+  if (mid) return mid;
+  if (tableName === "nitip_cuci_logs" && row.id != null) {
+    mid = readRememberedNitipDiscordMessageId(row.id);
+    if (mid) return mid;
+  }
+  if (row.id != null) {
+    mid = readCachedDiscordMsgId(tableName, row.id);
+    if (mid) return mid;
+    const ids = await fetchDiscordMessageIdsForRows(tableName, [row.id]);
+    if (ids.length) return ids[0];
+  }
+  return null;
+}
+
+async function deleteDiscordForTableRow(tableName, row) {
+  const webhook = getDiscordWebhookForTable(tableName);
+  const messageId = await resolveDiscordMessageIdForRow(tableName, row);
+  if (!messageId) {
+    return { ok: false, skipped: true, deleted: 0, reason: "no_message_id" };
+  }
+  if (!webhook) {
+    return { ok: false, skipped: true, deleted: 0, reason: "no_webhook" };
+  }
+  const deleted = await deleteDiscordWebhookMessage(webhook, messageId);
+  if (deleted && row && row.id != null) {
+    clearCachedDiscordMsgIds(tableName, row.id);
+    if (supabase) {
+      await clearDiscordMessageIdsOnRows(tableName, [row.id]);
+    }
+  }
+  return {
+    ok: deleted,
+    skipped: false,
+    deleted: deleted ? 1 : 0,
+    messageId,
+  };
 }
 
 async function persistDiscordMessageId(tableName, rowId, messageId) {
@@ -1187,6 +1237,120 @@ async function deleteDiscordWebhookMessage(webhookUrl, messageId) {
   }
 }
 
+const NITIP_DONE_DISCORD_REACTION = "✅";
+
+async function addDiscordWebhookReaction(
+  webhookUrl,
+  messageId,
+  emoji = NITIP_DONE_DISCORD_REACTION,
+) {
+  const parsed = parseDiscordWebhookUrl(webhookUrl);
+  const enabled = window.DISCORD_ENABLED !== false;
+  const mid = normalizeDiscordMessageId(messageId);
+  if (!parsed || !mid || !enabled || !emoji) return false;
+  try {
+    const enc = encodeURIComponent(emoji);
+    const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${encodeURIComponent(mid)}/reactions/${enc}/@me`;
+    const res = await fetch(url, { method: "PUT" });
+    if (res.ok || res.status === 204) return true;
+    console.warn("Gagal tambah reaction Discord:", res.status, await res.text());
+    return false;
+  } catch (e) {
+    console.warn("Gagal tambah reaction Discord:", e);
+    return false;
+  }
+}
+
+async function removeDiscordWebhookReaction(
+  webhookUrl,
+  messageId,
+  emoji = NITIP_DONE_DISCORD_REACTION,
+) {
+  const parsed = parseDiscordWebhookUrl(webhookUrl);
+  const enabled = window.DISCORD_ENABLED !== false;
+  const mid = normalizeDiscordMessageId(messageId);
+  if (!parsed || !mid || !enabled || !emoji) return false;
+  try {
+    const enc = encodeURIComponent(emoji);
+    const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${encodeURIComponent(mid)}/reactions/${enc}/@me`;
+    const res = await fetch(url, { method: "DELETE" });
+    if (res.ok || res.status === 204 || res.status === 404) return true;
+    console.warn("Gagal hapus reaction Discord:", res.status, await res.text());
+    return false;
+  } catch (e) {
+    console.warn("Gagal hapus reaction Discord:", e);
+    return false;
+  }
+}
+
+async function patchDiscordWebhookMessage(webhookUrl, messageId, payload) {
+  const parsed = parseDiscordWebhookUrl(webhookUrl);
+  const enabled = window.DISCORD_ENABLED !== false;
+  const mid = normalizeDiscordMessageId(messageId);
+  if (!parsed || !mid || !enabled || !payload) return false;
+  try {
+    const url = `https://discord.com/api/webhooks/${parsed.webhookId}/${parsed.webhookToken}/messages/${encodeURIComponent(mid)}`;
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return true;
+    console.warn("Gagal edit pesan Discord:", res.status, await res.text());
+    return false;
+  } catch (e) {
+    console.warn("Gagal edit pesan Discord:", e);
+    return false;
+  }
+}
+
+async function syncNitipPaidDiscordMark(row, isPaid) {
+  const webhook = getNitipCuciWebhookUrl();
+  const messageId = await resolveDiscordMessageIdForRow("nitip_cuci_logs", row);
+  if (!messageId || !webhook) return { ok: false, skipped: true };
+
+  let periodeLabel = "";
+  if (row && row.periode_orderanke) {
+    const v = parseInt(row.periode_orderanke, 10);
+    if (!Number.isNaN(v) && v > 0) {
+      const m = Math.floor(v / 10);
+      const w = v % 10;
+      periodeLabel = `M${m}-W${w} (#${v})`;
+    }
+  }
+
+  const payload = buildNitipCuciDiscordEmbed({
+    nama: row.nama,
+    uangMerah: row.uang_merah,
+    uangPutih: row.uang_putih,
+    keterangan: row.keterangan,
+    periodeLabel,
+    waktu: row.waktu,
+    actor: "",
+    imageUrl: row.image_url,
+    isPaid: !!isPaid,
+  });
+
+  const edited = await patchDiscordWebhookMessage(webhook, messageId, {
+    content: payload.content,
+    embeds: [payload.embed],
+  });
+
+  let reacted = false;
+  if (isPaid) {
+    reacted = await addDiscordWebhookReaction(webhook, messageId);
+  } else {
+    reacted = await removeDiscordWebhookReaction(webhook, messageId);
+  }
+
+  return {
+    ok: edited || reacted,
+    skipped: false,
+    edited,
+    reacted,
+  };
+}
+
 async function postToDiscordWithFile({ message, file, embeds, overrideUrl }) {
   const url = discordWebhookWaitUrl(overrideUrl || getNitipCuciWebhookUrl());
   const enabled = window.DISCORD_ENABLED !== false;
@@ -1233,6 +1397,7 @@ function buildNitipCuciDiscordPayload({
   periodeLabel,
   waktu,
   actor,
+  isPaid,
 }) {
   const ts = waktu || new Date().toISOString();
   const actorName = String(actor || "").trim();
@@ -1250,11 +1415,51 @@ function buildNitipCuciDiscordPayload({
     lines.push(`Dicatat    : ${actorName}`);
   }
   lines.push(`Waktu      : ${fmtDateTime(ts)}`);
+  if (isPaid === true) {
+    lines.push(`Status     : ✅ SUDAH DIKASIH`);
+  } else if (isPaid === false) {
+    lines.push(`Status     : BELUM DIKASIH`);
+  }
 
   return {
     content: "```\n" + lines.join("\n") + "\n```",
     embeds: [],
   };
+}
+
+function buildNitipCuciDiscordEmbed(opts) {
+  const payload = buildNitipCuciDiscordPayload(opts);
+  const embed = {
+    color: opts && opts.isPaid ? 0x22c55e : 0xf59e0b,
+  };
+  if (opts && opts.imageUrl) {
+    embed.image = { url: String(opts.imageUrl) };
+  }
+  return { content: payload.content, embed };
+}
+
+async function sendNitipCuciToDiscord(opts) {
+  const hook = getNitipCuciWebhookUrl();
+  const enabled = window.DISCORD_ENABLED !== false;
+  if (!hook || !enabled) return null;
+  const { content, embed } = buildNitipCuciDiscordEmbed(opts);
+  const url = discordWebhookWaitUrl(hook);
+  const now = Date.now();
+  const last = window.__discordLastSent || 0;
+  const wait = Math.max(0, 4200 - (now - last));
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  window.__discordLastSent = Date.now();
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, embeds: [embed] }),
+    });
+    return readDiscordMessageIdFromResponse(res);
+  } catch (e) {
+    console.warn("Gagal kirim nitip cuci ke Discord:", e);
+    return null;
+  }
 }
 
 function canDeleteNitipCuciRow(row, member) {
@@ -5096,6 +5301,10 @@ function initNitipCuci(member) {
   if (submitBtn) submitBtn.addEventListener("click", submitNitipCuci);
   if (reloadBtn)
     reloadBtn.addEventListener("click", () => loadNitipCuciTable());
+  const paidFilter = document.getElementById("nitipPaidFilter");
+  if (paidFilter) {
+    paidFilter.addEventListener("change", () => renderNitipTableFromCache());
+  }
   if (buktiEl) {
     buktiEl.addEventListener("change", (e) => {
       const f = e.target.files && e.target.files[0];
@@ -5203,11 +5412,35 @@ async function submitNitipCuci() {
       waktu: now.toISOString(),
     };
 
-    const { data: inserted, error: logErr } = await supabase
+    const actor =
+      (currentMember && currentMember.nama) ||
+      (window.__currentMember && window.__currentMember.nama) ||
+      "";
+    const discordMessageId = await sendNitipCuciToDiscord({
+      nama,
+      uangMerah,
+      uangPutih,
+      keterangan,
+      periodeLabel,
+      waktu: now.toISOString(),
+      actor,
+      imageUrl,
+    });
+    if (discordMessageId) payload.discord_message_id = discordMessageId;
+
+    let { data: inserted, error: logErr } = await supabase
       .from("nitip_cuci_logs")
       .insert(payload)
-      .select("id")
+      .select("id,discord_message_id")
       .single();
+    if (logErr && isMissingColumnError(logErr, "discord_message_id")) {
+      delete payload.discord_message_id;
+      ({ data: inserted, error: logErr } = await supabase
+        .from("nitip_cuci_logs")
+        .insert(payload)
+        .select("id")
+        .single());
+    }
     if (logErr) {
       console.error(logErr);
       showAlert(
@@ -5217,33 +5450,32 @@ async function submitNitipCuci() {
       return;
     }
 
-    const actor =
-      (currentMember && currentMember.nama) ||
-      (window.__currentMember && window.__currentMember.nama) ||
-      "";
-    const discordPayload = buildNitipCuciDiscordPayload({
-      nama,
-      uangMerah,
-      uangPutih,
-      keterangan,
-      periodeLabel,
-      waktu: now.toISOString(),
-      actor,
-    });
-
-    const discordMessageId = await postToDiscordWithFile({
-      message: discordPayload.content,
-      file: buktiFile,
-    });
     if (discordMessageId && inserted && inserted.id) {
-      await saveDiscordMessageIdOnRow(
+      rememberNitipDiscordMessageId(inserted.id, discordMessageId);
+      const persistRes = await persistDiscordMessageId(
         "nitip_cuci_logs",
         inserted.id,
         discordMessageId,
       );
+      if (!persistRes.ok && persistRes.reason === "missing_column") {
+        showAlert(
+          "Nitip cuci tersimpan, tapi kolom discord_message_id belum ada. Jalankan: alter table public.nitip_cuci_logs add column if not exists discord_message_id text;",
+          "warning",
+        );
+      } else if (!persistRes.ok) {
+        showAlert(
+          `Nitip cuci terkirim. ID Discord: ${discordMessageId} (tersimpan lokal, cek kolom di Supabase).`,
+          "warning",
+        );
+      } else {
+        showAlert("Nitip cuci berhasil dikirim", "success");
+      }
+    } else {
+      showAlert(
+        "Nitip cuci tersimpan di database, tapi gagal dapat ID Discord. Hard refresh (Ctrl+Shift+R) lalu coba lagi.",
+        "warning",
+      );
     }
-
-    showAlert("Nitip cuci berhasil dikirim", "success");
     merahEl.value = "";
     updateNitipPutihPreview();
     if (ketEl) ketEl.value = "Nitip cuci";
@@ -5263,8 +5495,6 @@ async function loadNitipCuciTable() {
   const body = document.getElementById("nitipTableBody");
   const empty = document.getElementById("nitipTableEmpty");
   const labelEl = document.getElementById("nitipPeriodeLabel");
-  const summaryWrap = document.getElementById("nitipSummaryWrap");
-  const statsEl = document.getElementById("nitipCuciStats");
   if (!body || !empty || !labelEl) return;
 
   body.innerHTML = "";
@@ -5288,6 +5518,7 @@ async function loadNitipCuciTable() {
   } catch (e) {}
 
   labelEl.textContent = periodeLabel || "Periode aktif";
+  window.__nitipPeriodeValue = periodeValue;
 
   let q = supabase
     .from("nitip_cuci_logs")
@@ -5313,8 +5544,51 @@ async function loadNitipCuciTable() {
     return;
   }
 
-  const rows = data || [];
-  if (!rows.length) {
+  window.__nitipRowsRaw = data || [];
+  (window.__nitipRowsRaw || []).forEach((r) => {
+    if (r && r.id && r.discord_message_id) {
+      rememberNitipDiscordMessageId(r.id, r.discord_message_id);
+    }
+  });
+  renderNitipTableFromCache();
+}
+
+function getNitipPaidFilter() {
+  const el = document.getElementById("nitipPaidFilter");
+  const v = String(el ? el.value : "all").toLowerCase();
+  if (v === "paid" || v === "unpaid") return v;
+  return "all";
+}
+
+function filterNitipRows(rows) {
+  const paidFilter = getNitipPaidFilter();
+  return (rows || []).filter((r) => {
+    const isPaid = !!r.is_paid;
+    if (paidFilter === "paid" && !isPaid) return false;
+    if (paidFilter === "unpaid" && isPaid) return false;
+    return true;
+  });
+}
+
+function renderNitipTableFromCache() {
+  renderNitipTable(window.__nitipRowsRaw || []);
+}
+
+function renderNitipTable(data) {
+  const body = document.getElementById("nitipTableBody");
+  const empty = document.getElementById("nitipTableEmpty");
+  const summaryWrap = document.getElementById("nitipSummaryWrap");
+  const statsEl = document.getElementById("nitipCuciStats");
+  if (!body || !empty) return;
+
+  const currentMember = window.__currentMember || null;
+  const adminMode = isAdminMember(currentMember);
+  const allRows = data || [];
+  const rows = filterNitipRows(allRows);
+  const paidFilter = getNitipPaidFilter();
+
+  if (!allRows.length) {
+    body.innerHTML = "";
     empty.classList.remove("hidden");
     empty.textContent = "Belum ada nitip cuci di periode ini";
     if (summaryWrap) {
@@ -5325,20 +5599,44 @@ async function loadNitipCuciTable() {
     return;
   }
 
+  if (!rows.length) {
+    body.innerHTML = "";
+    empty.classList.remove("hidden");
+    empty.textContent =
+      paidFilter === "paid"
+        ? "Tidak ada nitip cuci yang sudah dikasih"
+        : paidFilter === "unpaid"
+          ? "Tidak ada nitip cuci yang belum dikasih"
+          : "Belum ada nitip cuci di periode ini";
+    return;
+  }
+
   empty.classList.add("hidden");
 
   const byPerson = {};
   let totalMerah = 0;
   let totalPutih = 0;
-  rows.forEach((r) => {
+  let countPaid = 0;
+  let countUnpaid = 0;
+  let putihBelum = 0;
+  let putihSudah = 0;
+  allRows.forEach((r) => {
     const key = r.nama || "Unknown";
-    if (!byPerson[key]) byPerson[key] = { merah: 0, putih: 0 };
+    if (!byPerson[key]) byPerson[key] = { merah: 0, putih: 0, belum: 0 };
     const merah = parseFloat(r.uang_merah) || 0;
     const putih = parseFloat(r.uang_putih) || 0;
     byPerson[key].merah += merah;
     byPerson[key].putih += putih;
     totalMerah += merah;
     totalPutih += putih;
+    if (r.is_paid) {
+      countPaid += 1;
+      putihSudah += putih;
+    } else {
+      countUnpaid += 1;
+      putihBelum += putih;
+      byPerson[key].belum += putih;
+    }
   });
 
   if (statsEl) {
@@ -5350,6 +5648,14 @@ async function loadNitipCuciTable() {
       <div class="stat-card text-center min-w-[90px]">
         <p class="text-[10px] font-black text-emerald-400/80 uppercase tracking-widest">Total Putih</p>
         <p class="text-sm font-black text-emerald-300 font-mono mt-1">${fmtIdMoney(totalPutih)}</p>
+      </div>
+      <div class="stat-card text-center min-w-[90px]">
+        <p class="text-[10px] font-black text-amber-400/80 uppercase tracking-widest">Belum dikasih</p>
+        <p class="text-sm font-black text-amber-300 font-mono mt-1">${countUnpaid} · ${fmtIdMoney(putihBelum)}</p>
+      </div>
+      <div class="stat-card text-center min-w-[90px]">
+        <p class="text-[10px] font-black text-green-400/80 uppercase tracking-widest">Sudah dikasih</p>
+        <p class="text-sm font-black text-green-300 font-mono mt-1">${countPaid} · ${fmtIdMoney(putihSudah)}</p>
       </div>`;
   }
 
@@ -5366,13 +5672,16 @@ async function loadNitipCuciTable() {
             <p class="nitip-summary-name">${name}</p>
             <p class="nitip-summary-line"><span>Merah</span><strong>${fmtIdMoney(byPerson[name].merah)}</strong></p>
             <p class="nitip-summary-line nitip-summary-line--putih"><span>Putih</span><strong>${fmtIdMoney(byPerson[name].putih)}</strong></p>
+            ${
+              byPerson[name].belum > 0
+                ? `<p class="nitip-summary-line nitip-summary-line--pending"><span>Belum dikasih</span><strong>${fmtIdMoney(byPerson[name].belum)}</strong></p>`
+                : ""
+            }
           </div>`,
           )
           .join("")}
       </div>`;
   }
-
-  const currentMember = window.__currentMember || null;
 
   body.innerHTML = rows
     .map((r) => {
@@ -5380,27 +5689,61 @@ async function loadNitipCuciTable() {
       const bukti = r.image_url
         ? `<a href="${r.image_url}" target="_blank" rel="noopener" class="text-amber-400 hover:underline text-xs font-bold">Lihat</a>`
         : `<span class="text-stone-600">—</span>`;
+      const isPaid = !!r.is_paid;
+      const discordMsgId =
+        normalizeDiscordMessageId(r.discord_message_id) ||
+        readRememberedNitipDiscordMessageId(r.id) ||
+        "";
+      const statusBtn = adminMode
+        ? `<button type="button" data-toggle-nitip-paid="${r.id}" data-current="${isPaid}"
+            class="badge ${isPaid ? "badge-green" : "badge-red"} hover:scale-105 transition-transform cursor-pointer">
+            ${isPaid ? "SUDAH" : "BELUM"}
+          </button>`
+        : `<span class="badge ${isPaid ? "badge-green" : "badge-red"}">${isPaid ? "SUDAH" : "BELUM"}</span>`;
       const canDel = canDeleteNitipCuciRow(r, currentMember);
       const delBtn = canDel
-        ? `<button type="button" class="px-3 py-1 rounded-lg bg-red-600/15 text-red-300 border border-red-600/30 text-[10px] font-bold uppercase hover:bg-red-600/25 transition" data-del-nitip-id="${r.id}">Hapus</button>`
+        ? `<button type="button" class="px-3 py-1 rounded-lg bg-red-600/15 text-red-300 border border-red-600/30 text-[10px] font-bold uppercase hover:bg-red-600/25 transition" data-del-nitip-id="${r.id}" data-discord-msg-id="${discordMsgId}">Hapus</button>`
         : `<span class="text-stone-600 text-xs">—</span>`;
-      return `<tr>
+      const rowClass = isPaid ? "" : "nitip-row--pending";
+      return `<tr class="${rowClass}">
         <td class="px-4 py-3 font-semibold">${r.nama || "-"}</td>
         <td class="px-4 py-3 text-right font-mono text-red-300">${fmtIdMoney(r.uang_merah)}</td>
         <td class="px-4 py-3 text-right font-mono text-emerald-300">${fmtIdMoney(r.uang_putih)}</td>
         <td class="px-4 py-3 hidden md:table-cell text-stone-400 text-xs">${r.keterangan || "-"}</td>
         <td class="px-4 py-3 text-center">${bukti}</td>
+        <td class="px-4 py-3 text-center">${statusBtn}</td>
         <td class="px-4 py-3 hidden sm:table-cell text-xs text-stone-500 whitespace-nowrap">${waktu}</td>
         <td class="px-4 py-3 text-center">${delBtn}</td>
       </tr>`;
     })
     .join("");
 
+  body.querySelectorAll("[data-toggle-nitip-paid]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = parseInt(btn.getAttribute("data-toggle-nitip-paid") || "", 10);
+      if (!id) return;
+      const current = btn.getAttribute("data-current") === "true";
+      await toggleNitipPaidStatus(id, !current);
+    });
+  });
+
   body.querySelectorAll("[data-del-nitip-id]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = parseInt(btn.getAttribute("data-del-nitip-id") || "", 10);
       if (!id) return;
-      const row = rows.find((r) => parseInt(String(r.id), 10) === id);
+      const found = allRows.find((r) => parseInt(String(r.id), 10) === id);
+      const discordFromBtn = normalizeDiscordMessageId(
+        btn.getAttribute("data-discord-msg-id"),
+      );
+      const row = found
+        ? {
+            ...found,
+            discord_message_id:
+              discordFromBtn || found.discord_message_id || null,
+          }
+        : discordFromBtn
+          ? { id, discord_message_id: discordFromBtn }
+          : null;
       if (!row || !canDeleteNitipCuciRow(row, currentMember)) {
         showAlert("Tidak bisa menghapus data ini", "error");
         return;
@@ -5408,6 +5751,53 @@ async function loadNitipCuciTable() {
       await deleteNitipCuciRow(row);
     });
   });
+}
+
+async function toggleNitipPaidStatus(id, nextStatus) {
+  if (!supabase || !id) return;
+  if (!isAdminMember(window.__currentMember || null)) {
+    showAlert("Hanya admin yang bisa ubah status", "error");
+    return;
+  }
+  const raw = window.__nitipRowsRaw || [];
+  const rowIdx = raw.findIndex((r) => parseInt(String(r.id), 10) === id);
+  const row = rowIdx >= 0 ? raw[rowIdx] : null;
+  try {
+    const { error } = await supabase
+      .from("nitip_cuci_logs")
+      .update({ is_paid: !!nextStatus })
+      .eq("id", id);
+    if (error) {
+      if (isMissingColumnError(error, "is_paid")) {
+        showAlert(
+          "Kolom is_paid belum ada. Copy SQL ini ke Supabase → SQL Editor → Run:\n\nalter table public.nitip_cuci_logs add column if not exists is_paid boolean not null default false;\n\ncreate index if not exists nitip_cuci_logs_is_paid_idx on public.nitip_cuci_logs (is_paid);",
+          "error",
+        );
+      } else {
+        showAlert("Gagal update status: " + error.message, "error");
+      }
+      return;
+    }
+
+    const discordRes = await syncNitipPaidDiscordMark(row, !!nextStatus);
+    let msg = nextStatus ? "Ditandai SUDAH dikasih" : "Ditandai BELUM dikasih";
+    if (discordRes.skipped) {
+      msg += ". Pesan Discord tidak terhubung (ID tidak tersimpan) — update manual di channel.";
+    } else if (!discordRes.ok) {
+      msg += ". Status tersimpan, tapi Discord gagal diupdate.";
+    } else if (nextStatus) {
+      msg += ". Ceklis ✅ ditambahkan di Discord.";
+    } else {
+      msg += ". Ceklis di Discord dihapus.";
+    }
+
+    showAlert(msg, discordRes.ok || discordRes.skipped ? "success" : "warning");
+
+    if (rowIdx >= 0) raw[rowIdx] = { ...raw[rowIdx], is_paid: !!nextStatus };
+    renderNitipTableFromCache();
+  } catch (e) {
+    showAlert("Gagal update status", "error");
+  }
 }
 
 async function deleteNitipCuciRow(row) {
@@ -5438,7 +5828,7 @@ async function deleteNitipCuciRow(row) {
   }
 
   try {
-    await purgeDiscordOnArchive("nitip_cuci_logs", [row.id]);
+    const discordRes = await deleteDiscordForTableRow("nitip_cuci_logs", row);
 
     let ok = false;
     let error = null;
@@ -5488,7 +5878,14 @@ async function deleteNitipCuciRow(row) {
       showAlert(`Gagal menghapus: ${msg || "Unknown error"}`, "error");
       return;
     }
-    showAlert("Nitip cuci dihapus", "success");
+    let msg = "Nitip cuci dihapus";
+    if (discordRes.skipped) {
+      msg +=
+        ". Pesan Discord tidak terhubung (discord_message_id kosong). Jalankan migration 20260620 di Supabase, hard refresh, lalu input data baru — atau hapus manual di Discord.";
+    } else if (!discordRes.ok) {
+      msg += `. Pesan Discord gagal dihapus (ID: ${discordRes.messageId || "?"}). Hapus manual di channel.`;
+    }
+    showAlert(msg, discordRes.ok ? "success" : "warning");
     await loadNitipCuciTable();
   } catch (e) {
     showAlert("Gagal menghapus (network)", "error");
