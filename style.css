@@ -690,6 +690,12 @@ select {
   border: 1px solid rgba(59, 130, 246, 0.25);
 }
 
+.badge-stone {
+  background: rgba(120, 113, 108, 0.12);
+  color: #a8a29e;
+  border: 1px solid rgba(120, 113, 108, 0.25);
+}
+
 /* Pulse dot for "open" status */
 .pulse-dot {
   width: 8px;
@@ -1557,4 +1563,93 @@ tr.nitip-row--pending {
 
 tr.nitip-row--pending:hover {
   background: rgba(245, 158, 11, 0.08);
+}
+
+/* ── Absen Kota ── */
+.absen-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition: transform 0.15s, filter 0.15s;
+  border: 1px solid transparent;
+}
+
+.absen-btn:active {
+  transform: scale(0.98);
+}
+
+.absen-btn--masuk {
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  color: #1a1410;
+  border-color: rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+.absen-btn--masuk:hover {
+  filter: brightness(1.08);
+}
+
+.absen-btn--masuk:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.absen-btn--keluar {
+  background: rgba(245, 158, 11, 0.05);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: none;
+}
+
+.absen-btn--keluar:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.absen-btn--keluar:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.absen-time-card {
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(245, 158, 11, 0.12);
+}
+
+.absen-stat {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.absen-stat--in {
+  background: rgba(16, 185, 129, 0.12);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.absen-stat--out {
+  background: rgba(249, 115, 22, 0.12);
+  color: #fdba74;
+  border: 1px solid rgba(249, 115, 22, 0.25);
+}
+
+.absen-stat--done {
+  background: rgba(100, 116, 139, 0.15);
+  color: #cbd5e1;
+  border: 1px solid rgba(100, 116, 139, 0.25);
 }

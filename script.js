@@ -360,6 +360,8 @@ function getDiscordWebhookForTable(tableName) {
       return getDrugsWebhookUrl();
     case "rage_cash_logs":
       return getRageCashWebhookUrl();
+    case "absen_kota_logs":
+      return getAbsenKotaWebhookUrl();
     case "orders":
       return getOrderWebhookUrl();
     default:
@@ -750,13 +752,14 @@ async function postToDiscord(message, overrideUrl) {
   }
 }
 
-async function postToDiscordEmbed(embed, overrideUrl, contentOverride) {
+async function postToDiscordEmbeds(embeds, overrideUrl, contentOverride) {
   try {
     const url = discordWebhookWaitUrl(
       overrideUrl || (window && window.DISCORD_WEBHOOK_URL) || "",
     );
     const enabled = window.DISCORD_ENABLED !== false;
-    if (!url || !enabled || !embed || typeof embed !== "object") return null;
+    const list = Array.isArray(embeds) ? embeds.filter(Boolean) : [];
+    if (!url || !enabled || !list.length) return null;
 
     let content = typeof contentOverride === "string" ? contentOverride : "";
     const isStoranHook =
@@ -777,12 +780,17 @@ async function postToDiscordEmbed(embed, overrideUrl, contentOverride) {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, embeds: [embed] }),
+      body: JSON.stringify({ content, embeds: list }),
     });
     return readDiscordMessageIdFromResponse(res);
   } catch (e) {
     return null;
   }
+}
+
+async function postToDiscordEmbed(embed, overrideUrl, contentOverride) {
+  if (!embed || typeof embed !== "object") return null;
+  return postToDiscordEmbeds([embed], overrideUrl, contentOverride);
 }
 
 function getNitipCuciWebhookUrl() {
@@ -1898,6 +1906,8 @@ function parseMoneyInput(raw) {
 const NITIP_CUCI_WHITE_RATE = 0.65;
 const NITIP_CUCI_BUCKET = "nitip-cuci";
 const NITIP_CUCI_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const ABSEN_KOTA_BUCKET = "absen-kota";
+const ABSEN_KOTA_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 async function getSession() {
   const { data } = await supabase.auth.getSession();
   return data ? data.session : null;
@@ -4389,6 +4399,7 @@ async function init() {
     !!document.getElementById("dashboardBody") ||
     !!document.getElementById("dashMonth");
   const isStoran = !!document.getElementById("storanSection");
+  const isAbsen = !!document.getElementById("absenSection");
   const isDrugs = !!document.getElementById("drugsNama");
   const isKas = !!document.getElementById("rageCashSubmit");
   const isRekap = !!document.getElementById("rekapSection");
@@ -4402,6 +4413,7 @@ async function init() {
     isOrder ||
     isDashboard ||
     isStoran ||
+    isAbsen ||
     isDrugs ||
     isKas ||
     isRekap ||
@@ -4424,6 +4436,7 @@ async function init() {
     isOrder ||
     isDashboard ||
     isStoran ||
+    isAbsen ||
     isDrugs ||
     isKas ||
     isRekap ||
@@ -4508,6 +4521,9 @@ async function init() {
     setOrderNoUI();
     updateOrderWindowUI();
     setInterval(updateOrderWindowUI, 60000);
+  }
+  if (isAbsen) {
+    initAbsenKotaPage(currentMember);
   }
   if (isDashboard) {
     initDashboard();
@@ -5261,6 +5277,1231 @@ function renderMyOrders(rows, useOrderanke, mode) {
       }
     });
   });
+}
+
+function getAbsenKotaWebhookUrl() {
+  return (
+    (window && window.DISCORD_ABSEN_WEBHOOK_URL) ||
+    (window && window.DISCORD_STORAN_WEBHOOK_URL) ||
+    ""
+  );
+}
+
+function todayDateKeyJakarta(d = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Jakarta",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(d);
+    const y = parts.find((p) => p.type === "year")?.value || "1970";
+    const m = parts.find((p) => p.type === "month")?.value || "01";
+    const day = parts.find((p) => p.type === "day")?.value || "01";
+    return `${y}-${m}-${day}`;
+  } catch (e) {
+    const x = new Date(d);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
+  }
+}
+
+function fmtTimeOnly(iso) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch (e) {
+    return "—";
+  }
+}
+
+function fmtAbsenDuration(masuk, keluar) {
+  if (!masuk || !keluar) return "—";
+  const ms = new Date(keluar).getTime() - new Date(masuk).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return "—";
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  if (h > 0) return `${h}j ${m}m`;
+  return `${m} menit`;
+}
+
+function absenStatusLabel(row) {
+  if (!row || !row.jam_masuk_kota) return { text: "Belum masuk", cls: "badge-stone" };
+  if (!row.jam_keluar_kota) return { text: "Di kota", cls: "badge-yellow" };
+  return { text: "Sudah keluar", cls: "badge-stone" };
+}
+
+function buildAbsenKotaDiscordPayload(row) {
+  const nama = (row && row.nama) || "-";
+  const tanggal =
+    row && row.tanggal ? String(row.tanggal).slice(0, 10) : "-";
+  const catatan = String((row && row.catatan) || "").trim();
+  const actor = String((row && row.dicatat_oleh) || "").trim();
+  const embeds = [];
+
+  // Helper: format tanggal readable (e.g. "21 Juni 2026")
+  const fmtTanggalReadable = (tgl) => {
+    try {
+      const d = new Date(tgl);
+      const bulan = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+      return `${d.getDate()} ${bulan[d.getMonth()]} ${d.getFullYear()}`;
+    } catch (e) {
+      return tgl;
+    }
+  };
+
+  const tanggalReadable = fmtTanggalReadable(tanggal);
+  const hasMasuk = row && row.jam_masuk_kota;
+  const hasKeluar = row && row.jam_keluar_kota;
+
+  // Determine status
+  let statusText, statusEmoji;
+  if (hasKeluar) {
+    statusText = "Sudah Keluar Kota";
+    statusEmoji = "🔴";
+  } else if (hasMasuk) {
+    statusText = "Sedang Di Kota";
+    statusEmoji = "🟢";
+  } else {
+    statusText = "Belum Masuk";
+    statusEmoji = "⚪";
+  }
+
+  // Build a single unified embed
+  const fields = [];
+
+  fields.push({
+    name: "📅 Tanggal",
+    value: `\`${tanggalReadable}\``,
+    inline: true,
+  });
+
+  fields.push({
+    name: `${statusEmoji} Status`,
+    value: `**${statusText}**`,
+    inline: true,
+  });
+
+  // Spacer for layout
+  fields.push({ name: "\u200b", value: "\u200b", inline: true });
+
+  if (hasMasuk) {
+    fields.push({
+      name: "🟢 Jam Masuk",
+      value: `\`${fmtTimeOnly(row.jam_masuk_kota)}\``,
+      inline: true,
+    });
+  }
+
+  if (hasKeluar) {
+    fields.push({
+      name: "🔴 Jam Keluar",
+      value: `\`${fmtTimeOnly(row.jam_keluar_kota)}\``,
+      inline: true,
+    });
+
+    const dur = fmtAbsenDuration(row.jam_masuk_kota, row.jam_keluar_kota);
+    if (dur !== "—") {
+      fields.push({
+        name: "⏱️ Durasi",
+        value: `\`${dur}\``,
+        inline: true,
+      });
+    }
+  }
+
+  if (catatan) {
+    fields.push({
+      name: "📝 Catatan",
+      value: catatan,
+      inline: false,
+    });
+  }
+
+  // Determine embed color based on status
+  let embedColor;
+  if (hasKeluar) {
+    embedColor = 0xf97316; // orange — sudah keluar
+  } else if (hasMasuk) {
+    embedColor = 0x22c55e; // green — sedang di kota
+  } else {
+    embedColor = 0x6b7280; // gray — belum masuk
+  }
+
+  const embed = {
+    color: embedColor,
+    author: {
+      name: `📍 Absen Kota — ${nama}`,
+    },
+    fields,
+    footer: {
+      text: actor ? `Dicatat oleh ${actor}` : "R.A.G.E Absen System",
+    },
+    timestamp: new Date().toISOString(),
+  };
+
+  // Attach proof images as thumbnails or images
+  if (hasMasuk && row.bukti_masuk_url && !hasKeluar) {
+    embed.image = { url: String(row.bukti_masuk_url) };
+  } else if (hasKeluar && row.bukti_keluar_url) {
+    embed.image = { url: String(row.bukti_keluar_url) };
+    if (row.bukti_masuk_url) {
+      embed.thumbnail = { url: String(row.bukti_masuk_url) };
+    }
+  } else if (hasMasuk && row.bukti_masuk_url) {
+    embed.image = { url: String(row.bukti_masuk_url) };
+  }
+
+  embeds.push(embed);
+
+  return {
+    content: null,
+    embeds,
+  };
+}
+
+async function syncAbsenKotaDiscord(row) {
+  const hook = getAbsenKotaWebhookUrl();
+  if (!hook || !row) return null;
+
+  const { content, embeds } = buildAbsenKotaDiscordPayload(row);
+  if (!embeds.length) return null;
+
+  const messageId = await resolveDiscordMessageIdForRow("absen_kota_logs", row);
+
+  if (messageId) {
+    const patchRes = await patchDiscordWebhookMessage(hook, messageId, {
+      content,
+      embeds,
+    });
+    if (!patchRes.ok) {
+      console.warn("Gagal update pesan Discord absen:", patchRes.detail);
+    }
+    return messageId;
+  }
+
+  const newId = await postToDiscordEmbeds(embeds, hook, content);
+  if (newId && row.id != null) {
+    const persistRes = await persistDiscordMessageId(
+      "absen_kota_logs",
+      row.id,
+      newId,
+    );
+    if (persistRes && persistRes.reason === "missing_column") {
+      console.warn(
+        "Kolom discord_message_id belum ada di absen_kota_logs — jalankan migration 20260624",
+      );
+    }
+  }
+  return newId;
+}
+
+function absenBuktiLinkCell(url) {
+  const u = String(url || "").trim();
+  if (!u) return `<span class="text-stone-600 text-xs">—</span>`;
+  return `<a href="${u}" target="_blank" rel="noopener" class="text-amber-400 hover:underline text-xs font-bold">Lihat</a>`;
+}
+
+function validateAbsenPhotoFile(file) {
+  if (!file) return { ok: false, message: "Upload bukti foto dulu" };
+  if (!file.type.startsWith("image/")) {
+    return { ok: false, message: "File harus berupa gambar" };
+  }
+  if (file.size > ABSEN_KOTA_MAX_IMAGE_BYTES) {
+    return { ok: false, message: "Ukuran gambar maksimal 5MB" };
+  }
+  return { ok: true };
+}
+
+function previewAbsenPhotoFile(file, prefix) {
+  const v = validateAbsenPhotoFile(file);
+  if (!v.ok) {
+    showAlert(v.message, "error");
+    return false;
+  }
+  const wrap = document.getElementById(`${prefix}PreviewWrap`);
+  const img = document.getElementById(`${prefix}PreviewImg`);
+  const label = document.getElementById(`${prefix}UploadLabel`);
+  const input = document.getElementById(prefix);
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  if (input) input.files = dt.files;
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (img) img.src = reader.result;
+    if (wrap) wrap.classList.remove("hidden");
+    if (label) label.textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+  return true;
+}
+
+function resetAbsenPhotoPreview(prefix) {
+  const input = document.getElementById(prefix);
+  const wrap = document.getElementById(`${prefix}PreviewWrap`);
+  const img = document.getElementById(`${prefix}PreviewImg`);
+  const label = document.getElementById(`${prefix}UploadLabel`);
+  if (input) input.value = "";
+  if (wrap) wrap.classList.add("hidden");
+  if (img) img.removeAttribute("src");
+  if (label) {
+    const defaultText =
+      prefix === "absenBuktiMasuk" || prefix === "absenAdminBuktiMasuk"
+        ? "Klik atau drag bukti masuk kota"
+        : "Klik atau drag bukti keluar kota";
+    label.textContent = defaultText;
+  }
+}
+
+async function uploadAbsenKotaImage(file, memberId, action) {
+  if (!supabase || !file) return "";
+  const ext = (file.name || "png").split(".").pop() || "png";
+  const kind = action === "keluar" ? "keluar" : "masuk";
+  const fileName = `${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const relPath = `${memberId || "unknown"}/${fileName}`;
+
+  const attempts = [
+    { bucket: ABSEN_KOTA_BUCKET, path: relPath },
+    { bucket: NITIP_CUCI_BUCKET, path: `absen-kota/${relPath}` },
+  ];
+
+  let lastError = null;
+  for (const { bucket, path } of attempts) {
+    const { error } = await supabase.storage
+      .from(bucket)
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+    if (!error) {
+      const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+      return (data && data.publicUrl) || "";
+    }
+    lastError = error;
+    const msg = String((error && error.message) || "").toLowerCase();
+    const bucketMissing =
+      msg.includes("not found") ||
+      msg.includes("does not exist") ||
+      msg.includes("bucket");
+    if (!bucketMissing) break;
+  }
+
+  console.error(lastError);
+  const detail = String((lastError && lastError.message) || "").trim();
+  showAlert(
+    detail
+      ? `Gagal upload bukti: ${detail}`
+      : "Gagal upload bukti. Pastikan bucket absen-kota sudah dibuat di Supabase.",
+    "error",
+  );
+  return "";
+}
+
+async function sendAbsenDiscordNotice(row) {
+  return syncAbsenKotaDiscord(row);
+}
+
+function wireAbsenPhotoInput(inputId, clearBtnId) {
+  const input = document.getElementById(inputId);
+  const clearBtn = document.getElementById(clearBtnId);
+  const zone = input && input.closest(".nitip-upload-zone");
+  if (!input) return;
+  input.addEventListener("change", () => {
+    const f = input.files && input.files[0];
+    if (f) previewAbsenPhotoFile(f, inputId);
+  });
+  if (clearBtn) {
+    clearBtn.addEventListener("click", () => resetAbsenPhotoPreview(inputId));
+  }
+  if (zone) {
+    zone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      zone.classList.add("nitip-upload-zone--active");
+    });
+    zone.addEventListener("dragleave", () => {
+      zone.classList.remove("nitip-upload-zone--active");
+    });
+    zone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      zone.classList.remove("nitip-upload-zone--active");
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) previewAbsenPhotoFile(f, inputId);
+    });
+  }
+}
+
+async function fetchAbsenRow(memberId, tanggal) {
+  if (!supabase || !memberId || !tanggal) return null;
+  const { data, error } = await supabase
+    .from("absen_kota_logs")
+    .select("*")
+    .eq("member_id", memberId)
+    .eq("tanggal", tanggal)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (error) {
+    if (isMissingColumnError(error, "deleted_at")) {
+      const { data: d2 } = await supabase
+        .from("absen_kota_logs")
+        .select("*")
+        .eq("member_id", memberId)
+        .eq("tanggal", tanggal)
+        .maybeSingle();
+      return d2 || null;
+    }
+    console.warn("fetchAbsenRow:", error);
+    return null;
+  }
+  return data || null;
+}
+
+async function recordAbsenKota(action, memberId, nama, opts = {}) {
+  if (!supabase) {
+    showAlert("Supabase tidak terhubung", "error");
+    return { ok: false };
+  }
+  const mid = parseInt(String(memberId || ""), 10);
+  if (!mid || !nama) {
+    showAlert("Member tidak valid", "error");
+    return { ok: false };
+  }
+
+  const now = new Date();
+  const tanggal = opts.tanggal || todayDateKeyJakarta(now);
+  const catatan = String(opts.catatan || "").trim();
+  const actor = String(opts.actor || "").trim();
+  const photoFile = opts.photoFile || null;
+  const skipPhotoRequired = !!opts.skipPhotoRequired;
+  const existing = await fetchAbsenRow(mid, tanggal);
+
+  if (action === "masuk") {
+    if (existing && existing.jam_masuk_kota) {
+      showAlert("Sudah catat masuk kota untuk tanggal ini", "warning");
+      return { ok: false, row: existing };
+    }
+    if (!skipPhotoRequired) {
+      const v = validateAbsenPhotoFile(photoFile);
+      if (!v.ok) {
+        showAlert(v.message, "error");
+        return { ok: false };
+      }
+    }
+    let photoUrl = "";
+    if (photoFile) {
+      photoUrl = await uploadAbsenKotaImage(photoFile, mid, "masuk");
+      if (!photoUrl) return { ok: false };
+    }
+    const payload = {
+      member_id: mid,
+      nama: String(nama).trim(),
+      tanggal,
+      jam_masuk_kota: now.toISOString(),
+      catatan: catatan || existing?.catatan || null,
+      dicatat_oleh: actor || null,
+      updated_at: now.toISOString(),
+    };
+    if (photoUrl) payload.bukti_masuk_url = photoUrl;
+    let row = null;
+    let error = null;
+    if (existing && existing.id) {
+      ({ data: row, error } = await supabase
+        .from("absen_kota_logs")
+        .update(payload)
+        .eq("id", existing.id)
+        .select("*")
+        .single());
+    } else {
+      ({ data: row, error } = await supabase
+        .from("absen_kota_logs")
+        .insert(payload)
+        .select("*")
+        .single());
+    }
+    if (error && photoUrl && isMissingColumnError(error, "bukti_masuk_url")) {
+      delete payload.bukti_masuk_url;
+      if (existing && existing.id) {
+        ({ data: row, error } = await supabase
+          .from("absen_kota_logs")
+          .update(payload)
+          .eq("id", existing.id)
+          .select("*")
+          .single());
+      } else {
+        ({ data: row, error } = await supabase
+          .from("absen_kota_logs")
+          .insert(payload)
+          .select("*")
+          .single());
+      }
+      showAlert(
+        "Absen tersimpan, tapi kolom bukti belum ada. Jalankan migration 20260623_absen_kota_bukti.sql",
+        "warning",
+      );
+    }
+    if (error) {
+      console.error(error);
+      showAlert(
+        "Gagal simpan absen. Jalankan migration absen_kota_logs di Supabase.",
+        "error",
+      );
+      return { ok: false };
+    }
+    const hook = getAbsenKotaWebhookUrl();
+    if (hook && row) {
+      await sendAbsenDiscordNotice(row);
+    }
+    resetAbsenPhotoPreview("absenBuktiMasuk");
+    resetAbsenPhotoPreview("absenAdminBuktiMasuk");
+    showAlert(`Masuk kota tercatat — ${fmtTimeOnly(now.toISOString())}`, "success");
+    return { ok: true, row };
+  }
+
+  if (action === "keluar") {
+    if (!existing || !existing.jam_masuk_kota) {
+      showAlert("Belum catat masuk kota untuk tanggal ini", "error");
+      return { ok: false };
+    }
+    if (existing.jam_keluar_kota) {
+      showAlert("Sudah catat keluar kota untuk tanggal ini", "warning");
+      return { ok: false, row: existing };
+    }
+    if (!skipPhotoRequired) {
+      const v = validateAbsenPhotoFile(photoFile);
+      if (!v.ok) {
+        showAlert(v.message, "error");
+        return { ok: false };
+      }
+    }
+    let photoUrl = "";
+    if (photoFile) {
+      photoUrl = await uploadAbsenKotaImage(photoFile, mid, "keluar");
+      if (!photoUrl) return { ok: false };
+    }
+    const payload = {
+      jam_keluar_kota: now.toISOString(),
+      catatan: catatan || existing.catatan || null,
+      dicatat_oleh: actor || existing.dicatat_oleh || null,
+      updated_at: now.toISOString(),
+    };
+    if (photoUrl) payload.bukti_keluar_url = photoUrl;
+    let { data: row, error } = await supabase
+      .from("absen_kota_logs")
+      .update(payload)
+      .eq("id", existing.id)
+      .select("*")
+      .single();
+    if (error && photoUrl && isMissingColumnError(error, "bukti_keluar_url")) {
+      delete payload.bukti_keluar_url;
+      ({ data: row, error } = await supabase
+        .from("absen_kota_logs")
+        .update(payload)
+        .eq("id", existing.id)
+        .select("*")
+        .single());
+      showAlert(
+        "Absen tersimpan, tapi kolom bukti belum ada. Jalankan migration 20260623_absen_kota_bukti.sql",
+        "warning",
+      );
+    }
+    if (error) {
+      console.error(error);
+      showAlert("Gagal update absen keluar", "error");
+      return { ok: false };
+    }
+    const hook = getAbsenKotaWebhookUrl();
+    if (hook && row) {
+      const mergedRow = {
+        ...existing,
+        ...row,
+        bukti_keluar_url:
+          photoUrl || row?.bukti_keluar_url || existing.bukti_keluar_url,
+      };
+      await sendAbsenDiscordNotice(mergedRow);
+    }
+    resetAbsenPhotoPreview("absenBuktiKeluar");
+    resetAbsenPhotoPreview("absenAdminBuktiKeluar");
+    showAlert(
+      `Keluar kota tercatat — ${fmtTimeOnly(now.toISOString())} (durasi ${fmtAbsenDuration(existing.jam_masuk_kota, now.toISOString())})`,
+      "success",
+    );
+    return { ok: true, row };
+  }
+
+  return { ok: false };
+}
+
+function setAbsenDateInputDefaults() {
+  const today = todayDateKeyJakarta();
+  ["absenAdminTanggal", "absenFilterTanggal"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el && !el.value) el.value = today;
+  });
+}
+
+function setAbsenSavedBukti(elId, url, label) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const u = String(url || "").trim();
+  if (!u) {
+    el.classList.add("hidden");
+    el.innerHTML = "";
+    return;
+  }
+  el.classList.remove("hidden");
+  el.innerHTML = `<a href="${u}" target="_blank" rel="noopener" class="text-xs text-amber-400 hover:underline font-bold">${label}: Lihat foto</a>`;
+}
+
+function updateAbsenMemberUI(row) {
+  const masukEl = document.getElementById("absenMemberMasuk");
+  const keluarEl = document.getElementById("absenMemberKeluar");
+  const badge = document.getElementById("absenMemberStatusBadge");
+  const masukBtn = document.getElementById("absenMasukBtn");
+  const keluarBtn = document.getElementById("absenKeluarBtn");
+  const hint = document.getElementById("absenMemberHint");
+  const masukUploadWrap = document.getElementById("absenMasukUploadWrap");
+  const keluarUploadWrap = document.getElementById("absenKeluarUploadWrap");
+
+  const masuk = row && row.jam_masuk_kota;
+  const keluar = row && row.jam_keluar_kota;
+  if (masukEl) masukEl.textContent = masuk ? fmtTimeOnly(masuk) : "—";
+  if (keluarEl) keluarEl.textContent = keluar ? fmtTimeOnly(keluar) : "—";
+
+  setAbsenSavedBukti("absenSavedBuktiMasuk", row?.bukti_masuk_url, "Bukti masuk");
+  setAbsenSavedBukti("absenSavedBuktiKeluar", row?.bukti_keluar_url, "Bukti keluar");
+
+  const st = absenStatusLabel(row);
+  if (badge) {
+    badge.textContent = st.text;
+    badge.className = `badge ${st.cls} self-start`;
+  }
+  if (masukBtn) masukBtn.disabled = !!masuk;
+  if (keluarBtn) keluarBtn.disabled = !masuk || !!keluar;
+  if (masukUploadWrap) masukUploadWrap.classList.toggle("hidden", !!masuk);
+  if (keluarUploadWrap) {
+    keluarUploadWrap.classList.toggle("hidden", !masuk || !!keluar);
+  }
+
+  if (hint) {
+    if (!masuk) {
+      hint.textContent = "Upload bukti foto lalu tekan Masuk Kota saat mulai RP di kota.";
+    } else if (!keluar) {
+      hint.textContent = `Masuk ${fmtTimeOnly(masuk)} — upload bukti foto lalu tekan Keluar Kota saat selesai.`;
+    } else {
+      hint.textContent = `Durasi di kota: ${fmtAbsenDuration(masuk, keluar)}`;
+    }
+  }
+}
+
+async function refreshAbsenMemberUI(member) {
+  if (!member || !member.id) {
+    updateAbsenMemberUI(null);
+    return;
+  }
+  const row = await fetchAbsenRow(
+    member.id,
+    todayDateKeyJakarta(),
+  );
+  updateAbsenMemberUI(row);
+}
+
+function renderAbsenAdminStats(rows) {
+  const wrap = document.getElementById("absenAdminStats");
+  if (!wrap) return;
+  const list = Array.isArray(rows) ? rows : [];
+  let inCity = 0;
+  let done = 0;
+  let notIn = 0;
+  list.forEach((r) => {
+    if (!r.jam_masuk_kota) notIn += 1;
+    else if (!r.jam_keluar_kota) inCity += 1;
+    else done += 1;
+  });
+  wrap.innerHTML = `
+    <span class="absen-stat absen-stat--in">Di kota: ${inCity}</span>
+    <span class="absen-stat absen-stat--done">Selesai: ${done}</span>
+    <span class="absen-stat absen-stat--out">Belum masuk: ${notIn}</span>
+  `;
+}
+
+function renderAbsenTable(rows, showNama) {
+  const body = document.getElementById("absenTableBody");
+  const empty = document.getElementById("absenTableEmpty");
+  const colAksi = document.getElementById("absenColAksi");
+  if (!body) return;
+  const list = Array.isArray(rows) ? rows : [];
+  window.__absenRowsRaw = list;
+  if (colAksi) colAksi.classList.toggle("hidden", !showNama);
+  if (showNama) renderAbsenAdminStats(list);
+  if (!list.length) {
+    body.innerHTML = "";
+    if (empty) empty.classList.remove("hidden");
+    return;
+  }
+  if (empty) empty.classList.add("hidden");
+  body.innerHTML = list
+    .map((r) => {
+      const st = absenStatusLabel(r);
+      const tgl = r.tanggal
+        ? String(r.tanggal).slice(0, 10).split("-").reverse().join("/")
+        : "-";
+      const namaCell = showNama
+        ? `<td class="px-4 py-3 font-semibold">${escapeHtml(r.nama || "-")}</td>`
+        : "";
+      const aksiCell = showNama
+        ? `<td class="px-4 py-3 text-center whitespace-nowrap">
+            <button type="button" class="px-3 py-1 rounded-lg bg-yellow-600/20 text-yellow-300 border border-yellow-600/30 text-[10px] font-bold uppercase hover:bg-yellow-600/30 transition mr-1" data-edit-absen-id="${r.id}">Edit</button>
+            <button type="button" class="px-3 py-1 rounded-lg bg-red-600/15 text-red-300 border border-red-600/30 text-[10px] font-bold uppercase hover:bg-red-600/25 transition" data-del-absen-id="${r.id}">Hapus</button>
+          </td>`
+        : "";
+      return `<tr>
+        ${namaCell}
+        <td class="px-4 py-3 whitespace-nowrap text-xs">${tgl}</td>
+        <td class="px-4 py-3 text-center font-mono text-emerald-300">${fmtTimeOnly(r.jam_masuk_kota)}</td>
+        <td class="px-4 py-3 text-center font-mono text-orange-300">${fmtTimeOnly(r.jam_keluar_kota)}</td>
+        <td class="px-4 py-3 text-center hidden sm:table-cell">${absenBuktiLinkCell(r.bukti_masuk_url)}</td>
+        <td class="px-4 py-3 text-center hidden sm:table-cell">${absenBuktiLinkCell(r.bukti_keluar_url)}</td>
+        <td class="px-4 py-3 text-center hidden sm:table-cell text-xs text-stone-400">${fmtAbsenDuration(r.jam_masuk_kota, r.jam_keluar_kota)}</td>
+        <td class="px-4 py-3 hidden md:table-cell text-xs text-stone-500">${escapeHtml(r.catatan || "-")}</td>
+        <td class="px-4 py-3 text-center"><span class="badge ${st.cls}">${st.text}</span></td>
+        ${aksiCell}
+      </tr>`;
+    })
+    .join("");
+
+  if (showNama) {
+    body.querySelectorAll("[data-edit-absen-id]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = parseInt(btn.getAttribute("data-edit-absen-id") || "", 10);
+        const row = list.find((x) => parseInt(String(x.id), 10) === id);
+        if (!row) return;
+        startEditAbsenRow(row);
+        const adminBlock = document.getElementById("absenAdminBlock");
+        if (adminBlock) {
+          adminBlock.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
+    });
+    body.querySelectorAll("[data-del-absen-id]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = parseInt(btn.getAttribute("data-del-absen-id") || "", 10);
+        const row = list.find((x) => parseInt(String(x.id), 10) === id);
+        if (!row) return;
+        await deleteAbsenKotaRow(row);
+      });
+    });
+  }
+}
+
+async function loadAbsenKotaTable(member) {
+  if (!supabase) return;
+  const filterEl = document.getElementById("absenFilterTanggal");
+  const tanggal =
+    (filterEl && filterEl.value) || todayDateKeyJakarta();
+  const isAdmin = isAdminMember(member);
+  let q = supabase
+    .from("absen_kota_logs")
+    .select("*")
+    .eq("tanggal", tanggal)
+    .order("jam_masuk_kota", { ascending: true, nullsFirst: false });
+  if (!isAdmin && member && member.id) {
+    q = q.eq("member_id", member.id);
+  }
+  const { data, error } = await q;
+  if (error) {
+    if (error.message && error.message.includes("absen_kota_logs")) {
+      renderAbsenTable([], isAdmin);
+      return;
+    }
+    console.warn("loadAbsenKotaTable:", error);
+    renderAbsenTable([], isAdmin);
+    return;
+  }
+  let rows = data || [];
+  try {
+    let q2 = supabase
+      .from("absen_kota_logs")
+      .select("*")
+      .eq("tanggal", tanggal)
+      .is("deleted_at", null)
+      .order("jam_masuk_kota", { ascending: true });
+    if (!isAdmin && member && member.id) {
+      q2 = q2.eq("member_id", member.id);
+    }
+    const { data: d2, error: e2 } = await q2;
+    if (!e2 && d2) rows = d2;
+  } catch (e) {}
+  renderAbsenTable(rows, isAdmin);
+}
+
+function setupAbsenAdminNameSearch() {
+  const input = document.getElementById("absenAdminNama");
+  const dd = document.getElementById("absenAdminNamaDropdown");
+  const hidden = document.getElementById("absenAdminMemberId");
+  const status = document.getElementById("absenAdminNamaStatus");
+  if (!input || !dd || !hidden) return;
+
+  let active = -1;
+  const render = (items) => {
+    dd.innerHTML = items
+      .map(
+        (r, i) =>
+          `<div class="px-3 py-2 cursor-pointer ${i === active ? "bg-yellow-900/30" : ""}" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`,
+      )
+      .join("");
+    dd.classList.toggle("hidden", items.length === 0);
+    dd.querySelectorAll("[data-id]").forEach((el) =>
+      el.addEventListener("mousedown", (e) => {
+        input.value = e.currentTarget.getAttribute("data-name");
+        hidden.value = e.currentTarget.getAttribute("data-id");
+        dd.classList.add("hidden");
+        if (status) {
+          status.textContent = "Nama valid";
+          status.classList.remove("text-red-500");
+          status.classList.add("text-green-500");
+        }
+      }),
+    );
+  };
+
+  const run = debounce(async (term) => {
+    if (!supabase) return;
+    const q = term
+      ? supabase
+          .from("members")
+          .select("id,nama")
+          .ilike("nama", `%${term}%`)
+          .order("nama", { ascending: true })
+          .limit(20)
+      : supabase
+          .from("members")
+          .select("id,nama")
+          .order("nama", { ascending: true })
+          .limit(20);
+    const { data, error } = await q;
+    if (error) return;
+    active = -1;
+    render(data || []);
+  }, 200);
+
+  input.addEventListener("input", (e) => {
+    hidden.value = "";
+    if (status) {
+      status.textContent = "Pilih nama dari database";
+      status.classList.remove("text-green-500");
+      status.classList.add("text-red-500");
+    }
+    run(e.target.value.trim());
+  });
+  input.addEventListener("focus", () => run(""));
+  input.addEventListener("click", () => run(input.value.trim()));
+}
+
+async function submitAbsenAdmin(action) {
+  const editIdEl = document.getElementById("absenAdminEditId");
+  if (editIdEl && editIdEl.value) {
+    showAlert("Selesaikan atau batalkan mode edit dulu", "warning");
+    return;
+  }
+  const hidden = document.getElementById("absenAdminMemberId");
+  const nameEl = document.getElementById("absenAdminNama");
+  const tglEl = document.getElementById("absenAdminTanggal");
+  const catEl = document.getElementById("absenAdminCatatan");
+  const fileInputId =
+    action === "masuk" ? "absenAdminBuktiMasuk" : "absenAdminBuktiKeluar";
+  const fileInput = document.getElementById(fileInputId);
+  const photoFile =
+    fileInput && fileInput.files && fileInput.files[0]
+      ? fileInput.files[0]
+      : null;
+  const memberId = hidden ? parseInt(hidden.value || "", 10) : NaN;
+  const nama = nameEl ? nameEl.value.trim() : "";
+  if (!memberId || !nama) {
+    showAlert("Pilih nama member dulu", "error");
+    return;
+  }
+  const actor =
+    (window.__currentMember && window.__currentMember.nama) || "Admin";
+  const res = await recordAbsenKota(action, memberId, nama, {
+    tanggal: tglEl && tglEl.value ? tglEl.value : todayDateKeyJakarta(),
+    catatan: catEl ? catEl.value.trim() : "",
+    actor,
+    photoFile,
+  });
+  if (res.ok) await loadAbsenKotaTable(window.__currentMember || null);
+}
+
+function isoToDatetimeLocalInput(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function datetimeLocalInputToIso(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+function setAbsenAdminFormMode(editing) {
+  const recordBtns = document.getElementById("absenAdminRecordBtns");
+  const editBtns = document.getElementById("absenAdminEditBtns");
+  const editHint = document.getElementById("absenAdminEditHint");
+  const nameInput = document.getElementById("absenAdminNama");
+  const tglInput = document.getElementById("absenAdminTanggal");
+  if (recordBtns) recordBtns.classList.toggle("hidden", !!editing);
+  if (editBtns) editBtns.classList.toggle("hidden", !editing);
+  if (editHint) editHint.classList.toggle("hidden", !editing);
+  if (nameInput) nameInput.disabled = !!editing;
+  if (tglInput) tglInput.disabled = !!editing;
+}
+
+function resetAbsenAdminForm() {
+  const editIdEl = document.getElementById("absenAdminEditId");
+  const nameEl = document.getElementById("absenAdminNama");
+  const hidden = document.getElementById("absenAdminMemberId");
+  const tglEl = document.getElementById("absenAdminTanggal");
+  const catEl = document.getElementById("absenAdminCatatan");
+  const jamMasukEl = document.getElementById("absenAdminJamMasuk");
+  const jamKeluarEl = document.getElementById("absenAdminJamKeluar");
+  const status = document.getElementById("absenAdminNamaStatus");
+  if (editIdEl) editIdEl.value = "";
+  if (nameEl) {
+    nameEl.value = "";
+    nameEl.disabled = false;
+  }
+  if (hidden) hidden.value = "";
+  if (tglEl) {
+    tglEl.value = todayDateKeyJakarta();
+    tglEl.disabled = false;
+  }
+  if (catEl) catEl.value = "";
+  if (jamMasukEl) jamMasukEl.value = "";
+  if (jamKeluarEl) jamKeluarEl.value = "";
+  if (status) {
+    status.textContent = "Pilih nama dari database";
+    status.classList.remove("text-green-500");
+    status.classList.add("text-red-500");
+  }
+  resetAbsenPhotoPreview("absenAdminBuktiMasuk");
+  resetAbsenPhotoPreview("absenAdminBuktiKeluar");
+  setAbsenAdminFormMode(false);
+}
+
+function startEditAbsenRow(row) {
+  if (!row || !row.id) return;
+  const editIdEl = document.getElementById("absenAdminEditId");
+  const nameEl = document.getElementById("absenAdminNama");
+  const hidden = document.getElementById("absenAdminMemberId");
+  const tglEl = document.getElementById("absenAdminTanggal");
+  const catEl = document.getElementById("absenAdminCatatan");
+  const jamMasukEl = document.getElementById("absenAdminJamMasuk");
+  const jamKeluarEl = document.getElementById("absenAdminJamKeluar");
+  const status = document.getElementById("absenAdminNamaStatus");
+  if (editIdEl) editIdEl.value = String(row.id);
+  if (nameEl) nameEl.value = row.nama || "";
+  if (hidden) hidden.value = row.member_id != null ? String(row.member_id) : "";
+  if (tglEl && row.tanggal) {
+    tglEl.value = String(row.tanggal).slice(0, 10);
+  }
+  if (catEl) catEl.value = row.catatan || "";
+  if (jamMasukEl) {
+    jamMasukEl.value = isoToDatetimeLocalInput(row.jam_masuk_kota);
+  }
+  if (jamKeluarEl) {
+    jamKeluarEl.value = isoToDatetimeLocalInput(row.jam_keluar_kota);
+  }
+  if (status) {
+    status.textContent = "Mode edit absen";
+    status.classList.remove("text-red-500");
+    status.classList.add("text-green-500");
+  }
+  resetAbsenPhotoPreview("absenAdminBuktiMasuk");
+  resetAbsenPhotoPreview("absenAdminBuktiKeluar");
+  setAbsenAdminFormMode(true);
+}
+
+async function saveAbsenAdminEdit() {
+  if (!supabase) return;
+  if (!isAdminMember(window.__currentMember || null)) {
+    showAlert("Hanya admin yang bisa edit data absen", "error");
+    return;
+  }
+  const editId = parseInt(
+    (document.getElementById("absenAdminEditId") &&
+      document.getElementById("absenAdminEditId").value) ||
+      "",
+    10,
+  );
+  if (!editId) {
+    showAlert("Tidak ada data yang diedit", "error");
+    return;
+  }
+  const row = (window.__absenRowsRaw || []).find(
+    (r) => parseInt(String(r.id), 10) === editId,
+  );
+  if (!row) {
+    showAlert("Data absen tidak ditemukan", "error");
+    return;
+  }
+
+  const jamMasukVal =
+    document.getElementById("absenAdminJamMasuk") &&
+    document.getElementById("absenAdminJamMasuk").value;
+  const jamKeluarVal =
+    document.getElementById("absenAdminJamKeluar") &&
+    document.getElementById("absenAdminJamKeluar").value;
+  const catatan =
+    (document.getElementById("absenAdminCatatan") &&
+      document.getElementById("absenAdminCatatan").value.trim()) ||
+    null;
+
+  const jam_masuk_kota = jamMasukVal
+    ? datetimeLocalInputToIso(jamMasukVal)
+    : null;
+  const jam_keluar_kota = jamKeluarVal
+    ? datetimeLocalInputToIso(jamKeluarVal)
+    : null;
+
+  if (!jam_masuk_kota && !jam_keluar_kota) {
+    showAlert("Isi minimal jam masuk atau jam keluar", "error");
+    return;
+  }
+  if (
+    jam_masuk_kota &&
+    jam_keluar_kota &&
+    new Date(jam_keluar_kota).getTime() < new Date(jam_masuk_kota).getTime()
+  ) {
+    showAlert("Jam keluar harus setelah jam masuk", "error");
+    return;
+  }
+
+  let bukti_masuk_url = row.bukti_masuk_url || null;
+  let bukti_keluar_url = row.bukti_keluar_url || null;
+  const masukFile = getAbsenPhotoFile("absenAdminBuktiMasuk");
+  const keluarFile = getAbsenPhotoFile("absenAdminBuktiKeluar");
+  if (masukFile) {
+    bukti_masuk_url = await uploadAbsenKotaImage(
+      masukFile,
+      row.member_id,
+      "masuk",
+    );
+    if (!bukti_masuk_url) return;
+  }
+  if (keluarFile) {
+    bukti_keluar_url = await uploadAbsenKotaImage(
+      keluarFile,
+      row.member_id,
+      "keluar",
+    );
+    if (!bukti_keluar_url) return;
+  }
+
+  const actor =
+    (window.__currentMember && window.__currentMember.nama) || "Admin";
+  const payload = {
+    jam_masuk_kota,
+    jam_keluar_kota,
+    catatan,
+    bukti_masuk_url,
+    bukti_keluar_url,
+    dicatat_oleh: actor,
+    updated_at: new Date().toISOString(),
+  };
+
+  let { data, error } = await supabase
+    .from("absen_kota_logs")
+    .update(payload)
+    .eq("id", editId)
+    .select("*")
+    .single();
+
+  if (error && isMissingColumnError(error, "bukti_masuk_url")) {
+    delete payload.bukti_masuk_url;
+    delete payload.bukti_keluar_url;
+    ({ data, error } = await supabase
+      .from("absen_kota_logs")
+      .update(payload)
+      .eq("id", editId)
+      .select("*")
+      .single());
+  }
+
+  if (error) {
+    console.error(error);
+    showAlert("Gagal update absen: " + (error.message || "error"), "error");
+    return;
+  }
+
+  const hook = getAbsenKotaWebhookUrl();
+  if (hook && data) {
+    await syncAbsenKotaDiscord(data);
+  }
+
+  showAlert("Data absen berhasil diupdate", "success");
+  resetAbsenAdminForm();
+  await loadAbsenKotaTable(window.__currentMember || null);
+}
+
+async function deleteAbsenKotaRow(row) {
+  if (!supabase || !row || !row.id) return;
+  if (!isAdminMember(window.__currentMember || null)) {
+    showAlert("Hanya admin yang bisa hapus data absen", "error");
+    return;
+  }
+
+  const tgl = row.tanggal
+    ? String(row.tanggal).slice(0, 10).split("-").reverse().join("/")
+    : "-";
+  const result = await Swal.fire({
+    title: "Hapus absen ini?",
+    html: `<p class="text-sm text-stone-300">Nama: <strong>${escapeHtml(row.nama || "-")}</strong><br>Tanggal: <strong>${tgl}</strong></p>`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#dc2626",
+    cancelButtonColor: "#57534e",
+    confirmButtonText: "Ya, hapus",
+    cancelButtonText: "Batal",
+    background: "#1f1410",
+    color: "#fef3c7",
+  });
+  if (!result.isConfirmed) return;
+
+  const pinOk = await confirmDeletePin();
+  if (!pinOk) return;
+
+  try {
+    await deleteDiscordForTableRow("absen_kota_logs", row);
+    const { ok, error } = await softDeleteById("absen_kota_logs", row.id);
+    if (!ok) {
+      if (isMissingColumnError(error, "deleted_at")) {
+        showAlert(
+          `Soft delete belum aktif. Jalankan SQL:\n${getSoftDeleteSql("absen_kota_logs")}`,
+          "error",
+        );
+        return;
+      }
+      showAlert(
+        "Gagal hapus absen: " + String((error && error.message) || "error"),
+        "error",
+      );
+      return;
+    }
+    showAlert("Data absen dihapus", "success");
+    if (
+      document.getElementById("absenAdminEditId") &&
+      String(document.getElementById("absenAdminEditId").value) ===
+        String(row.id)
+    ) {
+      resetAbsenAdminForm();
+    }
+    await loadAbsenKotaTable(window.__currentMember || null);
+  } catch (e) {
+    console.error(e);
+    showAlert("Gagal hapus absen", "error");
+  }
+}
+
+function initAbsenPhotoUploads() {
+  wireAbsenPhotoInput("absenBuktiMasuk", "absenBuktiMasukPreviewClear");
+  wireAbsenPhotoInput("absenBuktiKeluar", "absenBuktiKeluarPreviewClear");
+  wireAbsenPhotoInput("absenAdminBuktiMasuk", "absenAdminBuktiMasukPreviewClear");
+  wireAbsenPhotoInput("absenAdminBuktiKeluar", "absenAdminBuktiKeluarPreviewClear");
+}
+
+function getAbsenPhotoFile(inputId) {
+  const input = document.getElementById(inputId);
+  return input && input.files && input.files[0] ? input.files[0] : null;
+}
+
+function initAbsenKotaPage(member) {
+  const section = document.getElementById("absenSection");
+  if (!section) return;
+
+  const nameEl = document.getElementById("absenMemberName");
+  if (nameEl && member && member.nama) {
+    nameEl.textContent = member.nama;
+    nameEl.classList.remove("hidden");
+  }
+
+  const isAdmin = isAdminMember(member);
+  const adminBlock = document.getElementById("absenAdminBlock");
+  const rekapTitle = document.getElementById("absenRekapTitle");
+  const colNama = document.getElementById("absenColNama");
+  if (adminBlock) adminBlock.classList.toggle("hidden", !isAdmin);
+  if (rekapTitle) {
+    rekapTitle.textContent = isAdmin
+      ? "Rekap Absen Semua Member"
+      : "Riwayat Absen Saya";
+  }
+  if (colNama) colNama.classList.toggle("hidden", !isAdmin);
+
+  setAbsenDateInputDefaults();
+  initAbsenPhotoUploads();
+  if (isAdmin) setupAbsenAdminNameSearch();
+
+  const masukBtn = document.getElementById("absenMasukBtn");
+  const keluarBtn = document.getElementById("absenKeluarBtn");
+  if (!member || !member.id) {
+    if (masukBtn) masukBtn.disabled = true;
+    if (keluarBtn) keluarBtn.disabled = true;
+  } else {
+    refreshAbsenMemberUI(member);
+    if (masukBtn) {
+      masukBtn.addEventListener("click", async () => {
+        const photoFile = getAbsenPhotoFile("absenBuktiMasuk");
+        const res = await recordAbsenKota("masuk", member.id, member.nama, {
+          actor: member.nama,
+          photoFile,
+        });
+        if (res.ok) {
+          await refreshAbsenMemberUI(member);
+          await loadAbsenKotaTable(member);
+        }
+      });
+    }
+    if (keluarBtn) {
+      keluarBtn.addEventListener("click", async () => {
+        const photoFile = getAbsenPhotoFile("absenBuktiKeluar");
+        const res = await recordAbsenKota("keluar", member.id, member.nama, {
+          actor: member.nama,
+          photoFile,
+        });
+        if (res.ok) {
+          await refreshAbsenMemberUI(member);
+          await loadAbsenKotaTable(member);
+        }
+      });
+    }
+  }
+
+  const adminMasukBtn = document.getElementById("absenAdminMasukBtn");
+  const adminKeluarBtn = document.getElementById("absenAdminKeluarBtn");
+  const reloadBtn = document.getElementById("absenReloadBtn");
+  const filterEl = document.getElementById("absenFilterTanggal");
+  if (adminMasukBtn) {
+    adminMasukBtn.addEventListener("click", () => submitAbsenAdmin("masuk"));
+  }
+  if (adminKeluarBtn) {
+    adminKeluarBtn.addEventListener("click", () => submitAbsenAdmin("keluar"));
+  }
+  const adminSaveBtn = document.getElementById("absenAdminSaveBtn");
+  const adminCancelEditBtn = document.getElementById("absenAdminCancelEditBtn");
+  if (adminSaveBtn) {
+    adminSaveBtn.addEventListener("click", () => saveAbsenAdminEdit());
+  }
+  if (adminCancelEditBtn) {
+    adminCancelEditBtn.addEventListener("click", () => resetAbsenAdminForm());
+  }
+  if (reloadBtn) {
+    reloadBtn.addEventListener("click", () => loadAbsenKotaTable(member));
+  }
+  if (filterEl) {
+    filterEl.addEventListener("change", () => loadAbsenKotaTable(member));
+  }
+
+  loadAbsenKotaTable(member);
 }
 
 function initStoran(member) {
