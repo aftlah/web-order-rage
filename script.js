@@ -5280,11 +5280,7 @@ function renderMyOrders(rows, useOrderanke, mode) {
 }
 
 function getAbsenKotaWebhookUrl() {
-  return (
-    (window && window.DISCORD_ABSEN_WEBHOOK_URL) ||
-    (window && window.DISCORD_STORAN_WEBHOOK_URL) ||
-    ""
-  );
+  return (window && window.DISCORD_ABSEN_WEBHOOK_URL) || "";
 }
 
 function todayDateKeyJakarta(d = new Date()) {
@@ -5464,7 +5460,13 @@ function buildAbsenKotaDiscordPayload(row) {
 
 async function syncAbsenKotaDiscord(row) {
   const hook = getAbsenKotaWebhookUrl();
-  if (!hook || !row) return null;
+  if (!hook) {
+    console.warn(
+      "DISCORD_ABSEN_WEBHOOK_URL belum di-set di config.js — absen tidak dikirim ke Discord",
+    );
+    return null;
+  }
+  if (!row) return null;
 
   const { content, embeds } = buildAbsenKotaDiscordPayload(row);
   if (!embeds.length) return null;
