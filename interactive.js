@@ -7,27 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initParticleBackground();
   initButtonRipples();
   initGlowBorders();
-  loadVanillaTilt();
 });
-
-/* ==================================================
-  1. Vanilla Tilt (3D Flip Effect)
-================================================== */
-function loadVanillaTilt() {
-  const script = document.createElement("script");
-  script.src = "https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.1/vanilla-tilt.min.js";
-  script.onload = () => {
-    // Initialize tilt on specific elements
-    VanillaTilt.init(document.querySelectorAll(".glass-card, .stat-card, .login-card"), {
-      max: 3,         // Max tilt rotation (degrees)
-      speed: 400,     // Speed of the enter/exit transition
-      glare: true,    // if it should have a "glare" effect 
-      "max-glare": 0.05, // the maximum "glare" opacity
-      scale: 1.01     // slightly scale up on hover
-    });
-  };
-  document.body.appendChild(script);
-}
 
 /* ==================================================
   2. Button Ripple Effect
