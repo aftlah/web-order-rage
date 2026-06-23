@@ -5302,6 +5302,59 @@ function todayDateKeyJakarta(d = new Date()) {
   }
 }
 
+function addDaysToDateKey(dateKey, delta) {
+  const d = new Date(`${dateKey}T12:00:00`);
+  d.setDate(d.getDate() + delta);
+  return todayDateKeyJakarta(d);
+}
+
+function fmtAbsenDateTime(iso, opts = {}) {
+  if (!iso) return "—";
+  const dateKey = todayDateKeyJakarta(new Date(iso));
+  const time = fmtTimeOnly(iso);
+  const hideToday = opts.hideToday !== false;
+  if (hideToday && dateKey === todayDateKeyJakarta()) return time;
+  const [y, m, day] = dateKey.split("-");
+  return `${day}/${m} ${time}`;
+}
+
+function fmtAbsenTableTime(iso, rowTanggal) {
+  if (!iso) return "—";
+  const ref = rowTanggal ? String(rowTanggal).slice(0, 10) : "";
+  const dateKey = todayDateKeyJakarta(new Date(iso));
+  const time = fmtTimeOnly(iso);
+  if (ref && dateKey !== ref) {
+    const [, m, day] = dateKey.split("-");
+    return `${day}/${m} ${time}`;
+  }
+  return time;
+}
+
+function absenRowMatchesFilterDate(row, tanggal) {
+  if (!row || !tanggal) return false;
+  const rowTgl = row.tanggal ? String(row.tanggal).slice(0, 10) : "";
+  if (rowTgl === tanggal) return true;
+  if (row.jam_keluar_kota) {
+    const keluarDate = todayDateKeyJakarta(new Date(row.jam_keluar_kota));
+    if (keluarDate === tanggal) return true;
+  }
+  if (!row.jam_keluar_kota && row.jam_masuk_kota) {
+    const masukDate = todayDateKeyJakarta(new Date(row.jam_masuk_kota));
+    if (masukDate <= tanggal) return true;
+  }
+  return false;
+}
+
+function isAbsenUniqueViolation(error) {
+  const code = String((error && error.code) || "");
+  const msg = String((error && error.message) || "").toLowerCase();
+  return (
+    code === "23505" ||
+    msg.includes("duplicate") ||
+    msg.includes("unique")
+  );
+}
+
 function fmtTimeOnly(iso) {
   if (!iso) return "—";
   try {
@@ -5386,7 +5439,7 @@ function buildAbsenKotaDiscordPayload(row) {
   if (hasMasuk) {
     fields.push({
       name: "🟢 Jam Masuk",
-      value: `\`${fmtTimeOnly(row.jam_masuk_kota)}\``,
+      value: `\`${fmtAbsenDateTime(row.jam_masuk_kota, { hideToday: false })}\``,
       inline: true,
     });
   }
@@ -5394,7 +5447,7 @@ function buildAbsenKotaDiscordPayload(row) {
   if (hasKeluar) {
     fields.push({
       name: "🔴 Jam Keluar",
-      value: `\`${fmtTimeOnly(row.jam_keluar_kota)}\``,
+      value: `\`${fmtAbsenDateTime(row.jam_keluar_kota, { hideToday: false })}\``,
       inline: true,
     });
 
@@ -5656,6 +5709,32 @@ async function fetchAbsenRow(memberId, tanggal) {
   return data || null;
 }
 
+async function fetchOpenAbsenSession(memberId) {
+  if (!supabase || !memberId) return null;
+  const buildQuery = (withDeletedFilter) => {
+    let q = supabase
+      .from("absen_kota_logs")
+      .select("*")
+      .eq("member_id", memberId)
+      .not("jam_masuk_kota", "is", null)
+      .is("jam_keluar_kota", null)
+      .order("jam_masuk_kota", { ascending: false })
+      .limit(1);
+    if (withDeletedFilter) q = q.is("deleted_at", null);
+    return q.maybeSingle();
+  };
+
+  let { data, error } = await buildQuery(true);
+  if (error && isMissingColumnError(error, "deleted_at")) {
+    ({ data, error } = await buildQuery(false));
+  }
+  if (error) {
+    console.warn("fetchOpenAbsenSession:", error);
+    return null;
+  }
+  return data || null;
+}
+
 async function recordAbsenKota(action, memberId, nama, opts = {}) {
   if (!supabase) {
     showAlert("Supabase tidak terhubung", "error");
@@ -5668,17 +5747,19 @@ async function recordAbsenKota(action, memberId, nama, opts = {}) {
   }
 
   const now = new Date();
-  const tanggal = opts.tanggal || todayDateKeyJakarta(now);
   const catatan = String(opts.catatan || "").trim();
   const actor = String(opts.actor || "").trim();
   const photoFile = opts.photoFile || null;
   const skipPhotoRequired = !!opts.skipPhotoRequired;
-  const existing = await fetchAbsenRow(mid, tanggal);
+  const openSession = await fetchOpenAbsenSession(mid);
 
   if (action === "masuk") {
-    if (existing && existing.jam_masuk_kota) {
-      showAlert("Sudah catat masuk kota untuk tanggal ini", "warning");
-      return { ok: false, row: existing };
+    if (openSession) {
+      showAlert(
+        "Masih ada sesi aktif — catat keluar kota dulu sebelum masuk lagi",
+        "warning",
+      );
+      return { ok: false, row: openSession };
     }
     if (!skipPhotoRequired) {
       const v = validateAbsenPhotoFile(photoFile);
@@ -5692,48 +5773,29 @@ async function recordAbsenKota(action, memberId, nama, opts = {}) {
       photoUrl = await uploadAbsenKotaImage(photoFile, mid, "masuk");
       if (!photoUrl) return { ok: false };
     }
+    const tanggalMasuk = todayDateKeyJakarta(now);
     const payload = {
       member_id: mid,
       nama: String(nama).trim(),
-      tanggal,
+      tanggal: opts.tanggal || tanggalMasuk,
       jam_masuk_kota: now.toISOString(),
-      catatan: catatan || existing?.catatan || null,
+      catatan: catatan || null,
       dicatat_oleh: actor || null,
       updated_at: now.toISOString(),
     };
     if (photoUrl) payload.bukti_masuk_url = photoUrl;
-    let row = null;
-    let error = null;
-    if (existing && existing.id) {
-      ({ data: row, error } = await supabase
-        .from("absen_kota_logs")
-        .update(payload)
-        .eq("id", existing.id)
-        .select("*")
-        .single());
-    } else {
+    let { data: row, error } = await supabase
+      .from("absen_kota_logs")
+      .insert(payload)
+      .select("*")
+      .single();
+    if (error && photoUrl && isMissingColumnError(error, "bukti_masuk_url")) {
+      delete payload.bukti_masuk_url;
       ({ data: row, error } = await supabase
         .from("absen_kota_logs")
         .insert(payload)
         .select("*")
         .single());
-    }
-    if (error && photoUrl && isMissingColumnError(error, "bukti_masuk_url")) {
-      delete payload.bukti_masuk_url;
-      if (existing && existing.id) {
-        ({ data: row, error } = await supabase
-          .from("absen_kota_logs")
-          .update(payload)
-          .eq("id", existing.id)
-          .select("*")
-          .single());
-      } else {
-        ({ data: row, error } = await supabase
-          .from("absen_kota_logs")
-          .insert(payload)
-          .select("*")
-          .single());
-      }
       showAlert(
         "Absen tersimpan, tapi kolom bukti belum ada. Jalankan migration 20260623_absen_kota_bukti.sql",
         "warning",
@@ -5741,10 +5803,17 @@ async function recordAbsenKota(action, memberId, nama, opts = {}) {
     }
     if (error) {
       console.error(error);
-      showAlert(
-        "Gagal simpan absen. Jalankan migration absen_kota_logs di Supabase.",
-        "error",
-      );
+      if (isAbsenUniqueViolation(error)) {
+        showAlert(
+          "Gagal simpan: database masih batasi 1 absen per hari. Jalankan migration multi-sesi absen di Supabase.",
+          "error",
+        );
+      } else {
+        showAlert(
+          "Gagal simpan absen. Jalankan migration absen_kota_logs di Supabase.",
+          "error",
+        );
+      }
       return { ok: false };
     }
     const hook = getAbsenKotaWebhookUrl();
@@ -5753,18 +5822,17 @@ async function recordAbsenKota(action, memberId, nama, opts = {}) {
     }
     resetAbsenPhotoPreview("absenBuktiMasuk");
     resetAbsenPhotoPreview("absenAdminBuktiMasuk");
-    showAlert(`Masuk kota tercatat — ${fmtTimeOnly(now.toISOString())}`, "success");
+    showAlert(
+      `Masuk kota tercatat — ${fmtAbsenDateTime(now.toISOString())}`,
+      "success",
+    );
     return { ok: true, row };
   }
 
   if (action === "keluar") {
-    if (!existing || !existing.jam_masuk_kota) {
-      showAlert("Belum catat masuk kota untuk tanggal ini", "error");
+    if (!openSession || !openSession.jam_masuk_kota) {
+      showAlert("Belum catat masuk kota (tidak ada sesi aktif)", "error");
       return { ok: false };
-    }
-    if (existing.jam_keluar_kota) {
-      showAlert("Sudah catat keluar kota untuk tanggal ini", "warning");
-      return { ok: false, row: existing };
     }
     if (!skipPhotoRequired) {
       const v = validateAbsenPhotoFile(photoFile);
@@ -5780,15 +5848,15 @@ async function recordAbsenKota(action, memberId, nama, opts = {}) {
     }
     const payload = {
       jam_keluar_kota: now.toISOString(),
-      catatan: catatan || existing.catatan || null,
-      dicatat_oleh: actor || existing.dicatat_oleh || null,
+      catatan: catatan || openSession.catatan || null,
+      dicatat_oleh: actor || openSession.dicatat_oleh || null,
       updated_at: now.toISOString(),
     };
     if (photoUrl) payload.bukti_keluar_url = photoUrl;
     let { data: row, error } = await supabase
       .from("absen_kota_logs")
       .update(payload)
-      .eq("id", existing.id)
+      .eq("id", openSession.id)
       .select("*")
       .single();
     if (error && photoUrl && isMissingColumnError(error, "bukti_keluar_url")) {
@@ -5796,7 +5864,7 @@ async function recordAbsenKota(action, memberId, nama, opts = {}) {
       ({ data: row, error } = await supabase
         .from("absen_kota_logs")
         .update(payload)
-        .eq("id", existing.id)
+        .eq("id", openSession.id)
         .select("*")
         .single());
       showAlert(
@@ -5812,17 +5880,17 @@ async function recordAbsenKota(action, memberId, nama, opts = {}) {
     const hook = getAbsenKotaWebhookUrl();
     if (hook && row) {
       const mergedRow = {
-        ...existing,
+        ...openSession,
         ...row,
         bukti_keluar_url:
-          photoUrl || row?.bukti_keluar_url || existing.bukti_keluar_url,
+          photoUrl || row?.bukti_keluar_url || openSession.bukti_keluar_url,
       };
       await sendAbsenDiscordNotice(mergedRow);
     }
     resetAbsenPhotoPreview("absenBuktiKeluar");
     resetAbsenPhotoPreview("absenAdminBuktiKeluar");
     showAlert(
-      `Keluar kota tercatat — ${fmtTimeOnly(now.toISOString())} (durasi ${fmtAbsenDuration(existing.jam_masuk_kota, now.toISOString())})`,
+      `Keluar kota tercatat — ${fmtAbsenDateTime(now.toISOString())} (durasi ${fmtAbsenDuration(openSession.jam_masuk_kota, now.toISOString())})`,
       "success",
     );
     return { ok: true, row };
@@ -5864,8 +5932,8 @@ function updateAbsenMemberUI(row) {
 
   const masuk = row && row.jam_masuk_kota;
   const keluar = row && row.jam_keluar_kota;
-  if (masukEl) masukEl.textContent = masuk ? fmtTimeOnly(masuk) : "—";
-  if (keluarEl) keluarEl.textContent = keluar ? fmtTimeOnly(keluar) : "—";
+  if (masukEl) masukEl.textContent = masuk ? fmtAbsenDateTime(masuk) : "—";
+  if (keluarEl) keluarEl.textContent = keluar ? fmtAbsenDateTime(keluar) : "—";
 
   setAbsenSavedBukti("absenSavedBuktiMasuk", row?.bukti_masuk_url, "Bukti masuk");
   setAbsenSavedBukti("absenSavedBuktiKeluar", row?.bukti_keluar_url, "Bukti keluar");
@@ -5875,20 +5943,24 @@ function updateAbsenMemberUI(row) {
     badge.textContent = st.text;
     badge.className = `badge ${st.cls} self-start`;
   }
-  if (masukBtn) masukBtn.disabled = !!masuk;
+  if (masukBtn) masukBtn.disabled = !!(masuk && !keluar);
   if (keluarBtn) keluarBtn.disabled = !masuk || !!keluar;
-  if (masukUploadWrap) masukUploadWrap.classList.toggle("hidden", !!masuk);
+  if (masukUploadWrap) masukUploadWrap.classList.toggle("hidden", !!(masuk && !keluar));
   if (keluarUploadWrap) {
     keluarUploadWrap.classList.toggle("hidden", !masuk || !!keluar);
   }
 
   if (hint) {
-    if (!masuk) {
-      hint.textContent = "Upload bukti foto lalu tekan Masuk Kota saat mulai RP di kota.";
-    } else if (!keluar) {
-      hint.textContent = `Masuk ${fmtTimeOnly(masuk)} — upload bukti foto lalu tekan Keluar Kota saat selesai.`;
+    if (!masuk || keluar) {
+      hint.textContent =
+        "Setiap sesi: masuk kota → keluar kota. Boleh lewat tengah malam, dan bisa masuk lagi setelah keluar.";
     } else {
-      hint.textContent = `Durasi di kota: ${fmtAbsenDuration(masuk, keluar)}`;
+      const masukStr = fmtAbsenDateTime(masuk);
+      const overnight =
+        todayDateKeyJakarta(new Date(masuk)) !== todayDateKeyJakarta();
+      hint.textContent = overnight
+        ? `Sesi aktif sejak ${masukStr} — upload bukti lalu tekan Keluar Kota (boleh beda hari).`
+        : `Masuk ${masukStr} — upload bukti foto lalu tekan Keluar Kota saat selesai.`;
     }
   }
 }
@@ -5898,11 +5970,8 @@ async function refreshAbsenMemberUI(member) {
     updateAbsenMemberUI(null);
     return;
   }
-  const row = await fetchAbsenRow(
-    member.id,
-    todayDateKeyJakarta(),
-  );
-  updateAbsenMemberUI(row);
+  const openRow = await fetchOpenAbsenSession(member.id);
+  updateAbsenMemberUI(openRow);
 }
 
 function renderAbsenAdminStats(rows) {
@@ -5957,8 +6026,8 @@ function renderAbsenTable(rows, showNama) {
       return `<tr>
         ${namaCell}
         <td class="px-4 py-3 whitespace-nowrap text-xs">${tgl}</td>
-        <td class="px-4 py-3 text-center font-mono text-emerald-300">${fmtTimeOnly(r.jam_masuk_kota)}</td>
-        <td class="px-4 py-3 text-center font-mono text-orange-300">${fmtTimeOnly(r.jam_keluar_kota)}</td>
+        <td class="px-4 py-3 text-center font-mono text-emerald-300">${fmtAbsenTableTime(r.jam_masuk_kota, r.tanggal)}</td>
+        <td class="px-4 py-3 text-center font-mono text-orange-300">${fmtAbsenTableTime(r.jam_keluar_kota, r.tanggal)}</td>
         <td class="px-4 py-3 text-center hidden sm:table-cell">${absenBuktiLinkCell(r.bukti_masuk_url)}</td>
         <td class="px-4 py-3 text-center hidden sm:table-cell">${absenBuktiLinkCell(r.bukti_keluar_url)}</td>
         <td class="px-4 py-3 text-center hidden sm:table-cell text-xs text-stone-400">${fmtAbsenDuration(r.jam_masuk_kota, r.jam_keluar_kota)}</td>
@@ -5999,15 +6068,26 @@ async function loadAbsenKotaTable(member) {
   const tanggal =
     (filterEl && filterEl.value) || todayDateKeyJakarta();
   const isAdmin = isAdminMember(member);
-  let q = supabase
-    .from("absen_kota_logs")
-    .select("*")
-    .eq("tanggal", tanggal)
-    .order("jam_masuk_kota", { ascending: true, nullsFirst: false });
-  if (!isAdmin && member && member.id) {
-    q = q.eq("member_id", member.id);
+  const prevDay = addDaysToDateKey(tanggal, -1);
+  const orFilter = `tanggal.eq.${tanggal},tanggal.eq.${prevDay},and(jam_keluar_kota.is.null,jam_masuk_kota.not.is.null)`;
+
+  const buildQuery = (withDeletedFilter) => {
+    let q = supabase
+      .from("absen_kota_logs")
+      .select("*")
+      .or(orFilter)
+      .order("jam_masuk_kota", { ascending: true, nullsFirst: false });
+    if (!isAdmin && member && member.id) {
+      q = q.eq("member_id", member.id);
+    }
+    if (withDeletedFilter) q = q.is("deleted_at", null);
+    return q;
+  };
+
+  let { data, error } = await buildQuery(true);
+  if (error && isMissingColumnError(error, "deleted_at")) {
+    ({ data, error } = await buildQuery(false));
   }
-  const { data, error } = await q;
   if (error) {
     if (error.message && error.message.includes("absen_kota_logs")) {
       renderAbsenTable([], isAdmin);
@@ -6017,20 +6097,17 @@ async function loadAbsenKotaTable(member) {
     renderAbsenTable([], isAdmin);
     return;
   }
-  let rows = data || [];
-  try {
-    let q2 = supabase
-      .from("absen_kota_logs")
-      .select("*")
-      .eq("tanggal", tanggal)
-      .is("deleted_at", null)
-      .order("jam_masuk_kota", { ascending: true });
-    if (!isAdmin && member && member.id) {
-      q2 = q2.eq("member_id", member.id);
-    }
-    const { data: d2, error: e2 } = await q2;
-    if (!e2 && d2) rows = d2;
-  } catch (e) {}
+
+  const rows = [...new Map(
+    (data || [])
+      .filter((r) => absenRowMatchesFilterDate(r, tanggal))
+      .map((r) => [r.id, r]),
+  ).values()].sort((a, b) => {
+    const ta = a.jam_masuk_kota ? new Date(a.jam_masuk_kota).getTime() : 0;
+    const tb = b.jam_masuk_kota ? new Date(b.jam_masuk_kota).getTime() : 0;
+    return ta - tb;
+  });
+
   renderAbsenTable(rows, isAdmin);
 }
 
@@ -6311,6 +6388,9 @@ async function saveAbsenAdminEdit() {
     dicatat_oleh: actor,
     updated_at: new Date().toISOString(),
   };
+  if (jam_masuk_kota) {
+    payload.tanggal = todayDateKeyJakarta(new Date(jam_masuk_kota));
+  }
 
   let { data, error } = await supabase
     .from("absen_kota_logs")

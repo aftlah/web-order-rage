@@ -1,0 +1,13 @@
+-- Jalankan di Supabase SQL Editor agar absen bisa multi-sesi per hari
+-- (masuk sore setelah keluar pagi, dan keluar beda hari dari masuk)
+
+ALTER TABLE public.absen_kota_logs
+  DROP CONSTRAINT IF EXISTS absen_kota_logs_member_id_tanggal_key;
+
+ALTER TABLE public.absen_kota_logs
+  DROP CONSTRAINT IF EXISTS absen_kota_logs_member_id_tanggal_unique;
+
+-- Opsional: index untuk cari sesi aktif lebih cepat
+CREATE INDEX IF NOT EXISTS idx_absen_kota_open_session
+  ON public.absen_kota_logs (member_id, jam_masuk_kota DESC)
+  WHERE jam_keluar_kota IS NULL AND deleted_at IS NULL;
