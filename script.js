@@ -6793,6 +6793,204 @@ async function uploadNitipCuciImage(file, memberId) {
   return (data && data.publicUrl) || "";
 }
 
+let currentNitipPeriode = null;
+let nitipPeriodeList = [];
+
+function formatNitipPeriodeLabel(orderanke, active = false) {
+  const v = parseInt(orderanke, 10);
+  if (!v || Number.isNaN(v)) return "—";
+  const m = Math.floor(v / 10);
+  const w = v % 10;
+  const a = active ? " (aktif)" : "";
+  return `M${m}-W${w} (#${v})${a}`;
+}
+
+async function hydrateNitipPeriodeFilter() {
+  if (!supabase) return;
+  const filterEl = document.getElementById("nitipPeriodeFilter");
+  if (!filterEl) return;
+  const already =
+    filterEl.dataset &&
+    filterEl.dataset.hydrated === "1" &&
+    filterEl.options.length > 2;
+  if (already) return;
+
+  if (!currentNitipPeriode) {
+    try {
+      const win = await fetchActiveOrderWindow(null);
+      const fallbackWin = win || (await fetchLatestOrderWindow("order"));
+      if (fallbackWin && fallbackWin.orderanke) {
+        currentNitipPeriode = parseInt(fallbackWin.orderanke, 10);
+      }
+    } catch (e) {}
+  }
+
+  await loadNitipPeriodeFilterOptions();
+  if (filterEl.dataset) filterEl.dataset.hydrated = "1";
+}
+
+async function loadNitipPeriodeFilterOptions() {
+  if (!supabase) return;
+  const filterEl = document.getElementById("nitipPeriodeFilter");
+  if (!filterEl) return;
+
+  let list = [];
+  try {
+    const { data, error } = await supabase
+      .from("order_windows")
+      .select("orderanke,start_time,end_time,is_active")
+      .lt("orderanke", 1000)
+      .order("start_time", { ascending: false })
+      .limit(50);
+
+    if (!error) {
+      list = (data || [])
+        .filter((r) => r && r.orderanke != null)
+        .map((r) => ({
+          orderanke: parseInt(r.orderanke, 10),
+          is_active: !!r.is_active,
+        }));
+    }
+  } catch (e) {}
+
+  if (!list.length) {
+    try {
+      let { data, error } = await supabase
+        .from("nitip_cuci_logs")
+        .select("periode_orderanke")
+        .not("periode_orderanke", "is", null)
+        .lt("periode_orderanke", 1000)
+        .is("deleted_at", null)
+        .order("periode_orderanke", { ascending: false })
+        .limit(200);
+      if (error && isMissingColumnError(error, "deleted_at")) {
+        ({ data, error } = await supabase
+          .from("nitip_cuci_logs")
+          .select("periode_orderanke")
+          .not("periode_orderanke", "is", null)
+          .lt("periode_orderanke", 1000)
+          .order("periode_orderanke", { ascending: false })
+          .limit(200));
+      }
+      if (!error) {
+        const seen = new Set();
+        list = (data || [])
+          .map((r) => parseInt(r && r.periode_orderanke, 10))
+          .filter((v) => !Number.isNaN(v) && v)
+          .filter((v) => (seen.has(v) ? false : (seen.add(v), true)))
+          .map((v) => ({
+            orderanke: v,
+            is_active: currentNitipPeriode ? v === currentNitipPeriode : false,
+          }));
+      }
+    } catch (e) {}
+  }
+
+  nitipPeriodeList = list;
+
+  const current = parseInt(currentNitipPeriode || 0, 10) || null;
+  let prev = null;
+  if (current) {
+    const idx = nitipPeriodeList.findIndex((b) => b.orderanke === current);
+    if (idx >= 0 && idx + 1 < nitipPeriodeList.length) {
+      prev = nitipPeriodeList[idx + 1].orderanke;
+    }
+  }
+  if (!prev && nitipPeriodeList.length) {
+    prev =
+      nitipPeriodeList.length > 1
+        ? nitipPeriodeList[1].orderanke
+        : nitipPeriodeList[0].orderanke;
+  }
+
+  const selected = String(filterEl.value || "current");
+  const opts = [
+    { value: "current", label: "Periode Aktif" },
+    { value: "previous", label: "Periode Sebelumnya" },
+    { value: "all", label: "Semua Periode" },
+  ];
+  nitipPeriodeList.forEach((b) => {
+    if (!b.orderanke) return;
+    opts.push({
+      value: `orderanke:${b.orderanke}`,
+      label: formatNitipPeriodeLabel(b.orderanke, b.is_active),
+    });
+  });
+
+  filterEl.innerHTML = opts
+    .map((o) => `<option value="${o.value}">${o.label}</option>`)
+    .join("");
+
+  if (selected === "current" || selected === "all" || selected === "previous") {
+    filterEl.value = selected;
+    return;
+  }
+  if (opts.some((o) => o.value === selected)) filterEl.value = selected;
+  else if (prev) filterEl.value = `orderanke:${prev}`;
+  else filterEl.value = "all";
+}
+
+function resolveNitipPeriodeFilter() {
+  const filterEl = document.getElementById("nitipPeriodeFilter");
+  const v = String(filterEl ? filterEl.value : "current");
+
+  if (v === "all") {
+    return { periodeValue: null, periodeLabel: "Semua Periode" };
+  }
+
+  if (v === "current" && currentNitipPeriode) {
+    return {
+      periodeValue: currentNitipPeriode,
+      periodeLabel: formatNitipPeriodeLabel(currentNitipPeriode, true),
+    };
+  }
+
+  if (v === "previous") {
+    const current = parseInt(currentNitipPeriode || 0, 10) || null;
+    let prev = null;
+    if (current) {
+      const idx = nitipPeriodeList.findIndex((b) => b.orderanke === current);
+      if (idx >= 0 && idx + 1 < nitipPeriodeList.length) {
+        prev = nitipPeriodeList[idx + 1].orderanke;
+      }
+    }
+    if (!prev && nitipPeriodeList.length) {
+      prev =
+        nitipPeriodeList.length > 1
+          ? nitipPeriodeList[1].orderanke
+          : nitipPeriodeList[0].orderanke;
+    }
+    if (prev) {
+      return {
+        periodeValue: prev,
+        periodeLabel: formatNitipPeriodeLabel(prev, false),
+      };
+    }
+  }
+
+  if (v.startsWith("orderanke:")) {
+    const picked = parseInt(v.split(":")[1] || "", 10);
+    if (!Number.isNaN(picked) && picked) {
+      return {
+        periodeValue: picked,
+        periodeLabel: formatNitipPeriodeLabel(
+          picked,
+          picked === currentNitipPeriode,
+        ),
+      };
+    }
+  }
+
+  if (currentNitipPeriode) {
+    return {
+      periodeValue: currentNitipPeriode,
+      periodeLabel: formatNitipPeriodeLabel(currentNitipPeriode, true),
+    };
+  }
+
+  return { periodeValue: null, periodeLabel: "Semua Periode" };
+}
+
 function initNitipCuci(member) {
   const submitBtn = document.getElementById("nitipSubmit");
   const reloadBtn = document.getElementById("nitipReloadBtn");
@@ -6825,6 +7023,10 @@ function initNitipCuci(member) {
   const paidFilter = document.getElementById("nitipPaidFilter");
   if (paidFilter) {
     paidFilter.addEventListener("change", () => renderNitipTableFromCache());
+  }
+  const periodeFilter = document.getElementById("nitipPeriodeFilter");
+  if (periodeFilter) {
+    periodeFilter.addEventListener("change", () => loadNitipCuciTable());
   }
   if (buktiEl) {
     buktiEl.addEventListener("change", (e) => {
@@ -7021,31 +7223,16 @@ async function loadNitipCuciTable() {
   if (!supabase) return;
   const body = document.getElementById("nitipTableBody");
   const empty = document.getElementById("nitipTableEmpty");
-  const labelEl = document.getElementById("nitipPeriodeLabel");
-  if (!body || !empty || !labelEl) return;
+  if (!body || !empty) return;
 
   body.innerHTML = "";
   empty.classList.remove("hidden");
   empty.textContent = "Memuat data...";
 
-  let periodeValue = null;
-  let periodeLabel = "";
-  try {
-    const win = await fetchActiveOrderWindow(null);
-    const fallbackWin = win || (await fetchLatestOrderWindow("order"));
-    if (fallbackWin && fallbackWin.orderanke) {
-      const v = parseInt(fallbackWin.orderanke, 10);
-      if (!Number.isNaN(v) && v > 0) {
-        periodeValue = v;
-        const m = Math.floor(v / 10);
-        const w = v % 10;
-        periodeLabel = `M${m}-W${w} (#${v})`;
-      }
-    }
-  } catch (e) {}
-
-  labelEl.textContent = periodeLabel || "Periode aktif";
+  await hydrateNitipPeriodeFilter();
+  const { periodeValue, periodeLabel } = resolveNitipPeriodeFilter();
   window.__nitipPeriodeValue = periodeValue;
+  window.__nitipPeriodeLabel = periodeLabel;
 
   let q = supabase
     .from("nitip_cuci_logs")
