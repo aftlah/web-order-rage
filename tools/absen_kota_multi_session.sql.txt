@@ -1,13 +1,22 @@
 -- Jalankan di Supabase SQL Editor agar absen bisa multi-sesi per hari
 -- (masuk sore setelah keluar pagi, dan keluar beda hari dari masuk)
 
+-- Penyebab error "1 absen per hari": unique INDEX ini (bukan constraint biasa)
+DROP INDEX IF EXISTS public.absen_kota_logs_member_tanggal_uidx;
+
+-- Legacy constraint names (kalau ada)
 ALTER TABLE public.absen_kota_logs
   DROP CONSTRAINT IF EXISTS absen_kota_logs_member_id_tanggal_key;
 
 ALTER TABLE public.absen_kota_logs
   DROP CONSTRAINT IF EXISTS absen_kota_logs_member_id_tanggal_unique;
 
--- Opsional: index untuk cari sesi aktif lebih cepat
+-- Hanya 1 sesi AKTIF (belum keluar) per member — boleh banyak sesi selesai per hari
+CREATE UNIQUE INDEX IF NOT EXISTS absen_kota_logs_member_open_session_uidx
+  ON public.absen_kota_logs (member_id)
+  WHERE (jam_keluar_kota IS NULL AND deleted_at IS NULL);
+
+-- Index bantu cari sesi aktif
 CREATE INDEX IF NOT EXISTS idx_absen_kota_open_session
   ON public.absen_kota_logs (member_id, jam_masuk_kota DESC)
-  WHERE jam_keluar_kota IS NULL AND deleted_at IS NULL;
+  WHERE (jam_keluar_kota IS NULL AND deleted_at IS NULL);

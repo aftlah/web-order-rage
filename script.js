@@ -5805,7 +5805,7 @@ async function recordAbsenKota(action, memberId, nama, opts = {}) {
       console.error(error);
       if (isAbsenUniqueViolation(error)) {
         showAlert(
-          "Gagal simpan: database masih batasi 1 absen per hari. Jalankan migration multi-sesi absen di Supabase.",
+          "Gagal simpan: database masih batasi 1 absen per hari (index absen_kota_logs_member_tanggal_uidx). Jalankan SQL di tools/absen_kota_multi_session.sql.txt di Supabase SQL Editor.",
           "error",
         );
       } else {
