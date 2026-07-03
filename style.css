@@ -1653,3 +1653,17 @@ tr.nitip-row--pending:hover {
   color: #cbd5e1;
   border: 1px solid rgba(100, 116, 139, 0.25);
 }
+
+/* Lock background scroll when modal is open */
+html.body-scroll-lock,
+body.body-scroll-lock {
+  overflow: hidden;
+  height: 100%;
+}
+
+body.body-scroll-lock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+}

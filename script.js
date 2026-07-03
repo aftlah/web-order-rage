@@ -8954,9 +8954,29 @@ function sortRowsByGroupOrder(rows, grp) {
     return a.item.localeCompare(b.item);
   });
 }
+let __pageScrollLockY = 0;
+let __pageScrollLockActive = false;
+function lockPageScroll() {
+  if (__pageScrollLockActive) return;
+  __pageScrollLockActive = true;
+  __pageScrollLockY =
+    window.scrollY || document.documentElement.scrollTop || 0;
+  document.documentElement.classList.add("body-scroll-lock");
+  document.body.classList.add("body-scroll-lock");
+  document.body.style.top = `-${__pageScrollLockY}px`;
+}
+function unlockPageScroll() {
+  if (!__pageScrollLockActive) return;
+  __pageScrollLockActive = false;
+  document.documentElement.classList.remove("body-scroll-lock");
+  document.body.classList.remove("body-scroll-lock");
+  document.body.style.top = "";
+  window.scrollTo(0, __pageScrollLockY);
+}
 function hideDashboardOrderDetailModal() {
   const modal = document.getElementById("orderDetailModal");
   if (modal) modal.classList.add("hidden");
+  unlockPageScroll();
 }
 function buildDashboardOrderDetailModalHtml(entry) {
   const deliveredRows = getDeliveredRowSet();
@@ -9107,6 +9127,7 @@ function openDashboardOrderDetailModal(personKey) {
   bodyEl.innerHTML = buildDashboardOrderDetailModalHtml(entry);
   wireDashboardItemActions(bodyEl);
   modal.classList.remove("hidden");
+  lockPageScroll();
 }
 function renderDashboard(groups) {
   const container = document.getElementById("dashboardBody");
@@ -9452,6 +9473,11 @@ function setupOrderDetailModal() {
     modal.addEventListener("click", (e) => {
       if (e.target === modal) hideDashboardOrderDetailModal();
     });
+    const blockBackdropScroll = (e) => {
+      if (e.target === modal) e.preventDefault();
+    };
+    modal.addEventListener("wheel", blockBackdropScroll, { passive: false });
+    modal.addEventListener("touchmove", blockBackdropScroll, { passive: false });
   }
   if (closeBtn) closeBtn.addEventListener("click", hideDashboardOrderDetailModal);
   document.addEventListener("keydown", (e) => {
