@@ -154,6 +154,24 @@
         <div id="dashboardBody"></div>
       </div>
 
+      <!-- Order Detail Modal -->
+      <div id="orderDetailModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] hidden p-4 sm:p-6">
+        <div class="glass-card w-full max-w-3xl overflow-hidden flex flex-col max-h-[85vh] relative scale-in">
+          <div class="px-6 py-5 border-b border-amber-500/20/60 flex justify-between items-start gap-4 bg-[#140d0a]/60">
+            <div>
+              <h3 id="orderDetailModalTitle" class="text-lg font-black text-yellow-400">Detail Order</h3>
+              <p id="orderDetailModalSubtitle" class="text-xs text-stone-400 mt-0.5"></p>
+            </div>
+            <button id="orderDetailModalClose" type="button" class="p-2 rounded-xl hover:bg-white/5 text-stone-400 hover:text-stone-300 transition-colors flex-shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div id="orderDetailModalBody" class="flex-1 overflow-y-auto min-h-0 p-5 custom-scrollbar"></div>
+        </div>
+      </div>
+
       <!-- Member Modal -->
       <div id="memberModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-start justify-center z-[100] hidden p-4 sm:p-6 pt-20 sm:pt-28">
         <div class="glass-card w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh] relative scale-in">

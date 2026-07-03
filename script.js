@@ -216,6 +216,7 @@ function getItemMax(name) {
 
 const state = { cart: [] };
 const dashboardCache = { orders: null, lastFetch: 0, filtered: {} };
+const dashboardDetailCache = new Map();
 const __openAnnounceLock = new Set();
 const __closeAnnounceLock = new Set();
 const DASH_CACHE_KEY = "dashboardOrdersCacheV2";
@@ -1594,7 +1595,7 @@ async function postToDiscordWithFile({ message, file, embeds, overrideUrl }) {
   return readMessageId(res);
 }
 
-function buildNitipCuciDiscordPayload({
+function buildNitipCuciDiscordPayload({ 
   nama,
   uangMerah,
   uangPutih,
@@ -8953,9 +8954,165 @@ function sortRowsByGroupOrder(rows, grp) {
     return a.item.localeCompare(b.item);
   });
 }
+function hideDashboardOrderDetailModal() {
+  const modal = document.getElementById("orderDetailModal");
+  if (modal) modal.classList.add("hidden");
+}
+function buildDashboardOrderDetailModalHtml(entry) {
+  const deliveredRows = getDeliveredRowSet();
+  const rows = entry.items
+    .map(
+      (r) =>
+        `<tr class="table-row-hover border-b border-[#f3e8d8] dark:border-[#3d342d]">` +
+        `<td class="px-3 py-2.5">${r.order_no || r.order_id || "-"}</td>` +
+        `<td class="px-3 py-2.5 text-stone-400">${new Date(r.waktu).toLocaleString()}</td>` +
+        `<td class="px-3 py-2.5 font-medium">${r.item}</td>` +
+        `<td class="px-3 py-2.5 text-center">${r.qty}</td>` +
+        `<td class="px-3 py-2.5 text-right">${fmt(r.subtotal)}</td>` +
+        `<td class="px-3 py-2.5 text-center"><button data-row-id="${r.id}" class="px-2 py-1 rounded ${
+          r.delivered || deliveredRows.has(String(r.id))
+            ? "bg-green-700"
+            : "bg-yellow-700"
+        } text-white">${
+          r.delivered || deliveredRows.has(String(r.id)) ? "Sudah" : "Belum"
+        }</button></td>` +
+        `<td class="px-3 py-2.5 text-right"><button data-del-id="${r.id}" class="px-2 py-1 rounded bg-red-700 text-white">Hapus</button></td>` +
+        `</tr>`,
+    )
+    .join("");
+  return (
+    `<div class="overflow-x-auto scroll-table">` +
+    `<table class="w-full text-sm text-left">` +
+    `<thead class="bg-black/30 text-stone-400 uppercase text-xs tracking-widest border-b border-amber-500/20 sticky top-0">` +
+    `<tr>` +
+    `<th class="px-3 py-3 font-semibold">Order No.</th>` +
+    `<th class="px-3 py-3 font-semibold">Waktu</th>` +
+    `<th class="px-3 py-3 font-semibold">Item</th>` +
+    `<th class="px-3 py-3 font-semibold text-center">Qty</th>` +
+    `<th class="px-3 py-3 font-semibold text-right">Subtotal</th>` +
+    `<th class="px-3 py-3 font-semibold text-center">Status</th>` +
+    `<th class="px-3 py-3 font-semibold text-right">Aksi</th>` +
+    `</tr></thead><tbody class="divide-y divide-[#3d342d]/50 text-[#fef3c7]">` +
+    rows +
+    `</tbody></table></div>` +
+    `<div class="flex justify-end mt-4 pt-3 border-t border-amber-500/20 text-sm">` +
+    `<span class="text-stone-400 mr-2">Total:</span>` +
+    `<span class="font-bold text-yellow-400">${fmt(entry.personTotal)}</span>` +
+    `<span class="text-stone-500 mx-2">•</span>` +
+    `<span class="text-stone-400">${entry.personQty} qty</span>` +
+    `</div>`
+  );
+}
+function wireDashboardItemActions(root) {
+  if (!root) return;
+  const deliveredRows = getDeliveredRowSet();
+  root.querySelectorAll("[data-row-id]").forEach((btn) => {
+    const id = parseInt(btn.getAttribute("data-row-id") || "", 10);
+    if (deliveredRows.has(String(id))) {
+      btn.textContent = "Sudah";
+      btn.className = "px-2 py-1 rounded bg-green-700 text-white";
+    }
+    btn.addEventListener("click", async () => {
+      const nowDelivered = btn.textContent === "Belum";
+      try {
+        const { error } = await supabase
+          .from("orders")
+          .update({ delivered: nowDelivered })
+          .eq("id", id);
+        if (error) throw error;
+        const deliveredSet = getDeliveredRowSet();
+        deliveredSet.delete(String(id));
+        saveDeliveredRowSet(deliveredSet);
+        patchDashboardOrdersInCache(
+          (r) => parseInt(r.id, 10) === id,
+          () => ({ delivered: nowDelivered }),
+        );
+        invalidateDashboardCache();
+        hideDashboardOrderDetailModal();
+        await loadDashboard(true);
+        showAlert("Status diperbarui", "success");
+      } catch (e) {
+        const set = getDeliveredRowSet();
+        if (nowDelivered) set.add(String(id));
+        else set.delete(String(id));
+        saveDeliveredRowSet(set);
+        patchDashboardOrdersInCache(
+          (r) => parseInt(r.id, 10) === id,
+          () => ({ delivered: nowDelivered }),
+        );
+        hideDashboardOrderDetailModal();
+        rerenderDashboardFromCache();
+        showAlert("Status diperbarui (lokal)", "success");
+      }
+    });
+  });
+  root.querySelectorAll("[data-del-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const id = parseInt(btn.getAttribute("data-del-id") || "", 10);
+      if (!id) return;
+      const result = await Swal.fire({
+        title: "Hapus item order ini?",
+        text: "Tindakan ini tidak dapat dibatalkan!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Ya, hapus!",
+        cancelButtonText: "Batal",
+        background: "#1f1410",
+        color: "#fef3c7",
+      });
+      if (!result.isConfirmed) return;
+      const pinOk = await confirmDeletePin();
+      if (!pinOk) return;
+      try {
+        const { ok, error } = await softDeleteOrderById(id);
+        if (!ok) {
+          if (isMissingColumnError(error, "deleted_at")) {
+            showAlert(
+              `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+                "orders",
+              )}`,
+              "error",
+            );
+            return;
+          }
+          console.error("Dashboard soft delete error:", error);
+          showAlert(
+            `Gagal menghapus item: ${error.message || "Unknown error"}`,
+            "error",
+          );
+          return;
+        }
+        hideDashboardOrderDetailModal();
+        showAlert("Item dipindahkan ke arsip", "success");
+        loadDashboard(true);
+      } catch (e) {
+        showAlert("Gagal menghapus (network)", "error");
+      }
+    });
+  });
+}
+function openDashboardOrderDetailModal(personKey) {
+  const entry = dashboardDetailCache.get(personKey);
+  const modal = document.getElementById("orderDetailModal");
+  const titleEl = document.getElementById("orderDetailModalTitle");
+  const subtitleEl = document.getElementById("orderDetailModalSubtitle");
+  const bodyEl = document.getElementById("orderDetailModalBody");
+  if (!entry || !modal || !bodyEl) return;
+  if (titleEl) titleEl.textContent = entry.name;
+  if (subtitleEl) {
+    subtitleEl.textContent = `Batch M${entry.month}-W${entry.week} • ${entry.items.length} item • Total ${fmt(entry.personTotal)}`;
+  }
+  bodyEl.innerHTML = buildDashboardOrderDetailModalHtml(entry);
+  wireDashboardItemActions(bodyEl);
+  modal.classList.remove("hidden");
+}
 function renderDashboard(groups) {
   const container = document.getElementById("dashboardBody");
   if (!container) return;
+  hideDashboardOrderDetailModal();
+  dashboardDetailCache.clear();
   const keys = Object.keys(groups).sort(
     (a, b) => parseInt(b, 10) - parseInt(a, 10),
   );
@@ -9118,67 +9275,66 @@ function renderDashboard(groups) {
         (byName[key] ||= []).push(r);
       });
       const nameKeys = Object.keys(byName).sort((a, b) => a.localeCompare(b));
+      const escAttr = (s) =>
+        String(s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/"/g, "&quot;");
       const rowsHtml = nameKeys
-        .map((name, gIdx) =>
-          byName[name]
-            .map((r, idx, arr) => {
-              const personKey = makePersonStatusKey(k, name);
-              const paidOn =
-                arr.every((x) => !!x.paid) || paidPeople.has(personKey);
-              const scrapOn =
-                arr.every((x) => !!x.scrap_given) ||
-                scrapPeopleLocal.has(personKey);
-              const nameCell =
-                idx === 0
-                  ? `<td class=\"px-2 py-2 align-top\" rowspan=\"${byName[name].length}\">${name}</td>`
-                  : "";
-              const personTotal = arr.reduce(
-                (sum, x) => sum + (x.subtotal || 0),
-                0,
-              );
-              const personQty = arr.reduce((sum, x) => sum + (x.qty || 0), 0);
-              const paidCell =
-                idx === 0
-                  ? `<td class=\"px-2 py-2 text-center align-top\" rowspan=\"${byName[name].length}\"><button data-paid-person-key=\"${personKey}\" data-paid-batch=\"${k}\" data-paid-name=\"${String(name).replace(/"/g, "&quot;")}\" data-paid-total=\"${personTotal}\" data-paid-qty=\"${personQty}\" class="px-2 py-1 rounded ${
-                      paidOn ? "bg-emerald-700" : "bg-slate-700"
-                    } text-white">${paidOn ? "Lunas" : "Belum"}</button></td>`
-                  : "";
-              const scrapCell =
-                idx === 0
-                  ? `<td class=\"px-2 py-2 text-center align-top\" rowspan=\"${byName[name].length}\"><button data-scrap-person-key=\"${personKey}\" data-scrap-batch=\"${k}\" data-scrap-name=\"${String(name).replace(/"/g, "&quot;")}\" class="px-2 py-1 rounded ${
-                      scrapOn ? "bg-cyan-700" : "bg-slate-700"
-                    } text-white">${scrapOn ? "Sudah" : "Belum"}</button></td>`
-                  : "";
-              const rowCls =
-                idx === 0 && gIdx > 0
-                  ? "table-row-hover border-t border-[#f3e8d8] dark:border-[#3d342d]"
-                  : "table-row-hover";
-              return `<tr class=\"${rowCls}\"><td class=\"px-2 py-2\">${
-                r.order_no || r.order_id
-              }</td>${nameCell}<td class=\"px-2 py-2\">${new Date(
-                r.waktu,
-              ).toLocaleString()}</td><td class=\"px-2 py-2\">${
-                r.item
-              }</td><td class=\"px-2 py-2 text-center\">${
-                r.qty
-              }</td><td class=\"px-2 py-2 text-right\">${fmt(
-                r.subtotal,
-              )}</td><td class=\"px-2 py-2 text-center\"><button data-row-id=\"${
-                r.id
-              }" class="px-2 py-1 rounded ${
-                r.delivered || deliveredRows.has(String(r.id))
-                  ? "bg-green-700"
-                  : "bg-yellow-700"
-              } text-white">${
-                r.delivered || deliveredRows.has(String(r.id))
-                  ? "Sudah"
-                  : "Belum"
-              }</button></td>${paidCell}${scrapCell}<td class=\"px-2 py-2 text-right\"><button data-del-id=\"${
-                r.id
-              }\" class=\"px-2 py-1 rounded bg-red-700 text-white\">Hapus</button></td></tr>`;
-            })
-            .join(""),
-        )
+        .map((name, gIdx) => {
+          const arr = byName[name];
+          const personKey = makePersonStatusKey(k, name);
+          const paidOn =
+            arr.every((x) => !!x.paid) || paidPeople.has(personKey);
+          const scrapOn =
+            arr.every((x) => !!x.scrap_given) ||
+            scrapPeopleLocal.has(personKey);
+          const personTotal = arr.reduce(
+            (sum, x) => sum + (x.subtotal || 0),
+            0,
+          );
+          const personQty = arr.reduce((sum, x) => sum + (x.qty || 0), 0);
+          const deliveredCount = arr.filter(
+            (x) => x.delivered || deliveredRows.has(String(x.id)),
+          ).length;
+          const statusSummary =
+            deliveredCount === arr.length
+              ? `<span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-emerald-600/20 text-emerald-300 border border-emerald-500/30">Semua Sudah</span>`
+              : deliveredCount === 0
+                ? `<span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-500/20 text-amber-200 border border-amber-400/30">Belum</span>`
+                : `<span class="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-500/20 text-amber-200 border border-amber-400/30">${deliveredCount}/${arr.length} Sudah</span>`;
+          const first = arr[0];
+          const summaryRowCls =
+            gIdx > 0
+              ? "table-row-hover border-t border-[#f3e8d8] dark:border-[#3d342d]"
+              : "table-row-hover";
+          dashboardDetailCache.set(personKey, {
+            batch: k,
+            month: Math.floor(parseInt(k, 10) / 10),
+            week: parseInt(k, 10) % 10,
+            name,
+            items: arr.slice(),
+            personTotal,
+            personQty,
+          });
+          const summaryRow =
+            `<tr class=\"${summaryRowCls}\">` +
+            `<td class=\"px-2 py-2\">${first.order_no || first.order_id || "-"}</td>` +
+            `<td class=\"px-2 py-2 font-medium\">${name}</td>` +
+            `<td class=\"px-2 py-2\">${new Date(first.waktu).toLocaleString()}</td>` +
+            `<td class=\"px-2 py-2 text-stone-400\">${arr.length} item</td>` +
+            `<td class=\"px-2 py-2 text-center\">${personQty}</td>` +
+            `<td class=\"px-2 py-2 text-right font-semibold\">${fmt(personTotal)}</td>` +
+            `<td class=\"px-2 py-2 text-center\">${statusSummary}</td>` +
+            `<td class=\"px-2 py-2 text-center\"><button data-paid-person-key=\"${escAttr(personKey)}\" data-paid-batch=\"${k}\" data-paid-name=\"${escAttr(name)}\" data-paid-total=\"${personTotal}\" data-paid-qty=\"${personQty}\" class="px-2 py-1 rounded ${
+              paidOn ? "bg-emerald-700" : "bg-slate-700"
+            } text-white">${paidOn ? "Lunas" : "Belum"}</button></td>` +
+            `<td class=\"px-2 py-2 text-center\"><button data-scrap-person-key=\"${escAttr(personKey)}\" data-scrap-batch=\"${k}\" data-scrap-name=\"${escAttr(name)}\" class="px-2 py-1 rounded ${
+              scrapOn ? "bg-cyan-700" : "bg-slate-700"
+            } text-white">${scrapOn ? "Sudah" : "Belum"}</button></td>` +
+            `<td class=\"px-2 py-2 text-right\"><button type="button" data-person-detail-btn data-person-key=\"${escAttr(personKey)}\" class=\"px-2 py-1 rounded bg-yellow-600 hover:bg-yellow-500 text-white text-xs font-semibold\">Detail</button></td>` +
+            `</tr>`;
+          return summaryRow;
+        })
         .join("");
       const orderDetails =
         `<div class=\"rounded-xl border border-[#f3e8d8] dark:border-[#3d342d] p-4\"><h4 class=\"text-sm font-semibold mb-2\">Order Details</h4><div class=\"overflow-x-auto\"><table class=\"w-full text-sm\"><thead><tr><th class=\"text-left px-2 py-2\">Order No.</th><th class=\"text-left px-2 py-2\">Nama</th><th class=\"text-left px-2 py-2\">Waktu</th><th class=\"text-left px-2 py-2\">Item</th><th class=\"text-center px-2 py-2\">Qty</th><th class=\"text-right px-2 py-2\">Subtotal</th><th class=\"text-center px-2 py-2\">Status</th><th class=\"text-center px-2 py-2\">Bayar</th><th class=\"text-center px-2 py-2\">Metal</th><th class=\"text-right px-2 py-2\">Actions</th></tr></thead><tbody>` +
@@ -9190,42 +9346,10 @@ function renderDashboard(groups) {
   container.innerHTML = totalsHtml + batchesHtml;
   const paidPeopleLocal = getPaidPersonSet();
   const scrapPeople = getScrapPersonSet();
-  container.querySelectorAll("[data-row-id]").forEach((btn) => {
-    const id = parseInt(btn.getAttribute("data-row-id") || "", 10);
-    if (deliveredRows.has(String(id))) {
-      btn.textContent = "Sudah";
-      btn.className = "px-2 py-1 rounded bg-green-700 text-white";
-    }
-    btn.addEventListener("click", async () => {
-      const nowDelivered = btn.textContent === "Belum";
-      try {
-        const { error } = await supabase
-          .from("orders")
-          .update({ delivered: nowDelivered })
-          .eq("id", id);
-        if (error) throw error;
-        const deliveredSet = getDeliveredRowSet();
-        deliveredSet.delete(String(id));
-        saveDeliveredRowSet(deliveredSet);
-        patchDashboardOrdersInCache(
-          (r) => parseInt(r.id, 10) === id,
-          () => ({ delivered: nowDelivered }),
-        );
-        invalidateDashboardCache();
-        await loadDashboard(true);
-        showAlert("Status diperbarui", "success");
-      } catch (e) {
-        const set = getDeliveredRowSet();
-        if (nowDelivered) set.add(String(id));
-        else set.delete(String(id));
-        saveDeliveredRowSet(set);
-        patchDashboardOrdersInCache(
-          (r) => parseInt(r.id, 10) === id,
-          () => ({ delivered: nowDelivered }),
-        );
-        rerenderDashboardFromCache();
-        showAlert("Status diperbarui (lokal)", "success");
-      }
+  container.querySelectorAll("[data-person-detail-btn]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const personKey = btn.getAttribute("data-person-key") || "";
+      openDashboardOrderDetailModal(personKey);
     });
   });
   container.querySelectorAll("[data-paid-person-key]").forEach((btn) => {
@@ -9319,53 +9443,23 @@ function renderDashboard(groups) {
       }
     });
   });
-  container.querySelectorAll("[data-del-id]").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const id = parseInt(btn.getAttribute("data-del-id") || "", 10);
-      if (!id) return;
+}
 
-      const result = await Swal.fire({
-        title: "Hapus item order ini?",
-        text: "Tindakan ini tidak dapat dibatalkan!",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonColor: "#d33",
-        cancelButtonColor: "#3085d6",
-        confirmButtonText: "Ya, hapus!",
-        cancelButtonText: "Batal",
-        background: "#1f1410",
-        color: "#fef3c7",
-      });
-      if (!result.isConfirmed) return;
-
-      const pinOk = await confirmDeletePin();
-      if (!pinOk) return;
-
-      try {
-        const { ok, error } = await softDeleteOrderById(id);
-        if (!ok) {
-          if (isMissingColumnError(error, "deleted_at")) {
-            showAlert(
-              `Soft delete belum aktif. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
-                "orders",
-              )}`,
-              "error",
-            );
-            return;
-          }
-          console.error("Dashboard soft delete error:", error);
-          showAlert(
-            `Gagal menghapus item: ${error.message || "Unknown error"}`,
-            "error",
-          );
-          return;
-        }
-        showAlert("Item dipindahkan ke arsip", "success");
-        loadDashboard(true);
-      } catch (e) {
-        showAlert("Gagal menghapus (network)", "error");
-      }
+function setupOrderDetailModal() {
+  const modal = document.getElementById("orderDetailModal");
+  const closeBtn = document.getElementById("orderDetailModalClose");
+  if (modal) {
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) hideDashboardOrderDetailModal();
     });
+  }
+  if (closeBtn) closeBtn.addEventListener("click", hideDashboardOrderDetailModal);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const modalEl = document.getElementById("orderDetailModal");
+    if (modalEl && !modalEl.classList.contains("hidden")) {
+      hideDashboardOrderDetailModal();
+    }
   });
 }
 
@@ -10182,6 +10276,7 @@ function initDashboard() {
       if (e.target === modal) hideMemberModal();
     });
   if (cancelBtn) cancelBtn.addEventListener("click", hideMemberModal);
+  setupOrderDetailModal();
   if (saveBtn)
     saveBtn.addEventListener("click", async () => {
       const name = modalInput ? modalInput.value.trim() : "";
