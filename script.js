@@ -217,6 +217,9 @@ function getItemMax(name) {
 const state = { cart: [] };
 const dashboardCache = { orders: null, lastFetch: 0, filtered: {} };
 const dashboardDetailCache = new Map();
+let dashboardDetailModalKey = null;
+const dashboardDetailPendingStatus = new Map();
+const dashboardDetailInitialStatus = new Map();
 const __openAnnounceLock = new Set();
 const __closeAnnounceLock = new Set();
 const DASH_CACHE_KEY = "dashboardOrdersCacheV2";
@@ -1774,7 +1777,7 @@ function getDashboardFilterState() {
     nameVal: nameInput ? nameInput.value.trim() : "",
   };
 }
-function rerenderDashboardFromCache() {
+function rerenderDashboardFromCache(options = {}) {
   const { month, weekVal, nameVal } = getDashboardFilterState();
   const filterKey =
     (Number.isNaN(month) ? "" : String(month)) +
@@ -1784,7 +1787,7 @@ function rerenderDashboardFromCache() {
     normalizeDashNameFilter(nameVal).toLowerCase();
   const cached = dashboardCache.filtered[filterKey];
   if (cached && Array.isArray(cached.data)) {
-    renderDashboard(groupOrdersByBatch(cached.data));
+    renderDashboard(groupOrdersByBatch(cached.data), options);
     return;
   }
   loadDashboard(false);
@@ -8976,29 +8979,66 @@ function unlockPageScroll() {
 function hideDashboardOrderDetailModal() {
   const modal = document.getElementById("orderDetailModal");
   if (modal) modal.classList.add("hidden");
+  dashboardDetailModalKey = null;
+  dashboardDetailPendingStatus.clear();
+  dashboardDetailInitialStatus.clear();
   unlockPageScroll();
 }
+async function tryCloseDashboardOrderDetailModal() {
+  if (hasDashboardDetailPendingChanges()) {
+    const result = await Swal.fire({
+      title: "Ada perubahan belum disimpan",
+      text: "Status yang diubah belum disimpan. Yakin tutup modal?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d97706",
+      cancelButtonColor: "#64748b",
+      confirmButtonText: "Tutup saja",
+      cancelButtonText: "Kembali",
+      background: "#1f1410",
+      color: "#fef3c7",
+    });
+    if (!result.isConfirmed) return;
+  }
+  hideDashboardOrderDetailModal();
+}
+function applyDeliveredStatusBtn(btn, delivered) {
+  btn.textContent = delivered ? "Sudah" : "Belum";
+  btn.className = `px-2 py-1 rounded ${delivered ? "bg-green-700" : "bg-yellow-700"} text-white`;
+}
+function hasDashboardDetailPendingChanges() {
+  for (const [id, val] of dashboardDetailPendingStatus) {
+    if (dashboardDetailInitialStatus.get(id) !== val) return true;
+  }
+  return false;
+}
+function updateDashboardDetailSaveBtn() {
+  const saveBtn = document.getElementById("orderDetailModalSaveBtn");
+  if (!saveBtn) return;
+  const dirty = hasDashboardDetailPendingChanges();
+  saveBtn.disabled = !dirty;
+  saveBtn.classList.toggle("opacity-50", !dirty);
+  saveBtn.classList.toggle("cursor-not-allowed", !dirty);
+}
 function buildDashboardOrderDetailModalHtml(entry) {
-  const deliveredRows = getDeliveredRowSet();
   const rows = entry.items
-    .map(
-      (r) =>
+    .map((r) => {
+      const id = String(r.id);
+      const delivered = dashboardDetailPendingStatus.get(id) ?? false;
+      return (
         `<tr class="table-row-hover border-b border-[#f3e8d8] dark:border-[#3d342d]">` +
         `<td class="px-3 py-2.5">${r.order_no || r.order_id || "-"}</td>` +
         `<td class="px-3 py-2.5 text-stone-400">${new Date(r.waktu).toLocaleString()}</td>` +
         `<td class="px-3 py-2.5 font-medium">${r.item}</td>` +
         `<td class="px-3 py-2.5 text-center">${r.qty}</td>` +
         `<td class="px-3 py-2.5 text-right">${fmt(r.subtotal)}</td>` +
-        `<td class="px-3 py-2.5 text-center"><button data-row-id="${r.id}" class="px-2 py-1 rounded ${
-          r.delivered || deliveredRows.has(String(r.id))
-            ? "bg-green-700"
-            : "bg-yellow-700"
-        } text-white">${
-          r.delivered || deliveredRows.has(String(r.id)) ? "Sudah" : "Belum"
-        }</button></td>` +
-        `<td class="px-3 py-2.5 text-right"><button data-del-id="${r.id}" class="px-2 py-1 rounded bg-red-700 text-white">Hapus</button></td>` +
-        `</tr>`,
-    )
+        `<td class="px-3 py-2.5 text-center"><button type="button" data-status-toggle data-order-id="${r.id}" class="px-2 py-1 rounded ${
+          delivered ? "bg-green-700" : "bg-yellow-700"
+        } text-white">${delivered ? "Sudah" : "Belum"}</button></td>` +
+        `<td class="px-3 py-2.5 text-right"><button type="button" data-del-id="${r.id}" class="px-2 py-1 rounded bg-red-700 text-white">Hapus</button></td>` +
+        `</tr>`
+      );
+    })
     .join("");
   return (
     `<div class="overflow-x-auto scroll-table">` +
@@ -9015,57 +9055,99 @@ function buildDashboardOrderDetailModalHtml(entry) {
     `</tr></thead><tbody class="divide-y divide-[#3d342d]/50 text-[#fef3c7]">` +
     rows +
     `</tbody></table></div>` +
-    `<div class="flex justify-end mt-4 pt-3 border-t border-amber-500/20 text-sm">` +
-    `<span class="text-stone-400 mr-2">Total:</span>` +
+    `<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-3 border-t border-amber-500/20">` +
+    `<p class="text-xs text-stone-500">Ubah status item lalu klik Simpan</p>` +
+    `<div class="flex items-center gap-3 sm:gap-4 flex-wrap justify-end">` +
+    `<div class="text-sm">` +
+    `<span class="text-stone-400 mr-1">Total:</span>` +
     `<span class="font-bold text-yellow-400">${fmt(entry.personTotal)}</span>` +
     `<span class="text-stone-500 mx-2">•</span>` +
     `<span class="text-stone-400">${entry.personQty} qty</span>` +
-    `</div>`
+    `</div>` +
+    `<button type="button" id="orderDetailModalSaveBtn" disabled class="px-4 py-2 rounded-lg btn-primary text-sm font-bold opacity-50 cursor-not-allowed">Simpan</button>` +
+    `</div></div>`
   );
+}
+async function saveDashboardDetailModalStatus() {
+  const changes = [];
+  dashboardDetailPendingStatus.forEach((delivered, id) => {
+    if (dashboardDetailInitialStatus.get(id) !== delivered) {
+      changes.push({ id: parseInt(id, 10), delivered });
+    }
+  });
+  if (!changes.length) return;
+  const saveBtn = document.getElementById("orderDetailModalSaveBtn");
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Menyimpan...";
+  }
+  const personKey = dashboardDetailModalKey;
+  try {
+    const results = await Promise.all(
+      changes.map((c) =>
+        supabase.from("orders").update({ delivered: c.delivered }).eq("id", c.id),
+      ),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed) throw failed.error;
+    const deliveredSet = getDeliveredRowSet();
+    changes.forEach((c) => deliveredSet.delete(String(c.id)));
+    saveDeliveredRowSet(deliveredSet);
+    changes.forEach((c) => {
+      patchDashboardOrdersInCache(
+        (r) => parseInt(r.id, 10) === c.id,
+        () => ({ delivered: c.delivered }),
+      );
+      dashboardDetailInitialStatus.set(String(c.id), c.delivered);
+      const entry = dashboardDetailCache.get(personKey);
+      if (entry) {
+        const item = entry.items.find((x) => parseInt(x.id, 10) === c.id);
+        if (item) item.delivered = c.delivered;
+      }
+    });
+    invalidateDashboardCache();
+    rerenderDashboardFromCache({ reopenDetailModal: personKey });
+    showAlert(`${changes.length} status diperbarui`, "success");
+  } catch (e) {
+    changes.forEach((c) => {
+      const set = getDeliveredRowSet();
+      if (c.delivered) set.add(String(c.id));
+      else set.delete(String(c.id));
+      saveDeliveredRowSet(set);
+      patchDashboardOrdersInCache(
+        (r) => parseInt(r.id, 10) === c.id,
+        () => ({ delivered: c.delivered }),
+      );
+      dashboardDetailInitialStatus.set(String(c.id), c.delivered);
+      const entry = dashboardDetailCache.get(personKey);
+      if (entry) {
+        const item = entry.items.find((x) => parseInt(x.id, 10) === c.id);
+        if (item) item.delivered = c.delivered;
+      }
+    });
+    rerenderDashboardFromCache({ reopenDetailModal: personKey });
+    showAlert("Status diperbarui (lokal)", "success");
+  } finally {
+    updateDashboardDetailSaveBtn();
+    if (saveBtn) saveBtn.textContent = "Simpan";
+  }
 }
 function wireDashboardItemActions(root) {
   if (!root) return;
-  const deliveredRows = getDeliveredRowSet();
-  root.querySelectorAll("[data-row-id]").forEach((btn) => {
-    const id = parseInt(btn.getAttribute("data-row-id") || "", 10);
-    if (deliveredRows.has(String(id))) {
-      btn.textContent = "Sudah";
-      btn.className = "px-2 py-1 rounded bg-green-700 text-white";
-    }
-    btn.addEventListener("click", async () => {
-      const nowDelivered = btn.textContent === "Belum";
-      try {
-        const { error } = await supabase
-          .from("orders")
-          .update({ delivered: nowDelivered })
-          .eq("id", id);
-        if (error) throw error;
-        const deliveredSet = getDeliveredRowSet();
-        deliveredSet.delete(String(id));
-        saveDeliveredRowSet(deliveredSet);
-        patchDashboardOrdersInCache(
-          (r) => parseInt(r.id, 10) === id,
-          () => ({ delivered: nowDelivered }),
-        );
-        invalidateDashboardCache();
-        hideDashboardOrderDetailModal();
-        await loadDashboard(true);
-        showAlert("Status diperbarui", "success");
-      } catch (e) {
-        const set = getDeliveredRowSet();
-        if (nowDelivered) set.add(String(id));
-        else set.delete(String(id));
-        saveDeliveredRowSet(set);
-        patchDashboardOrdersInCache(
-          (r) => parseInt(r.id, 10) === id,
-          () => ({ delivered: nowDelivered }),
-        );
-        hideDashboardOrderDetailModal();
-        rerenderDashboardFromCache();
-        showAlert("Status diperbarui (lokal)", "success");
-      }
+  root.querySelectorAll("[data-status-toggle]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = String(btn.getAttribute("data-order-id") || "");
+      if (!id) return;
+      const next = !(dashboardDetailPendingStatus.get(id) ?? false);
+      dashboardDetailPendingStatus.set(id, next);
+      applyDeliveredStatusBtn(btn, next);
+      updateDashboardDetailSaveBtn();
     });
   });
+  const saveBtn = root.querySelector("#orderDetailModalSaveBtn");
+  if (saveBtn) {
+    saveBtn.addEventListener("click", () => saveDashboardDetailModalStatus());
+  }
   root.querySelectorAll("[data-del-id]").forEach((btn) => {
     btn.addEventListener("click", async () => {
       const id = parseInt(btn.getAttribute("data-del-id") || "", 10);
@@ -9120,19 +9202,31 @@ function openDashboardOrderDetailModal(personKey) {
   const subtitleEl = document.getElementById("orderDetailModalSubtitle");
   const bodyEl = document.getElementById("orderDetailModalBody");
   if (!entry || !modal || !bodyEl) return;
+  dashboardDetailModalKey = personKey;
+  dashboardDetailPendingStatus.clear();
+  dashboardDetailInitialStatus.clear();
+  const deliveredRows = getDeliveredRowSet();
+  entry.items.forEach((r) => {
+    const id = String(r.id);
+    const delivered = !!(r.delivered || deliveredRows.has(id));
+    dashboardDetailPendingStatus.set(id, delivered);
+    dashboardDetailInitialStatus.set(id, delivered);
+  });
   if (titleEl) titleEl.textContent = entry.name;
   if (subtitleEl) {
     subtitleEl.textContent = `Batch M${entry.month}-W${entry.week} • ${entry.items.length} item • Total ${fmt(entry.personTotal)}`;
   }
   bodyEl.innerHTML = buildDashboardOrderDetailModalHtml(entry);
   wireDashboardItemActions(bodyEl);
+  updateDashboardDetailSaveBtn();
   modal.classList.remove("hidden");
   lockPageScroll();
 }
-function renderDashboard(groups) {
+function renderDashboard(groups, options = {}) {
+  const reopenKey = options.reopenDetailModal || null;
   const container = document.getElementById("dashboardBody");
   if (!container) return;
-  hideDashboardOrderDetailModal();
+  if (!reopenKey) hideDashboardOrderDetailModal();
   dashboardDetailCache.clear();
   const keys = Object.keys(groups).sort(
     (a, b) => parseInt(b, 10) - parseInt(a, 10),
@@ -9464,6 +9558,9 @@ function renderDashboard(groups) {
       }
     });
   });
+  if (reopenKey && dashboardDetailCache.has(reopenKey)) {
+    openDashboardOrderDetailModal(reopenKey);
+  }
 }
 
 function setupOrderDetailModal() {
@@ -9471,7 +9568,7 @@ function setupOrderDetailModal() {
   const closeBtn = document.getElementById("orderDetailModalClose");
   if (modal) {
     modal.addEventListener("click", (e) => {
-      if (e.target === modal) hideDashboardOrderDetailModal();
+      if (e.target === modal) tryCloseDashboardOrderDetailModal();
     });
     const blockBackdropScroll = (e) => {
       if (e.target === modal) e.preventDefault();
@@ -9479,12 +9576,12 @@ function setupOrderDetailModal() {
     modal.addEventListener("wheel", blockBackdropScroll, { passive: false });
     modal.addEventListener("touchmove", blockBackdropScroll, { passive: false });
   }
-  if (closeBtn) closeBtn.addEventListener("click", hideDashboardOrderDetailModal);
+  if (closeBtn) closeBtn.addEventListener("click", tryCloseDashboardOrderDetailModal);
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     const modalEl = document.getElementById("orderDetailModal");
     if (modalEl && !modalEl.classList.contains("hidden")) {
-      hideDashboardOrderDetailModal();
+      tryCloseDashboardOrderDetailModal();
     }
   });
 }
