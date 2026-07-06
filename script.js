@@ -128,19 +128,24 @@ const MICRO_FULL_ATTACHMENT_COMPONENTS = [
   { name: "Extended SMG Clip", kategori: "Attachment" },
 ];
 
-function getEffectivePrice(kategori, basePrice) {
-  if (kategori === "Gun" || kategori === "Attachment") {
+function getEffectivePrice(kategori, basePrice, role = null) {
+  if (!isAdminRole(role) && (kategori === "Gun" || kategori === "Attachment")) {
     return Math.round(basePrice * 1.1);
   }
   return basePrice;
 }
-function getMicroFullAttachmentBundlePrice() {
+function isAdminRole(role) {
+  return String(role || "")
+    .trim()
+    .toLowerCase() === "admin";
+}
+function getMicroFullAttachmentBundlePrice(role = null) {
   return MICRO_FULL_ATTACHMENT_COMPONENTS.reduce((sum, entry) => {
     const found = (CATALOG[entry.kategori] || []).find(
       (i) => i.name === entry.name,
     );
     if (!found) return sum;
-    return sum + getEffectivePrice(entry.kategori, found.price);
+    return sum + getEffectivePrice(entry.kategori, found.price, role);
   }, 0);
 }
 const ITEM_MAX_LIMITS = {
@@ -2258,6 +2263,7 @@ function applyCurrentMemberToOrderUI(member) {
     status.classList.toggle("text-red-500", !(member && member.id));
   }
   updateNameValidity();
+  refreshOrderMemberRole();
 }
 
 function applyCurrentMemberToStoranUI(member) {
@@ -4626,17 +4632,30 @@ function populateItems() {
   const kategori =
     document.getElementById("kategori").value || Object.keys(CATALOG)[0];
   const itemEl = document.getElementById("item");
+  const role = window.__orderMemberRole || window.__currentMember?.role || null;
   itemEl.innerHTML = "";
   CATALOG[kategori].forEach((it) => {
     const o = document.createElement("option");
     o.value = it.name;
     const displayPrice =
       it.name === MICRO_FULL_ATTACHMENT_BUNDLE_NAME
-        ? getMicroFullAttachmentBundlePrice()
-        : getEffectivePrice(kategori, it.price);
+        ? getMicroFullAttachmentBundlePrice(role)
+        : getEffectivePrice(kategori, it.price, role);
     o.textContent = `${it.name} (${fmt(displayPrice)})`;
     itemEl.appendChild(o);
   });
+}
+async function refreshOrderMemberRole() {
+  const hidden = document.getElementById("memberId");
+  const memberId = hidden ? parseInt(hidden.value || "", 10) : NaN;
+  if (!Number.isNaN(memberId) && memberId) {
+    window.__orderMemberRole = await getMemberRole(memberId);
+  } else if (window.__currentMember?.role) {
+    window.__orderMemberRole = window.__currentMember.role;
+  } else {
+    window.__orderMemberRole = null;
+  }
+  populateItems();
 }
 
 function getRolePermissions(role) {
@@ -4789,7 +4808,7 @@ async function addToCart() {
         state.cart.push({
           item: entry.name,
           kategori: entry.kategori,
-          price: getEffectivePrice(entry.kategori, itemInCatalog.price),
+          price: getEffectivePrice(entry.kategori, itemInCatalog.price, role),
           qty,
           scrap: itemInCatalog.scrap || 0,
         });
@@ -4857,7 +4876,7 @@ async function addToCart() {
     state.cart.push({
       item: itemName,
       kategori,
-      price: getEffectivePrice(kategori, item.price),
+      price: getEffectivePrice(kategori, item.price, role),
       qty,
       scrap: item.scrap || 0,
     });
