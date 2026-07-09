@@ -220,6 +220,7 @@ function getItemMax(name) {
 }
 
 const state = { cart: [] };
+let __orderSubmitInFlight = false;
 const dashboardCache = { orders: null, lastFetch: 0, filtered: {} };
 const dashboardDetailCache = new Map();
 let dashboardDetailModalKey = null;
@@ -8084,58 +8085,59 @@ function startEditMyOrders() {
 }
 
 async function submitOrder() {
-  const statusEl = document.getElementById("status");
-  const currentMember = window.__currentMember || null;
-  const nama =
-    currentMember && currentMember.nama
-      ? String(currentMember.nama)
-      : document.getElementById("nama").value.trim();
-  const winCurrent = supabase ? await fetchActiveOrderWindow(null) : null;
-  const effectiveOrderanke =
-    winCurrent && winCurrent.orderanke
-      ? parseInt(winCurrent.orderanke, 10)
-      : NaN;
-  const isMaint = !!(window && window.MAINTENANCE_MODE);
-  if (isMaint && !["leo", "melky"].includes(nama.toLowerCase())) {
-    showAlert("Sedang maintenance: Sebentar yaa kawan", "error");
-    return;
-  }
-  if (!nama) {
-    showAlert("Nama pemesan wajib diisi", "error");
-    return;
-  }
-  // console.log(effectiveOrderanke);
-  if (state.cart.length === 0) {
-    //  statusEl.textContent = "Keranjang kosong";
-    showAlert("Keranjang kosong", "error");
-    return;
-  }
-  const totalQty = (state.cart || []).reduce((a, c) => a + (c.qty || 0), 0);
-  if (totalQty < 2) {
-    showAlert("Jumlah total item minimal 2", "error");
-    return;
-  }
-  //   statusEl.textContent = "Menyimpan...";
-  showAlert("Menyimpan...", "info");
-  if (!supabase) {
-    //  statusEl.textContent = "Koneksi Supabase belum dikonfigurasi";
-    showAlert("Koneksi Supabase belum dikonfigurasi", "error");
-    return;
-  }
+  if (__orderSubmitInFlight) return;
+
   const submitBtn = document.getElementById("submitBtn");
   const originalBtnHtml = submitBtn ? submitBtn.innerHTML : "";
+  __orderSubmitInFlight = true;
   if (submitBtn) {
     submitBtn.disabled = true;
     submitBtn.classList.add("opacity-60", "cursor-not-allowed");
     submitBtn.innerHTML = `<span class=\"inline-flex items-center gap-2\"><svg class=\"animate-spin h-4 w-4\" viewBox=\"0 0 24 24\" fill=\"none\"><circle class=\"opacity-25\" cx=\"12\" cy=\"12\" r=\"10\" stroke=\"currentColor\" stroke-width=\"4\"></circle><path class=\"opacity-75\" fill=\"currentColor\" d=\"M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z\"></path></svg> Saving...</span>`;
   }
   const endLoading = () => {
+    __orderSubmitInFlight = false;
     if (submitBtn) {
       submitBtn.disabled = false;
       submitBtn.classList.remove("opacity-60", "cursor-not-allowed");
       submitBtn.innerHTML = originalBtnHtml;
     }
   };
+
+  const statusEl = document.getElementById("status");
+  const currentMember = window.__currentMember || null;
+  const nama =
+    currentMember && currentMember.nama
+      ? String(currentMember.nama)
+      : document.getElementById("nama").value.trim();
+  const isMaint = !!(window && window.MAINTENANCE_MODE);
+  if (isMaint && !["leo", "melky"].includes(nama.toLowerCase())) {
+    showAlert("Sedang maintenance: Sebentar yaa kawan", "error");
+    endLoading();
+    return;
+  }
+  if (!nama) {
+    showAlert("Nama pemesan wajib diisi", "error");
+    endLoading();
+    return;
+  }
+  if (state.cart.length === 0) {
+    showAlert("Keranjang kosong", "error");
+    endLoading();
+    return;
+  }
+  const totalQty = (state.cart || []).reduce((a, c) => a + (c.qty || 0), 0);
+  if (totalQty < 2) {
+    showAlert("Jumlah total item minimal 2", "error");
+    endLoading();
+    return;
+  }
+  showAlert("Menyimpan...", "info");
+  if (!supabase) {
+    showAlert("Koneksi Supabase belum dikonfigurasi", "error");
+    endLoading();
+    return;
+  }
   const member_id =
     currentMember && currentMember.id
       ? parseInt(String(currentMember.id), 10)
@@ -8145,6 +8147,12 @@ async function submitOrder() {
     endLoading();
     return;
   }
+
+  const winCurrent = supabase ? await fetchActiveOrderWindow(null) : null;
+  const effectiveOrderanke =
+    winCurrent && winCurrent.orderanke
+      ? parseInt(winCurrent.orderanke, 10)
+      : NaN;
   const open = await ensureOrderingOpen();
   if (!open) {
     showAlert("Order belum dibuka atau sudah ditutup", "error");
