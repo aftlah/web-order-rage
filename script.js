@@ -7752,23 +7752,9 @@ async function submitStoran() {
     statusVal === "SUDAH"
       ? "Lunas 50k & 50 Metal Scrap"
       : "Belum storan minggu ini";
-  let periodeLabel = "";
-  let periodeValue = null;
-  if (supabase) {
-    try {
-      const win = await fetchActiveOrderWindow(null);
-      const fallbackWin = win || (await fetchLatestOrderWindow("order"));
-      if (fallbackWin && fallbackWin.orderanke) {
-        const v = parseInt(fallbackWin.orderanke, 10);
-        if (!Number.isNaN(v) && v > 0) {
-          periodeValue = v;
-          const m = Math.floor(v / 10);
-          const w = v % 10;
-          periodeLabel = `M${m}-W${w} (#${v})`;
-        }
-      }
-    } catch (e) {}
-  }
+  const weekPeriod = getStoranCalendarWeekPeriod(now);
+  const periodeLabel = weekPeriod.label;
+  const periodeValue = weekPeriod.periodeValue;
 
   let msg = "```";
   msg += `\nSTORAN MINGGUAN`;
@@ -7836,20 +7822,10 @@ async function loadStoranTable() {
 
   let periodeLabel = "";
   let periodeValue = null;
-  let isFallbackPeriod = false;
   try {
-    const win = await fetchActiveOrderWindow(null);
-    const fallbackWin = win || (await fetchLatestOrderWindow("order"));
-    if (fallbackWin && fallbackWin.orderanke) {
-      const v = parseInt(fallbackWin.orderanke, 10);
-      if (!Number.isNaN(v) && v > 0) {
-        periodeValue = v;
-        const m = Math.floor(v / 10);
-        const w = v % 10;
-        isFallbackPeriod = !win;
-        periodeLabel = `${isFallbackPeriod ? "TERAKHIR • " : ""}M${m}-W${w} (#${v})`;
-      }
-    }
+    const weekPeriod = getStoranCalendarWeekPeriod();
+    periodeValue = weekPeriod.periodeValue;
+    periodeLabel = weekPeriod.label;
   } catch (e) {}
 
   labelEl.textContent = periodeLabel || "Periode tidak tersedia";
@@ -8386,6 +8362,97 @@ async function setOrderNoUI() {
 
 function getNowIso() {
   return new Date().toISOString();
+}
+
+function formatStoranDayMonth(d) {
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "Mei",
+    "Jun",
+    "Jul",
+    "Agu",
+    "Sep",
+    "Okt",
+    "Nov",
+    "Des",
+  ];
+  return `${d.getDate()} ${months[d.getMonth()]}`;
+}
+
+/** Minggu kalender Senin–Minggu (lokal). periodeValue = ISO_year * 100 + ISO_week */
+function getStoranCalendarWeekPeriod(date = new Date()) {
+  const local = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+    12,
+    0,
+    0,
+    0,
+  );
+  const day = local.getDay(); // 0=Sun .. 6=Sat
+  const daysFromMonday = day === 0 ? 6 : day - 1;
+  const start = new Date(
+    local.getFullYear(),
+    local.getMonth(),
+    local.getDate() - daysFromMonday,
+    0,
+    0,
+    0,
+    0,
+  );
+  const end = new Date(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate() + 6,
+    23,
+    59,
+    59,
+    999,
+  );
+
+  // ISO week: Thursday of this week determines ISO year/week
+  const thursday = new Date(
+    start.getFullYear(),
+    start.getMonth(),
+    start.getDate() + 3,
+    12,
+    0,
+    0,
+    0,
+  );
+  const isoYear = thursday.getFullYear();
+  const jan4 = new Date(isoYear, 0, 4, 12, 0, 0, 0);
+  const jan4Day = jan4.getDay();
+  const jan4FromMon = jan4Day === 0 ? 6 : jan4Day - 1;
+  const week1Monday = new Date(
+    jan4.getFullYear(),
+    jan4.getMonth(),
+    jan4.getDate() - jan4FromMon,
+    0,
+    0,
+    0,
+    0,
+  );
+  const isoWeek =
+    Math.floor((start.getTime() - week1Monday.getTime()) / 86400000 / 7) + 1;
+  const periodeValue = isoYear * 100 + isoWeek;
+
+  const sameMonth = start.getMonth() === end.getMonth();
+  const sameYear = start.getFullYear() === end.getFullYear();
+  let label;
+  if (sameMonth && sameYear) {
+    label = `${start.getDate()}–${end.getDate()} ${formatStoranDayMonth(end).split(" ")[1]} ${end.getFullYear()}`;
+  } else if (sameYear) {
+    label = `${formatStoranDayMonth(start)}–${formatStoranDayMonth(end)} ${end.getFullYear()}`;
+  } else {
+    label = `${formatStoranDayMonth(start)} ${start.getFullYear()}–${formatStoranDayMonth(end)} ${end.getFullYear()}`;
+  }
+
+  return { periodeValue, start, end, label };
 }
 
 function decodeOrderanke(val) {
@@ -13410,10 +13477,10 @@ async function loadRekapData() {
     if (drugsCount) drugsCount.textContent = "0";
   }
 
-  if (needsStoran && orderWin && orderWin.orderanke) {
-    const v = parseInt(orderWin.orderanke, 10);
-    const { m, w, raw } = decodeOrderanke(v);
-    if (storanLabel) storanLabel.textContent = `M${m}-W${w} (#${raw})`;
+  if (needsStoran) {
+    const weekPeriod = getStoranCalendarWeekPeriod();
+    const v = weekPeriod.periodeValue;
+    if (storanLabel) storanLabel.textContent = weekPeriod.label;
 
     const [
       { data: logs, error: logErr },
@@ -13456,12 +13523,6 @@ async function loadRekapData() {
       if (storanCash) storanCash.textContent = fmt(done * 50000);
       if (storanScrap) storanScrap.textContent = String(done * 50);
     }
-  } else if (needsStoran) {
-    if (storanLabel) storanLabel.textContent = "Tidak aktif";
-    if (storanDone) storanDone.textContent = "0";
-    if (storanPending) storanPending.textContent = "0";
-    if (storanCash) storanCash.textContent = "$ 0";
-    if (storanScrap) storanScrap.textContent = "0";
   }
 
   if (needsKas) {
