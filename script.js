@@ -360,6 +360,7 @@ const DISCORD_RESYNC_TABLES = new Set([
   "drugs_sales",
   "rage_cash_logs",
   "orders",
+  "storan_logs",
 ]);
 
 function getDiscordWebhookForTable(tableName) {
@@ -374,6 +375,8 @@ function getDiscordWebhookForTable(tableName) {
       return getAbsenKotaWebhookUrl();
     case "orders":
       return getOrderWebhookUrl();
+    case "storan_logs":
+      return getStoranWebhookUrl();
     default:
       return "";
   }
@@ -812,6 +815,14 @@ function getNitipCuciWebhookUrl() {
   );
 }
 
+function getStoranWebhookUrl() {
+  return (
+    (window && window.DISCORD_STORAN_WEBHOOK_URL) ||
+    (window && window.DISCORD_WEBHOOK_URL) ||
+    ""
+  );
+}
+
 function getDrugsWebhookUrl() {
   return (
     (window && window.DISCORD_DRUGS_WEBHOOK_URL) ||
@@ -998,7 +1009,7 @@ function readRememberedNitipDiscordMessageId(rowId) {
   if (window.__nitipDiscordByRowId && window.__nitipDiscordByRowId[id]) {
     return normalizeDiscordMessageId(window.__nitipDiscordByRowId[id]);
   }
-  return readCachedDiscordMsgId("nitip_cuci_logs", id);
+  return getCachedDiscordMsgId("nitip_cuci_logs", id);
 }
 
 const TABLE_ROW_ID_UUID = new Set(["drugs_sales"]);
@@ -1057,7 +1068,7 @@ function cacheDiscordMsgId(tableName, rowId, messageId) {
   } catch (e) {}
 }
 
-function readCachedDiscordMsgId(tableName, rowId) {
+function getCachedDiscordMsgId(tableName, rowId) {
   const id = normalizeTableRowId(tableName, rowId);
   if (!tableName || id == null) return null;
   const cache = readDiscordMsgCacheAll();
@@ -1114,7 +1125,7 @@ async function fetchDiscordMessageIdsForRows(tableName, rowIds) {
 
   ids.forEach((id) => {
     if (!byId.has(String(id))) {
-      const cached = readCachedDiscordMsgId(tableName, id);
+      const cached = getCachedDiscordMsgId(tableName, id);
       if (cached) byId.set(String(id), cached);
     }
   });
@@ -1131,7 +1142,7 @@ async function resolveDiscordMessageIdForRow(tableName, row) {
     if (mid) return mid;
   }
   if (row.id != null) {
-    mid = readCachedDiscordMsgId(tableName, row.id);
+    mid = getCachedDiscordMsgId(tableName, row.id);
     if (mid) return mid;
     const ids = await fetchDiscordMessageIdsForRows(tableName, [row.id]);
     if (ids.length) return ids[0];
@@ -6644,6 +6655,10 @@ function initStoran(member) {
   }
   const reload = document.getElementById("storanReloadBtn");
   if (reload) reload.addEventListener("click", () => loadStoranTable());
+  const periodeFilter = document.getElementById("storanPeriodeFilter");
+  if (periodeFilter) {
+    periodeFilter.addEventListener("change", () => loadStoranTable());
+  }
   loadStoranTable();
   initNitipCuci(member);
 }
@@ -7653,6 +7668,8 @@ function resetStoranForm() {
   const noteEl = document.getElementById("storanCatatan");
   const statusText = document.getElementById("storanNamaStatus");
   if (editIdEl) editIdEl.value = "";
+  const editPeriodeEl = document.getElementById("storanEditPeriode");
+  if (editPeriodeEl) editPeriodeEl.value = "";
   if (statusEl) statusEl.value = "SUDAH";
   if (receiverEl) receiverEl.value = "";
   if (noteEl) noteEl.value = "";
@@ -7675,6 +7692,7 @@ function resetStoranForm() {
 
 function startEditStoran(row) {
   const editIdEl = document.getElementById("storanEditId");
+  const editPeriodeEl = document.getElementById("storanEditPeriode");
   const nameEl = document.getElementById("storanNama");
   const memberIdEl = document.getElementById("storanMemberId");
   const statusEl = document.getElementById("storanStatus");
@@ -7682,6 +7700,10 @@ function startEditStoran(row) {
   const noteEl = document.getElementById("storanCatatan");
   const statusText = document.getElementById("storanNamaStatus");
   if (editIdEl) editIdEl.value = row && row.id ? String(row.id) : "";
+  if (editPeriodeEl) {
+    editPeriodeEl.value =
+      row && row.periodeValue ? String(row.periodeValue) : "";
+  }
   if (nameEl) nameEl.value = row && row.nama ? String(row.nama) : "";
   if (memberIdEl)
     memberIdEl.value = row && row.memberId ? String(row.memberId) : "";
@@ -7753,8 +7775,18 @@ async function submitStoran() {
       ? "Lunas 50k & 50 Metal Scrap"
       : "Belum storan minggu ini";
   const weekPeriod = getStoranCalendarWeekPeriod(now);
-  const periodeLabel = weekPeriod.label;
-  const periodeValue = weekPeriod.periodeValue;
+  let periodeValue = weekPeriod.periodeValue;
+  let periodeLabel = weekPeriod.label;
+  if (!Number.isNaN(editingId) && editingId) {
+    const editPeriodeEl = document.getElementById("storanEditPeriode");
+    const editPeriode = editPeriodeEl
+      ? parseInt(editPeriodeEl.value || "", 10)
+      : NaN;
+    if (!Number.isNaN(editPeriode) && editPeriode > 0) {
+      periodeValue = editPeriode;
+      periodeLabel = formatStoranPeriodeLabel(editPeriode, false);
+    }
+  }
 
   let msg = "```";
   msg += `\nSTORAN MINGGUAN`;
@@ -7767,33 +7799,97 @@ async function submitStoran() {
   msg += "\n```";
 
   try {
-    if (supabase) {
-      const payload = {
-        member_id: memberId,
-        nama,
-        status: statusVal,
-        status_label: labelStatus,
-        periode_orderanke: periodeValue,
-        penerima,
-        catatan,
-        waktu: now.toISOString(),
-      };
-      const { error: logErr } =
-        !Number.isNaN(editingId) && editingId
-          ? await supabase
-              .from("storan_logs")
-              .update(payload)
-              .eq("id", editingId)
-          : await supabase.from("storan_logs").insert(payload);
-      if (logErr) {
-        console.error("Gagal menyimpan storan_logs:", logErr);
-        showAlert("Gagal menyimpan log storan ke database", "error");
+    if (!supabase) {
+      showAlert("Koneksi Supabase belum dikonfigurasi", "error");
+      return;
+    }
+
+    const hook = getStoranWebhookUrl();
+    let savedRowId =
+      !Number.isNaN(editingId) && editingId ? editingId : null;
+    let prevDiscordMsgId = "";
+
+    if (savedRowId) {
+      try {
+        const { data: oldRows } = await supabase
+          .from("storan_logs")
+          .select("id,discord_message_id")
+          .eq("id", savedRowId)
+          .limit(1);
+        prevDiscordMsgId = String(
+          (oldRows && oldRows[0] && oldRows[0].discord_message_id) || "",
+        ).trim();
+        if (!prevDiscordMsgId) {
+          prevDiscordMsgId =
+            getCachedDiscordMsgId("storan_logs", savedRowId) || "";
+        }
+      } catch (e) {}
+      if (prevDiscordMsgId) {
+        await deleteDiscordWebhookMessage(hook, prevDiscordMsgId);
       }
     }
-    const hook = (window && window.DISCORD_STORAN_WEBHOOK_URL) || "";
-    await postToDiscord(msg, hook);
+
+    const payload = {
+      member_id: memberId,
+      nama,
+      status: statusVal,
+      status_label: labelStatus,
+      periode_orderanke: periodeValue,
+      penerima,
+      catatan,
+      waktu: now.toISOString(),
+    };
+
+    let logErr = null;
+    if (savedRowId) {
+      const res = await supabase
+        .from("storan_logs")
+        .update(payload)
+        .eq("id", savedRowId)
+        .select("id")
+        .maybeSingle();
+      logErr = res.error;
+      if (res.data && res.data.id) savedRowId = res.data.id;
+    } else {
+      const res = await supabase
+        .from("storan_logs")
+        .insert(payload)
+        .select("id")
+        .maybeSingle();
+      logErr = res.error;
+      if (res.data && res.data.id) savedRowId = res.data.id;
+      if (logErr && isMissingColumnError(logErr, "deleted_at")) {
+        // ignore
+      }
+    }
+
+    if (logErr) {
+      if (isMissingColumnError(logErr, "discord_message_id")) {
+        // column optional; continue without it
+      } else {
+        console.error("Gagal menyimpan storan_logs:", logErr);
+        showAlert("Gagal menyimpan log storan ke database", "error");
+        return;
+      }
+    }
+
+    const discordMessageId = await postToDiscord(msg, hook);
+    if (savedRowId && discordMessageId) {
+      const persist = await persistDiscordMessageId(
+        "storan_logs",
+        savedRowId,
+        discordMessageId,
+      );
+      if (persist && persist.reason === "missing_column") {
+        showAlert(
+          "Storan tersimpan. Jalankan di Supabase: alter table public.storan_logs add column if not exists discord_message_id text;",
+          "warning",
+        );
+      }
+    }
+
     showAlert(
-      !Number.isNaN(editingId) && editingId
+      savedRowId && !Number.isNaN(editingId) && editingId
         ? "Storan berhasil diupdate"
         : "Storan terkirim ke Discord",
       "success",
@@ -7814,21 +7910,24 @@ async function loadStoranTable() {
   const body = document.getElementById("storanTableBody");
   const empty = document.getElementById("storanTableEmpty");
   const labelEl = document.getElementById("storanPeriodeLabel");
+  const titleEl = document.getElementById("storanRekapTitle");
   if (!body || !empty || !labelEl) return;
 
   body.innerHTML = "";
   empty.textContent = "Memuat data storan...";
   empty.classList.remove("hidden");
 
-  let periodeLabel = "";
-  let periodeValue = null;
-  try {
-    const weekPeriod = getStoranCalendarWeekPeriod();
-    periodeValue = weekPeriod.periodeValue;
-    periodeLabel = weekPeriod.label;
-  } catch (e) {}
+  await loadStoranPeriodeFilterOptions();
+  const selected = resolveSelectedStoranPeriod();
+  const periodeValue = selected.periodeValue;
+  const periodeLabel = selected.label || formatStoranPeriodeLabel(periodeValue);
 
   labelEl.textContent = periodeLabel || "Periode tidak tersedia";
+  if (titleEl) {
+    titleEl.textContent = selected.isCurrent
+      ? "Rekap Storan Minggu Ini"
+      : "Rekap Storan (History)";
+  }
   if (!periodeValue) {
     empty.textContent = "Belum ada data periode storan";
     return;
@@ -7839,9 +7938,10 @@ async function loadStoranTable() {
       supabase
         .from("storan_logs")
         .select(
-          "id,member_id,nama,penerima,status,status_label,catatan,waktu,periode_orderanke",
+          "id,member_id,nama,penerima,status,status_label,catatan,waktu,periode_orderanke,discord_message_id,deleted_at",
         )
         .eq("periode_orderanke", periodeValue)
+        .is("deleted_at", null)
         .order("waktu", { ascending: true }),
       supabase
         .from("members")
@@ -7850,16 +7950,144 @@ async function loadStoranTable() {
     ]);
 
   if (logErr || memErr) {
+    // Fallback bertahap jika kolom soft-delete / discord_message_id belum ada
+    let logsFallback = null;
+    if (logErr && !memErr) {
+      const attempts = [
+        () =>
+          supabase
+            .from("storan_logs")
+            .select(
+              "id,member_id,nama,penerima,status,status_label,catatan,waktu,periode_orderanke,discord_message_id",
+            )
+            .eq("periode_orderanke", periodeValue)
+            .is("deleted_at", null)
+            .order("waktu", { ascending: true }),
+        () =>
+          supabase
+            .from("storan_logs")
+            .select(
+              "id,member_id,nama,penerima,status,status_label,catatan,waktu,periode_orderanke,discord_message_id",
+            )
+            .eq("periode_orderanke", periodeValue)
+            .order("waktu", { ascending: true }),
+        () =>
+          supabase
+            .from("storan_logs")
+            .select(
+              "id,member_id,nama,penerima,status,status_label,catatan,waktu,periode_orderanke",
+            )
+            .eq("periode_orderanke", periodeValue)
+            .order("waktu", { ascending: true }),
+      ];
+      for (const run of attempts) {
+        const retry = await run();
+        if (!retry.error) {
+          logsFallback = retry.data || [];
+          break;
+        }
+      }
+    }
+    if (logsFallback) {
+      return renderStoranTableRows(logsFallback, members || [], body, empty);
+    }
     empty.textContent = "Gagal memuat data storan / member";
     return;
   }
 
-  const allMembers = members || [];
-  if (!allMembers.length) {
-    empty.textContent = "Belum ada member di database";
+  return renderStoranTableRows(logs || [], members || [], body, empty);
+}
+
+function canDeleteStoranRow(row, member) {
+  if (!row || !row.id) return false;
+  if (isAdminMember(member)) return true;
+  if (!member || !member.id) return false;
+  return parseInt(String(row.memberId || row.member_id || ""), 10) ===
+    parseInt(String(member.id), 10);
+}
+
+async function deleteStoranRow(row) {
+  if (!supabase || !row || !row.id) return;
+  const currentMember = window.__currentMember || null;
+  if (!canDeleteStoranRow(row, currentMember)) {
+    showAlert("Tidak bisa menghapus data ini", "error");
     return;
   }
 
+  const result = await Swal.fire({
+    title: "Hapus storan ini?",
+    html: `<p class="text-sm text-stone-300">Nama: <strong>${row.nama || "-"}</strong><br>Status: <strong>${row.status || "-"}</strong></p><p class="text-xs text-stone-500 mt-2">Pesan Discord terkait juga akan dihapus.</p>`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#dc2626",
+    cancelButtonColor: "#57534e",
+    confirmButtonText: "Ya, hapus",
+    cancelButtonText: "Batal",
+    background: "#1f1410",
+    color: "#fef3c7",
+  });
+  if (!result.isConfirmed) return;
+
+  if (isAdminMember(currentMember)) {
+    const pinOk = await confirmDeletePin();
+    if (!pinOk) return;
+  }
+
+  try {
+    const discordRow = {
+      id: row.id,
+      discord_message_id:
+        row.discordMessageId ||
+        row.discord_message_id ||
+        getCachedDiscordMsgId("storan_logs", row.id) ||
+        null,
+    };
+    const discordRes = await deleteDiscordForTableRow("storan_logs", discordRow);
+
+    let ok = false;
+    let error = null;
+    const soft = await softDeleteById("storan_logs", row.id);
+    ok = soft.ok;
+    error = soft.error;
+
+    if (!ok && error && isMissingColumnError(error, "deleted_at")) {
+      const hard = await supabase.from("storan_logs").delete().eq("id", row.id);
+      ok = !hard.error;
+      error = hard.error;
+    }
+
+    if (!ok) {
+      showAlert(
+        `Gagal menghapus: ${(error && error.message) || "Unknown error"}`,
+        "error",
+      );
+      return;
+    }
+
+    let msg = "Storan dihapus";
+    if (discordRes.skipped) {
+      msg +=
+        ". Pesan Discord tidak terhubung (data lama / belum ada discord_message_id). Hapus manual di Discord jika masih ada.";
+    } else if (!discordRes.ok) {
+      msg += `. Pesan Discord gagal dihapus (ID: ${discordRes.messageId || "?"}). Hapus manual di channel.`;
+    }
+    showAlert(msg, discordRes.ok || discordRes.skipped ? "success" : "warning");
+    await loadStoranTable();
+  } catch (e) {
+    showAlert("Gagal menghapus (network)", "error");
+  }
+}
+
+function renderStoranTableRows(logs, members, body, empty) {
+  const allMembers = members || [];
+  if (!allMembers.length) {
+    empty.textContent = "Belum ada member di database";
+    empty.classList.remove("hidden");
+    return;
+  }
+
+  const currentMember = window.__currentMember || null;
+  const selectedPeriod = resolveSelectedStoranPeriod();
   const latestByMember = {};
   (logs || []).forEach((r) => {
     const key = r.member_id || null;
@@ -7882,6 +8110,13 @@ async function loadStoranTable() {
     const t = log && log.waktu ? fmtDateTime(log.waktu) : "";
     const note = (log && log.catatan) || "";
     const penerima = (log && log.penerima) || "";
+    const discordMessageId =
+      (log && log.discord_message_id) ||
+      (log && log.id ? getCachedDiscordMsgId("storan_logs", log.id) : null) ||
+      "";
+    if (log && log.id && discordMessageId) {
+      cacheDiscordMsgId("storan_logs", log.id, discordMessageId);
+    }
     return {
       id: (log && log.id) || "",
       memberId: m.id,
@@ -7892,6 +8127,11 @@ async function loadStoranTable() {
       catatan: note,
       waktu: t,
       isBelum: !log,
+      discordMessageId,
+      periodeValue:
+        (log && log.periode_orderanke) ||
+        selectedPeriod.periodeValue ||
+        null,
     };
   });
 
@@ -7918,9 +8158,16 @@ async function loadStoranTable() {
   <td class="px-3 py-2 text-xs sm:text-sm">${r.catatan}</td>
   <td class="px-3 py-2 whitespace-nowrap text-xs sm:text-sm">${r.waktu}</td>
   <td class="px-3 py-2 text-center">
-    <button class="px-3 py-1 rounded-lg bg-yellow-600/20 text-yellow-300 border border-yellow-600/30 text-[10px] font-bold uppercase hover:bg-yellow-600/30 transition" data-edit-storan-idx="${idx}">
-      Edit
-    </button>
+    <div class="inline-flex items-center gap-1.5 flex-wrap justify-center">
+      <button class="px-3 py-1 rounded-lg bg-yellow-600/20 text-yellow-300 border border-yellow-600/30 text-[10px] font-bold uppercase hover:bg-yellow-600/30 transition" data-edit-storan-idx="${idx}">
+        Edit
+      </button>
+      ${
+        r.id && canDeleteStoranRow(r, currentMember)
+          ? `<button class="px-3 py-1 rounded-lg bg-red-600/15 text-red-300 border border-red-600/30 text-[10px] font-bold uppercase hover:bg-red-600/25 transition" data-del-storan-idx="${idx}" data-discord-msg-id="${r.discordMessageId || ""}">Hapus</button>`
+          : ""
+      }
+    </div>
   </td>
 </tr>`,
     )
@@ -7936,6 +8183,18 @@ async function loadStoranTable() {
       const formName = document.getElementById("storanNama");
       if (formName)
         formName.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
+  body.querySelectorAll("[data-del-storan-idx]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.getAttribute("data-del-storan-idx") || "", 10);
+      const row = rows[idx];
+      if (!row) return;
+      const fromBtn = normalizeDiscordMessageId(
+        btn.getAttribute("data-discord-msg-id") || "",
+      );
+      if (fromBtn) row.discordMessageId = fromBtn;
+      deleteStoranRow(row);
     });
   });
 }
@@ -8453,6 +8712,162 @@ function getStoranCalendarWeekPeriod(date = new Date()) {
   }
 
   return { periodeValue, start, end, label };
+}
+
+function getStoranPeriodFromValue(periodeValue) {
+  const v = parseInt(periodeValue, 10);
+  if (!v || Number.isNaN(v) || v < 200001) return null;
+  const isoYear = Math.floor(v / 100);
+  const isoWeek = v % 100;
+  if (isoWeek < 1 || isoWeek > 53) return null;
+  const jan4 = new Date(isoYear, 0, 4, 12, 0, 0, 0);
+  const jan4Day = jan4.getDay();
+  const jan4FromMon = jan4Day === 0 ? 6 : jan4Day - 1;
+  const week1Monday = new Date(
+    jan4.getFullYear(),
+    jan4.getMonth(),
+    jan4.getDate() - jan4FromMon,
+    12,
+    0,
+    0,
+    0,
+  );
+  const monday = new Date(
+    week1Monday.getFullYear(),
+    week1Monday.getMonth(),
+    week1Monday.getDate() + (isoWeek - 1) * 7,
+    12,
+    0,
+    0,
+    0,
+  );
+  return getStoranCalendarWeekPeriod(monday);
+}
+
+function formatStoranPeriodeLabel(periodeValue, isCurrent = false) {
+  const v = parseInt(periodeValue, 10);
+  if (!v || Number.isNaN(v)) return "—";
+  const suffix = isCurrent ? " (minggu ini)" : "";
+  if (v >= 200001) {
+    const period = getStoranPeriodFromValue(v);
+    return `${(period && period.label) || String(v)}${suffix}`;
+  }
+  const m = Math.floor(v / 10);
+  const w = v % 10;
+  return `M${m}-W${w} (#${v}) [lama]${suffix}`;
+}
+
+function listRecentStoranCalendarWeeks(count = 16) {
+  const out = [];
+  const seen = new Set();
+  let cursor = new Date();
+  for (let i = 0; i < count; i++) {
+    const period = getStoranCalendarWeekPeriod(cursor);
+    if (!seen.has(period.periodeValue)) {
+      seen.add(period.periodeValue);
+      out.push(period);
+    }
+    cursor = new Date(
+      period.start.getFullYear(),
+      period.start.getMonth(),
+      period.start.getDate() - 7,
+      12,
+      0,
+      0,
+      0,
+    );
+  }
+  return out;
+}
+
+function resolveSelectedStoranPeriod() {
+  const filterEl = document.getElementById("storanPeriodeFilter");
+  const current = getStoranCalendarWeekPeriod();
+  const raw = filterEl ? String(filterEl.value || "current") : "current";
+  if (!raw || raw === "current") {
+    return { ...current, isCurrent: true };
+  }
+  const v = parseInt(raw, 10);
+  if (Number.isNaN(v) || !v) {
+    return { ...current, isCurrent: true };
+  }
+  if (v === current.periodeValue) {
+    return { ...current, isCurrent: true };
+  }
+  if (v >= 200001) {
+    const period = getStoranPeriodFromValue(v);
+    if (period) return { ...period, isCurrent: false };
+  }
+  return {
+    periodeValue: v,
+    start: null,
+    end: null,
+    label: formatStoranPeriodeLabel(v, false),
+    isCurrent: false,
+  };
+}
+
+async function loadStoranPeriodeFilterOptions() {
+  const filterEl = document.getElementById("storanPeriodeFilter");
+  if (!filterEl) return;
+  const current = getStoranCalendarWeekPeriod();
+  const prevValue = filterEl.value || "current";
+
+  const byValue = new Map();
+  listRecentStoranCalendarWeeks(16).forEach((p) => {
+    byValue.set(p.periodeValue, {
+      value: p.periodeValue,
+      label: formatStoranPeriodeLabel(
+        p.periodeValue,
+        p.periodeValue === current.periodeValue,
+      ),
+    });
+  });
+
+  if (supabase) {
+    try {
+      let { data, error } = await supabase
+        .from("storan_logs")
+        .select("periode_orderanke")
+        .not("periode_orderanke", "is", null)
+        .is("deleted_at", null)
+        .order("periode_orderanke", { ascending: false })
+        .limit(300);
+      if (error && isMissingColumnError(error, "deleted_at")) {
+        ({ data, error } = await supabase
+          .from("storan_logs")
+          .select("periode_orderanke")
+          .not("periode_orderanke", "is", null)
+          .order("periode_orderanke", { ascending: false })
+          .limit(300));
+      }
+      if (!error) {
+        (data || []).forEach((r) => {
+          const v = parseInt(r.periode_orderanke, 10);
+          if (!v || Number.isNaN(v) || byValue.has(v)) return;
+          byValue.set(v, {
+            value: v,
+            label: formatStoranPeriodeLabel(v, v === current.periodeValue),
+          });
+        });
+      }
+    } catch (e) {}
+  }
+
+  const options = Array.from(byValue.values()).sort(
+    (a, b) => b.value - a.value,
+  );
+  filterEl.innerHTML =
+    `<option value="current">Minggu ini — ${current.label}</option>` +
+    options
+      .filter((o) => o.value !== current.periodeValue)
+      .map((o) => `<option value="${o.value}">${o.label}</option>`)
+      .join("");
+
+  const stillValid =
+    prevValue === "current" ||
+    options.some((o) => String(o.value) === String(prevValue));
+  filterEl.value = stillValid ? prevValue : "current";
 }
 
 function decodeOrderanke(val) {
@@ -13490,18 +13905,31 @@ async function loadRekapData() {
         .from("storan_logs")
         .select("member_id,status,waktu,periode_orderanke")
         .eq("periode_orderanke", v)
+        .is("deleted_at", null)
         .order("waktu", { ascending: true })
         .limit(5000),
       supabase.from("members").select("*", { count: "exact", head: true }),
     ]);
-    if (logErr || memErr) {
+    let storanLogs = logs;
+    let storanLogErr = logErr;
+    if (logErr && isMissingColumnError(logErr, "deleted_at")) {
+      const retry = await supabase
+        .from("storan_logs")
+        .select("member_id,status,waktu,periode_orderanke")
+        .eq("periode_orderanke", v)
+        .order("waktu", { ascending: true })
+        .limit(5000);
+      storanLogs = retry.data;
+      storanLogErr = retry.error;
+    }
+    if (storanLogErr || memErr) {
       if (storanDone) storanDone.textContent = "0";
       if (storanPending) storanPending.textContent = "0";
       if (storanCash) storanCash.textContent = "$ 0";
       if (storanScrap) storanScrap.textContent = "0";
     } else {
       const latestByMember = {};
-      (logs || []).forEach((r) => {
+      (storanLogs || []).forEach((r) => {
         const key = r.member_id || null;
         if (!key) return;
         const prev = latestByMember[key];
