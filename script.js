@@ -8142,42 +8142,42 @@ function renderStoranTableRows(logs, members, body, empty) {
     };
   });
 
+  const doneCount = rows.filter((r) => !r.isBelum && r.statusRaw === "SUDAH").length;
+  const pendingCount = rows.length - doneCount;
+  const sumTotal = document.getElementById("storanSumTotal");
+  const sumDone = document.getElementById("storanSumDone");
+  const sumPending = document.getElementById("storanSumPending");
+  if (sumTotal) sumTotal.textContent = String(rows.length);
+  if (sumDone) sumDone.textContent = String(doneCount);
+  if (sumPending) sumPending.textContent = String(pendingCount);
+
+  const dash = `<span class="storan-muted">—</span>`;
   const html = rows
-    .map(
-      (r, idx) => `<tr class="transition-colors hover:bg-amber-900/15 ${
-        r.isBelum
-          ? "bg-red-50/60 dark:bg-red-900/10 dark:hover:bg-red-900/20"
-          : idx % 2 === 0
-            ? "bg-transparent dark:hover:bg-[#241913]"
-            : "bg-amber-50/40 dark:bg-[#1b120d] dark:hover:bg-[#241913]"
-      }">
-  <td class="px-3 py-2 whitespace-nowrap">${r.nama}</td>
-  <td class="px-3 py-2 whitespace-nowrap">${r.penerima}</td>
-  <td class="px-3 py-2">
-    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] ${
-      r.isBelum
-        ? "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-200"
-        : "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-200"
-    }">
-      ${r.status}
-    </span>
+    .map((r, idx) => {
+      const isDone = !r.isBelum && r.statusRaw === "SUDAH";
+      const statusText = isDone ? "Sudah" : "Belum";
+      const statusCls = isDone ? "storan-badge--done" : "storan-badge--pending";
+      const rowCls = isDone ? "storan-row--done" : "storan-row--pending";
+      return `<tr class="${rowCls}">
+  <td class="px-4 py-3 whitespace-nowrap font-semibold text-[#fef3c7]">${r.nama || dash}</td>
+  <td class="px-4 py-3 whitespace-nowrap hidden sm:table-cell text-stone-300">${r.penerima ? r.penerima : dash}</td>
+  <td class="px-4 py-3 text-center">
+    <span class="storan-badge ${statusCls}">${statusText}</span>
   </td>
-  <td class="px-3 py-2 text-xs sm:text-sm">${r.catatan}</td>
-  <td class="px-3 py-2 whitespace-nowrap text-xs sm:text-sm">${r.waktu}</td>
-  <td class="px-3 py-2 text-center">
-    <div class="inline-flex items-center gap-1.5 flex-wrap justify-center">
-      <button class="px-3 py-1 rounded-lg bg-yellow-600/20 text-yellow-300 border border-yellow-600/30 text-[10px] font-bold uppercase hover:bg-yellow-600/30 transition" data-edit-storan-idx="${idx}">
-        Edit
-      </button>
+  <td class="px-4 py-3 hidden md:table-cell text-stone-400 text-xs max-w-[220px] truncate" title="${(r.catatan || "").replace(/"/g, "&quot;")}">${r.catatan ? r.catatan : dash}</td>
+  <td class="px-4 py-3 whitespace-nowrap hidden sm:table-cell text-stone-400 text-xs">${r.waktu ? r.waktu : dash}</td>
+  <td class="px-4 py-3 text-right">
+    <div class="inline-flex items-center gap-1.5 justify-end">
+      <button type="button" class="storan-action-btn storan-action-btn--edit" data-edit-storan-idx="${idx}">Edit</button>
       ${
         r.id && canDeleteStoranRow(r, currentMember)
-          ? `<button class="px-3 py-1 rounded-lg bg-red-600/15 text-red-300 border border-red-600/30 text-[10px] font-bold uppercase hover:bg-red-600/25 transition" data-del-storan-idx="${idx}" data-discord-msg-id="${r.discordMessageId || ""}">Hapus</button>`
+          ? `<button type="button" class="storan-action-btn storan-action-btn--del" data-del-storan-idx="${idx}" data-discord-msg-id="${r.discordMessageId || ""}">Hapus</button>`
           : ""
       }
     </div>
   </td>
-</tr>`,
-    )
+</tr>`;
+    })
     .join("");
   body.innerHTML = html;
   empty.classList.add("hidden");
