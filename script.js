@@ -6659,7 +6659,14 @@ function initStoran(member) {
   if (periodeFilter) {
     periodeFilter.addEventListener("change", () => loadStoranTable());
   }
+  const announceBtn = document.getElementById("storanAnnounceBtn");
+  if (announceBtn) {
+    announceBtn.addEventListener("click", () =>
+      announceStoranPeriodStatus({ force: true }),
+    );
+  }
   loadStoranTable();
+  maybeAnnounceStoranWeekChange().catch(() => {});
   initNitipCuci(member);
 }
 
@@ -8868,6 +8875,214 @@ async function loadStoranPeriodeFilterOptions() {
     prevValue === "current" ||
     options.some((o) => String(o.value) === String(prevValue));
   filterEl.value = stillValid ? prevValue : "current";
+}
+
+const STORAN_WEEK_ANNOUNCE_KEY = "storan_week_announced_v1";
+let __storanWeekAnnounceLock = false;
+
+function readStoranWeekAnnouncedSet() {
+  try {
+    const raw = localStorage.getItem(STORAN_WEEK_ANNOUNCE_KEY) || "[]";
+    const arr = JSON.parse(raw);
+    return new Set(
+      (Array.isArray(arr) ? arr : [])
+        .map((x) => parseInt(x, 10))
+        .filter((n) => !Number.isNaN(n) && n > 0),
+    );
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function markStoranWeekAnnounced(periodeValue) {
+  const v = parseInt(periodeValue, 10);
+  if (!v || Number.isNaN(v)) return;
+  const set = readStoranWeekAnnouncedSet();
+  set.add(v);
+  const keep = Array.from(set)
+    .sort((a, b) => b - a)
+    .slice(0, 40);
+  try {
+    localStorage.setItem(STORAN_WEEK_ANNOUNCE_KEY, JSON.stringify(keep));
+  } catch (e) {}
+}
+
+async function fetchStoranStatusForPeriod(periodeValue) {
+  const v = parseInt(periodeValue, 10);
+  const label = formatStoranPeriodeLabel(v, false);
+  if (!supabase || !v || Number.isNaN(v)) {
+    return { periodeValue: v, label, done: [], pending: [] };
+  }
+
+  let logs = [];
+  let members = [];
+  {
+    let { data: logData, error: logErr } = await supabase
+      .from("storan_logs")
+      .select("member_id,nama,penerima,status,status_label,waktu")
+      .eq("periode_orderanke", v)
+      .is("deleted_at", null)
+      .order("waktu", { ascending: true });
+    if (logErr && isMissingColumnError(logErr, "deleted_at")) {
+      ({ data: logData, error: logErr } = await supabase
+        .from("storan_logs")
+        .select("member_id,nama,penerima,status,status_label,waktu")
+        .eq("periode_orderanke", v)
+        .order("waktu", { ascending: true }));
+    }
+    if (!logErr) logs = logData || [];
+
+    const { data: memData, error: memErr } = await supabase
+      .from("members")
+      .select("id,nama")
+      .order("nama", { ascending: true });
+    if (!memErr) members = memData || [];
+  }
+
+  const latestByMember = {};
+  (logs || []).forEach((r) => {
+    const key = r.member_id || null;
+    if (!key) return;
+    const prev = latestByMember[key];
+    if (!prev) {
+      latestByMember[key] = r;
+      return;
+    }
+    const tPrev = new Date(prev.waktu || 0).getTime();
+    const tCur = new Date(r.waktu || 0).getTime();
+    if (tCur >= tPrev) latestByMember[key] = r;
+  });
+
+  const done = [];
+  const pending = [];
+  (members || []).forEach((m) => {
+    const log = latestByMember[m.id] || null;
+    const isDone = !!(log && String(log.status || "") === "SUDAH");
+    const entry = {
+      nama: (m.nama || log?.nama || "Unknown").trim(),
+      penerima: (log && log.penerima) || "",
+    };
+    if (isDone) done.push(entry);
+    else pending.push(entry);
+  });
+
+  return { periodeValue: v, label, done, pending };
+}
+
+function formatStoranNameList(entries, max = 80) {
+  const list = Array.isArray(entries) ? entries : [];
+  if (!list.length) return "- (kosong)";
+  const shown = list.slice(0, max);
+  const lines = shown.map((e) => {
+    const name = e.nama || "Unknown";
+    return e.penerima ? `• ${name} → ${e.penerima}` : `• ${name}`;
+  });
+  if (list.length > max) {
+    lines.push(`• ... dan ${list.length - max} lainnya`);
+  }
+  return lines.join("\n");
+}
+
+function buildStoranWeekChangeAnnounceMessage({
+  newWeek,
+  prevStatus,
+}) {
+  const prev = prevStatus || { label: "-", done: [], pending: [] };
+  let msg = "```\n";
+  msg += "STORAN MINGGUAN — GANTI MINGGU\n";
+  msg += `Minggu baru : ${newWeek.label}\n`;
+  msg += `\nRekap minggu lalu (${prev.label}):\n`;
+  msg += `SUDAH (${prev.done.length}/${prev.done.length + prev.pending.length})\n`;
+  msg += `${formatStoranNameList(prev.done)}\n`;
+  msg += `\nBELUM (${prev.pending.length})\n`;
+  msg += `${formatStoranNameList(prev.pending)}\n`;
+  msg += "```";
+  return msg;
+}
+
+function buildStoranPeriodStatusAnnounceMessage(status) {
+  const total = status.done.length + status.pending.length;
+  let msg = "```\n";
+  msg += "STORAN MINGGUAN — REKAP\n";
+  msg += `Periode : ${status.label}\n`;
+  msg += `SUDAH   : ${status.done.length}/${total}\n`;
+  msg += `BELUM   : ${status.pending.length}/${total}\n`;
+  msg += `\nSUDAH (${status.done.length})\n`;
+  msg += `${formatStoranNameList(status.done)}\n`;
+  msg += `\nBELUM (${status.pending.length})\n`;
+  msg += `${formatStoranNameList(status.pending)}\n`;
+  msg += "```";
+  return msg;
+}
+
+async function maybeAnnounceStoranWeekChange() {
+  if (!supabase || __storanWeekAnnounceLock) return;
+  const current = getStoranCalendarWeekPeriod();
+  const announced = readStoranWeekAnnouncedSet();
+
+  // Seed pertama kali: tandai minggu ini tanpa kirim (hindari spam deploy/refresh).
+  if (announced.size === 0) {
+    markStoranWeekAnnounced(current.periodeValue);
+    return;
+  }
+  if (announced.has(current.periodeValue)) return;
+
+  __storanWeekAnnounceLock = true;
+  try {
+    const prevCursor = new Date(
+      current.start.getFullYear(),
+      current.start.getMonth(),
+      current.start.getDate() - 7,
+      12,
+      0,
+      0,
+      0,
+    );
+    const prevWeek = getStoranCalendarWeekPeriod(prevCursor);
+    const prevStatus = await fetchStoranStatusForPeriod(prevWeek.periodeValue);
+    const msg = buildStoranWeekChangeAnnounceMessage({
+      newWeek: current,
+      prevStatus,
+    });
+    const hook = getStoranWebhookUrl();
+    const sent = await postToDiscord(msg, hook);
+    markStoranWeekAnnounced(current.periodeValue);
+    if (sent) {
+      showAlert(
+        `Announcement ganti minggu terkirim (${current.label})`,
+        "success",
+      );
+    }
+  } catch (e) {
+    console.warn("Gagal announce ganti minggu storan:", e);
+  } finally {
+    __storanWeekAnnounceLock = false;
+  }
+}
+
+async function announceStoranPeriodStatus(opts = {}) {
+  const force = !!(opts && opts.force);
+  if (!supabase) {
+    showAlert("Supabase tidak terhubung", "error");
+    return;
+  }
+  const selected = resolveSelectedStoranPeriod();
+  const status = await fetchStoranStatusForPeriod(selected.periodeValue);
+  const msg = buildStoranPeriodStatusAnnounceMessage(status);
+  const hook = getStoranWebhookUrl();
+  try {
+    const sent = await postToDiscord(msg, hook);
+    if (!sent) {
+      showAlert("Gagal kirim ke Discord (cek webhook)", "error");
+      return;
+    }
+    if (force && selected.isCurrent) {
+      markStoranWeekAnnounced(selected.periodeValue);
+    }
+    showAlert(`Rekap storan dikirim (${status.label})`, "success");
+  } catch (e) {
+    showAlert("Gagal kirim rekap ke Discord", "error");
+  }
 }
 
 function decodeOrderanke(val) {
