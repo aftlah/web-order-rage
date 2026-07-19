@@ -344,6 +344,22 @@ async function softDeleteByMemberId(tableName, memberId) {
   return { ok: true, error: null };
 }
 
+async function softDeleteByMemberIds(tableName, memberIds) {
+  if (!supabase)
+    return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  const ids = (Array.isArray(memberIds) ? memberIds : [memberIds])
+    .map((x) => parseInt(String(x || ""), 10))
+    .filter((n) => !Number.isNaN(n) && n > 0);
+  if (!ids.length) return { ok: false, error: { message: "ID member kosong" } };
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from(tableName)
+    .update({ deleted_at: now })
+    .in("member_id", ids);
+  if (error) return { ok: false, error };
+  return { ok: true, error: null };
+}
+
 async function restoreSoftDeletedById(tableName, id) {
   if (!supabase)
     return { ok: false, error: { message: "Supabase tidak terhubung" } };
@@ -11715,7 +11731,7 @@ async function loadMemberListInModal() {
   const countBadge = document.getElementById("memberCountBadge");
   if (!list) return;
   list.innerHTML =
-    '<tr><td colspan="3" class="text-center p-8 text-slate-500 animate-pulse">Loading...</td></tr>';
+    '<tr><td colspan="4" class="text-center p-8 text-slate-500 animate-pulse">Loading...</td></tr>';
 
   let { data, error } = await supabase
     .from("members")
@@ -11731,8 +11747,9 @@ async function loadMemberListInModal() {
 
   if (error || !data) {
     list.innerHTML =
-      '<tr><td colspan="3" class="text-center p-8 text-red-500">Gagal memuat member</td></tr>';
+      '<tr><td colspan="4" class="text-center p-8 text-red-500">Gagal memuat member</td></tr>';
     if (countBadge) countBadge.innerText = "0";
+    updateMemberBulkSelectionUI();
     return;
   }
 
@@ -11740,9 +11757,15 @@ async function loadMemberListInModal() {
 
   if (data.length === 0) {
     list.innerHTML =
-      '<tr><td colspan="3" class="text-center p-8 text-slate-500">Belum ada member</td></tr>';
+      '<tr><td colspan="4" class="text-center p-8 text-slate-500">Belum ada member</td></tr>';
+    updateMemberBulkSelectionUI();
     return;
   }
+
+  const selfId =
+    window.__currentMember && window.__currentMember.id
+      ? parseInt(String(window.__currentMember.id), 10)
+      : NaN;
 
   list.innerHTML = data
     .map((m) => {
@@ -11755,6 +11778,12 @@ async function loadMemberListInModal() {
         "Admin",
       ];
       const currentRole = m.role || "Hoodlum";
+      const mid = parseInt(String(m.id), 10);
+      const isSelf = !Number.isNaN(selfId) && selfId === mid;
+      const safeName = String(m.nama || "")
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;");
 
       // Style logic
       let btnClass = "";
@@ -11783,11 +11812,16 @@ async function loadMemberListInModal() {
       }
 
       return `
-    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group border-b border-transparent last:border-0">
-      <td class="px-5 py-3 font-medium text-slate-700 dark:text-slate-200">
-        ${m.nama}
+    <tr class="hover:bg-slate-50 dark:hover:bg-white/5 transition-colors group border-b border-transparent last:border-0" data-member-row="${m.id}">
+      <td class="px-3 py-3 text-center">
+        <input type="checkbox" class="member-row-check accent-amber-500 w-4 h-4 cursor-pointer ${isSelf ? "opacity-30 cursor-not-allowed" : ""}"
+          data-member-id="${m.id}" data-member-name="${safeName}"
+          ${isSelf ? "disabled title=\"Tidak bisa hapus akun sendiri\"" : ""} />
       </td>
-      <td class="px-5 py-3 relative">
+      <td class="px-4 py-3 font-medium text-slate-700 dark:text-slate-200" data-member-name-cell>
+        ${safeName}${isSelf ? ' <span class="text-[10px] text-amber-500/80 font-bold uppercase ml-1">(kamu)</span>' : ""}
+      </td>
+      <td class="px-4 py-3 relative">
         <div class="relative role-dropdown-container">
             <button data-role-trigger="${m.id}" onclick="toggleRoleDropdown('${m.id}')" 
                 class="w-36 px-3 py-1.5 rounded-lg border ${btnClass} text-xs font-bold flex items-center justify-between transition-all shadow-sm group/btn">
@@ -11830,8 +11864,8 @@ async function loadMemberListInModal() {
             </div>
         </div>
       </td>
-      <td class="px-5 py-3 text-right">
-        <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/40 transition-all text-xs font-medium ml-auto shadow-sm" onclick="deleteMember('${m.id}', '${m.nama.replace(/'/g, "\\'")}')" title="Hapus Member">
+      <td class="px-4 py-3 text-right">
+        <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-900/40 transition-all text-xs font-medium ml-auto shadow-sm ${isSelf ? "opacity-40 cursor-not-allowed" : ""}" ${isSelf ? "disabled" : `onclick="deleteMember('${m.id}', '${String(m.nama || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'")}')"`} title="${isSelf ? "Tidak bisa hapus akun sendiri" : "Hapus Member"}">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
           </svg>
@@ -11842,7 +11876,214 @@ async function loadMemberListInModal() {
   `;
     })
     .join("");
+
+  wireMemberBulkSelection();
+  updateMemberBulkSelectionUI();
 }
+
+function getVisibleMemberRowChecks() {
+  const list = document.getElementById("memberList");
+  if (!list) return [];
+  return Array.from(list.querySelectorAll(".member-row-check")).filter((el) => {
+    const row = el.closest("tr");
+    return row && row.style.display !== "none" && !el.disabled;
+  });
+}
+
+function getSelectedMembersFromModal() {
+  const list = document.getElementById("memberList");
+  if (!list) return [];
+  return Array.from(list.querySelectorAll(".member-row-check:checked"))
+    .filter((el) => !el.disabled)
+    .map((el) => ({
+      id: parseInt(el.getAttribute("data-member-id") || "", 10),
+      nama: el.getAttribute("data-member-name") || "",
+    }))
+    .filter((m) => m.id && !Number.isNaN(m.id));
+}
+
+function updateMemberBulkSelectionUI() {
+  const bar = document.getElementById("memberBulkBar");
+  const countEl = document.getElementById("memberSelectedCount");
+  const selectAll = document.getElementById("memberSelectAll");
+  const selected = getSelectedMembersFromModal();
+  const visible = getVisibleMemberRowChecks();
+  const visibleChecked = visible.filter((el) => el.checked).length;
+
+  if (countEl) countEl.textContent = String(selected.length);
+  if (bar) {
+    bar.classList.toggle("hidden", selected.length === 0);
+    bar.classList.toggle("flex", selected.length > 0);
+  }
+  if (selectAll) {
+    selectAll.checked = visible.length > 0 && visibleChecked === visible.length;
+    selectAll.indeterminate =
+      visibleChecked > 0 && visibleChecked < visible.length;
+  }
+}
+
+function wireMemberBulkSelection() {
+  const list = document.getElementById("memberList");
+  const selectAll = document.getElementById("memberSelectAll");
+  const bulkDeleteBtn = document.getElementById("memberBulkDeleteBtn");
+  const bulkClearBtn = document.getElementById("memberBulkClearBtn");
+  if (!list) return;
+
+  list.querySelectorAll(".member-row-check").forEach((el) => {
+    el.addEventListener("change", updateMemberBulkSelectionUI);
+  });
+
+  if (selectAll && !selectAll.dataset.wired) {
+    selectAll.dataset.wired = "1";
+    selectAll.addEventListener("change", () => {
+      const on = !!selectAll.checked;
+      getVisibleMemberRowChecks().forEach((el) => {
+        el.checked = on;
+      });
+      updateMemberBulkSelectionUI();
+    });
+  }
+  if (bulkDeleteBtn && !bulkDeleteBtn.dataset.wired) {
+    bulkDeleteBtn.dataset.wired = "1";
+    bulkDeleteBtn.addEventListener("click", () => bulkDeleteSelectedMembers());
+  }
+  if (bulkClearBtn && !bulkClearBtn.dataset.wired) {
+    bulkClearBtn.dataset.wired = "1";
+    bulkClearBtn.addEventListener("click", () => {
+      document
+        .querySelectorAll(".member-row-check:checked")
+        .forEach((el) => {
+          el.checked = false;
+        });
+      updateMemberBulkSelectionUI();
+    });
+  }
+}
+
+window.filterMembers = function () {
+  const input = document.getElementById("memberSearchInput");
+  const filter = (input && input.value ? input.value : "").toUpperCase();
+  const list = document.getElementById("memberList");
+  if (!list) return;
+  const tr = list.getElementsByTagName("tr");
+
+  for (let i = 0; i < tr.length; i++) {
+    const nameCell =
+      tr[i].querySelector("[data-member-name-cell]") ||
+      tr[i].getElementsByTagName("td")[1];
+    if (nameCell) {
+      const txtValue = nameCell.textContent || nameCell.innerText;
+      if (txtValue.toUpperCase().indexOf(filter) > -1) {
+        tr[i].style.display = "";
+      } else {
+        tr[i].style.display = "none";
+      }
+    }
+  }
+  updateMemberBulkSelectionUI();
+};
+
+window.bulkDeleteSelectedMembers = async function () {
+  if (!isAdminMember(window.__currentMember || null)) {
+    showAlert("Hanya Admin yang bisa menghapus member", "error");
+    return;
+  }
+  const selected = getSelectedMembersFromModal();
+  if (!selected.length) {
+    showAlert("Pilih minimal 1 member", "error");
+    return;
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) {
+    showAlert("Harus login untuk menghapus member", "error");
+    return;
+  }
+
+  const preview = selected
+    .slice(0, 8)
+    .map((m) => `• ${m.nama || m.id}`)
+    .join("<br>");
+  const more =
+    selected.length > 8
+      ? `<br><span class="text-stone-400">...dan ${selected.length - 8} lainnya</span>`
+      : "";
+
+  const result = await Swal.fire({
+    title: `Hapus ${selected.length} member?`,
+    html: `<p class="text-sm text-stone-300 text-left mb-2">Member terpilih akan diarsipkan beserta order/storan/drugs terkait.</p><div class="text-left text-sm text-amber-100/90">${preview}${more}</div>`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#57534e",
+    confirmButtonText: "Ya, hapus semua",
+    cancelButtonText: "Batal",
+    background: "#1f1410",
+    color: "#fef3c7",
+  });
+  if (!result.isConfirmed) return;
+
+  const pinOk = await confirmDeletePin();
+  if (!pinOk) return;
+
+  const ids = selected.map((m) => m.id);
+  const targets = [
+    { table: "orders", label: "history order" },
+    { table: "storan_logs", label: "log storan" },
+    { table: "drugs_sales", label: "data drugs" },
+  ];
+
+  for (const d of targets) {
+    const { ok, error } = await softDeleteByMemberIds(d.table, ids);
+    if (!ok) {
+      if (isMissingColumnError(error, "deleted_at")) {
+        showAlert(
+          `Soft delete belum aktif untuk ${d.table}. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+            d.table,
+          )}`,
+          "error",
+        );
+        return;
+      }
+      showAlert(
+        `Gagal mengarsipkan ${d.label}: ${(error && error.message) || "unknown"}`,
+        "error",
+      );
+      return;
+    }
+  }
+
+  const { ok: memOk, error: memErr } = await softDeleteByIds("members", ids);
+  if (!memOk) {
+    if (isMissingColumnError(memErr, "deleted_at")) {
+      showAlert(
+        `Soft delete belum aktif untuk members. Jalankan SQL ini di Supabase:\n${getSoftDeleteSql(
+          "members",
+        )}`,
+        "error",
+      );
+      return;
+    }
+    showAlert(
+      `Gagal mengarsipkan member: ${(memErr && memErr.message) || "unknown"}`,
+      "error",
+    );
+    return;
+  }
+
+  if (window.__memberRoleCache) {
+    ids.forEach((id) => {
+      delete window.__memberRoleCache[id];
+    });
+  }
+
+  showAlert(`${ids.length} member berhasil diarsipkan.`, "success");
+  loadMemberListInModal();
+  updateDashNameSuggestions();
+  loadDashboard(true);
+};
 
 // Global functions for custom dropdown
 const ROLE_DROPDOWN_LAYER_ID = "roleDropdownLayer";
@@ -11931,25 +12172,6 @@ window.addEventListener("click", function (e) {
     closeRoleDropdownLayer();
   }
 });
-
-window.filterMembers = function () {
-  const input = document.getElementById("memberSearchInput");
-  const filter = input.value.toUpperCase();
-  const list = document.getElementById("memberList");
-  const tr = list.getElementsByTagName("tr");
-
-  for (let i = 0; i < tr.length; i++) {
-    const td = tr[i].getElementsByTagName("td")[0];
-    if (td) {
-      const txtValue = td.textContent || td.innerText;
-      if (txtValue.toUpperCase().indexOf(filter) > -1) {
-        tr[i].style.display = "";
-      } else {
-        tr[i].style.display = "none";
-      }
-    }
-  }
-};
 
 window.updateMemberRole = async function (id, newRole) {
   if (!isAdminMember(window.__currentMember || null)) {
