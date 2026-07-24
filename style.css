@@ -994,6 +994,17 @@ select option:active {
   box-shadow: 10px 0 16px -14px rgba(0, 0, 0, 0.9);
 }
 
+/* Order Schedule: tinggi aman (pagination membatasi baris) */
+.order-schedule-table {
+  max-height: min(480px, 60vh);
+  overflow-y: auto;
+}
+
+.order-schedule-table thead th {
+  background: #0a0805;
+  box-shadow: 0 1px 0 #3d342d;
+}
+
 /* ===== Empty State ===== */
 .empty-state {
   display: flex;

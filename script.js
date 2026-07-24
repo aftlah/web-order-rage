@@ -10993,12 +10993,42 @@ async function createOrderWindow() {
   }
 }
 function renderOrderWindows(rows) {
-  const body = document.getElementById("windowsTableBody");
-  if (!body) return;
   const displayRows = (rows || []).filter(
     (r) => !(parseInt((r || {}).orderanke || 0, 10) >= 1000),
   );
-  body.innerHTML = displayRows
+  window.__orderWindowsRows = displayRows;
+  const pageSize = window.__orderWindowsPageSize || 5;
+  const totalPages = Math.max(1, Math.ceil(displayRows.length / pageSize));
+  let page = parseInt(window.__orderWindowsPage || 1, 10) || 1;
+  if (page > totalPages) page = totalPages;
+  if (page < 1) page = 1;
+  window.__orderWindowsPage = page;
+  renderOrderWindowsPage();
+}
+
+function renderOrderWindowsPage() {
+  const body = document.getElementById("windowsTableBody");
+  if (!body) return;
+  const displayRows = window.__orderWindowsRows || [];
+  const pageSize = window.__orderWindowsPageSize || 5;
+  const total = displayRows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  let page = parseInt(window.__orderWindowsPage || 1, 10) || 1;
+  if (page > totalPages) page = totalPages;
+  if (page < 1) page = 1;
+  window.__orderWindowsPage = page;
+
+  const start = (page - 1) * pageSize;
+  const pageRows = displayRows.slice(start, start + pageSize);
+
+  if (!total) {
+    body.innerHTML =
+      '<tr><td colspan="5" class="px-4 py-8 text-center text-stone-500">Belum ada jadwal</td></tr>';
+    renderOrderWindowsPagination(0);
+    return;
+  }
+
+  body.innerHTML = pageRows
     .map((r) => {
       const val = r.orderanke || null;
       const label = val
@@ -11012,17 +11042,18 @@ function renderOrderWindows(rows) {
           : new Date(r.end_time).getTime() < now
             ? "Berakhir"
             : "Aktif sekarang";
-      return `<tr class=\"table-row-hover\"><td class=\"px-2 py-2\">${label}</td><td class=\"px-2 py-2\">${fmtDateTime(
+      return `<tr class="table-row-hover"><td class="px-2 py-2">${label}</td><td class="px-2 py-2 hidden sm:table-cell">${fmtDateTime(
         r.start_time,
-      )}</td><td class=\"px-2 py-2\">${fmtDateTime(
+      )}</td><td class="px-2 py-2 hidden sm:table-cell">${fmtDateTime(
         r.end_time,
-      )}</td><td class=\"px-2 py-2\">${st}</td><td class=\"px-2 py-2\"><div class=\"flex gap-2\"><button class=\"px-3 py-1 rounded border border-yellow-600 text-yellow-200\" data-edit-id=\"${
+      )}</td><td class="px-2 py-2">${st}</td><td class="px-2 py-2"><div class="flex gap-2"><button class="px-3 py-1 rounded border border-yellow-600 text-yellow-200" data-edit-id="${
         r.id
-      }\">Edit</button><button class=\"px-3 py-1 rounded bg-red-600 text-white\" data-del-id=\"${
+      }">Edit</button><button class="px-3 py-1 rounded bg-red-600 text-white" data-del-id="${
         r.id
-      }\">Delete</button></div></td></tr>`;
+      }">Delete</button></div></td></tr>`;
     })
     .join("");
+
   body.querySelectorAll("[data-edit-id]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const id = btn.getAttribute("data-edit-id");
@@ -11035,6 +11066,49 @@ function renderOrderWindows(rows) {
     btn.addEventListener("click", async () => {
       const id = btn.getAttribute("data-del-id");
       await deleteOrderWindow(id);
+    });
+  });
+
+  renderOrderWindowsPagination(total);
+}
+
+function renderOrderWindowsPagination(totalRows) {
+  const paginationEl = document.getElementById("windowsPagination");
+  if (!paginationEl) return;
+  const pageSize = window.__orderWindowsPageSize || 5;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  let page = parseInt(window.__orderWindowsPage || 1, 10) || 1;
+  if (page > totalPages) page = totalPages;
+  window.__orderWindowsPage = page;
+
+  if (totalRows <= pageSize) {
+    paginationEl.innerHTML =
+      totalRows > 0
+        ? `<div>Menampilkan ${totalRows} jadwal</div>`
+        : "";
+    return;
+  }
+
+  const from = Math.min((page - 1) * pageSize + 1, totalRows);
+  const to = Math.min(page * pageSize, totalRows);
+  paginationEl.innerHTML = `
+    <div>Menampilkan ${from}–${to} dari ${totalRows} jadwal</div>
+    <div class="flex items-center gap-2">
+      <button type="button" data-win-page="prev" class="px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-100 hover:bg-[#2a1b13] transition ${page <= 1 ? "opacity-50 cursor-not-allowed" : ""}" ${page <= 1 ? "disabled" : ""}>Prev</button>
+      <span class="text-amber-200/80">Hal ${page}/${totalPages}</span>
+      <button type="button" data-win-page="next" class="px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-100 hover:bg-[#2a1b13] transition ${page >= totalPages ? "opacity-50 cursor-not-allowed" : ""}" ${page >= totalPages ? "disabled" : ""}>Next</button>
+    </div>
+  `;
+  paginationEl.querySelectorAll("[data-win-page]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const dir = btn.getAttribute("data-win-page");
+      if (dir === "prev" && window.__orderWindowsPage > 1) {
+        window.__orderWindowsPage -= 1;
+      }
+      if (dir === "next" && window.__orderWindowsPage < totalPages) {
+        window.__orderWindowsPage += 1;
+      }
+      renderOrderWindowsPage();
     });
   });
 }
