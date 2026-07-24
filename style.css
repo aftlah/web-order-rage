@@ -1523,6 +1523,31 @@ select option:active {
   color: #fca5a5;
 }
 
+.storan-status-btn {
+  border: 1px solid rgba(61, 52, 45, 0.9);
+  background: rgba(20, 13, 10, 0.9);
+  color: #a8a29e;
+}
+
+.storan-status-btn--sudah.is-active {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.15);
+}
+
+.storan-status-btn--belum.is-active {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.16);
+  color: #fca5a5;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.12);
+}
+
+.storan-status-btn:not(.is-active):hover {
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fef3c7;
+}
+
 .storan-rekap-table th:first-child,
 .storan-rekap-table td:first-child {
   position: sticky;

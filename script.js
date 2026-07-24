@@ -306,12 +306,26 @@ function getSoftDeleteSql(tableName) {
 async function softDeleteById(tableName, id) {
   if (!supabase)
     return { ok: false, error: { message: "Supabase tidak terhubung" } };
+  const rowId = String(id || "").trim();
+  if (!rowId) return { ok: false, error: { message: "ID kosong" } };
   const now = new Date().toISOString();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from(tableName)
     .update({ deleted_at: now })
-    .eq("id", id);
+    .eq("id", rowId)
+    .select("id");
   if (error) return { ok: false, error };
+  if (!data || !data.length) {
+    return {
+      ok: false,
+      error: {
+        message:
+          "Tidak ada baris terhapus (cek RLS/permission update di " +
+          tableName +
+          ")",
+      },
+    };
+  }
   return { ok: true, error: null };
 }
 
@@ -6639,6 +6653,7 @@ function initAbsenKotaPage(member) {
 
 function initStoran(member) {
   initStoranTabs();
+  wireStoranStatusToggle();
   const btn = document.getElementById("storanSubmit");
   if (btn) btn.addEventListener("click", submitStoran);
   const cancelEditBtn = document.getElementById("storanCancelEdit");
@@ -6681,7 +6696,11 @@ function initStoran(member) {
       announceStoranPeriodStatus({ force: true }),
     );
   }
-  loadStoranTable();
+  Promise.resolve(loadStoranTable()).then(() => {
+    if (!adminMode && member && member.id) {
+      applyStoranFormFromMember(member.id, member.nama);
+    }
+  });
   maybeAnnounceStoranWeekChange().catch(() => {});
   initNitipCuci(member);
 }
@@ -7680,22 +7699,47 @@ function setStoranFormMode(isEditing) {
   if (cancelBtn) cancelBtn.classList.toggle("hidden", !isEditing);
 }
 
+function getStoranDoneLabel() {
+  return "Lunas 100 MS, 100 Empty Bottle, 100 Empty Can";
+}
+
+function setStoranStatusUI(statusVal) {
+  const val = String(statusVal || "SUDAH").toUpperCase() === "BELUM" ? "BELUM" : "SUDAH";
+  const statusEl = document.getElementById("storanStatus");
+  if (statusEl) statusEl.value = val;
+  document.querySelectorAll("[data-storan-status]").forEach((btn) => {
+    const active = btn.getAttribute("data-storan-status") === val;
+    btn.classList.toggle("is-active", active);
+  });
+}
+
+function wireStoranStatusToggle() {
+  const wrap = document.getElementById("storanStatusToggle");
+  if (!wrap || wrap.dataset.wired === "1") return;
+  wrap.dataset.wired = "1";
+  wrap.querySelectorAll("[data-storan-status]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setStoranStatusUI(btn.getAttribute("data-storan-status"));
+    });
+  });
+  setStoranStatusUI(
+    (document.getElementById("storanStatus") || {}).value || "SUDAH",
+  );
+}
+
 function resetStoranForm() {
   const currentMember = window.__currentMember || null;
   const adminMode = isAdminMember(currentMember);
   const editIdEl = document.getElementById("storanEditId");
   const nameEl = document.getElementById("storanNama");
   const memberIdEl = document.getElementById("storanMemberId");
-  const statusEl = document.getElementById("storanStatus");
   const receiverEl = document.getElementById("storanPenerima");
-  const noteEl = document.getElementById("storanCatatan");
   const statusText = document.getElementById("storanNamaStatus");
   if (editIdEl) editIdEl.value = "";
   const editPeriodeEl = document.getElementById("storanEditPeriode");
   if (editPeriodeEl) editPeriodeEl.value = "";
-  if (statusEl) statusEl.value = "SUDAH";
+  setStoranStatusUI("SUDAH");
   if (receiverEl) receiverEl.value = "";
-  if (noteEl) noteEl.value = "";
   if (adminMode) {
     if (nameEl) {
       nameEl.disabled = false;
@@ -7718,9 +7762,7 @@ function startEditStoran(row) {
   const editPeriodeEl = document.getElementById("storanEditPeriode");
   const nameEl = document.getElementById("storanNama");
   const memberIdEl = document.getElementById("storanMemberId");
-  const statusEl = document.getElementById("storanStatus");
   const receiverEl = document.getElementById("storanPenerima");
-  const noteEl = document.getElementById("storanCatatan");
   const statusText = document.getElementById("storanNamaStatus");
   if (editIdEl) editIdEl.value = row && row.id ? String(row.id) : "";
   if (editPeriodeEl) {
@@ -7730,11 +7772,9 @@ function startEditStoran(row) {
   if (nameEl) nameEl.value = row && row.nama ? String(row.nama) : "";
   if (memberIdEl)
     memberIdEl.value = row && row.memberId ? String(row.memberId) : "";
-  if (statusEl)
-    statusEl.value = row && row.statusRaw ? String(row.statusRaw) : "SUDAH";
+  setStoranStatusUI(row && row.statusRaw ? String(row.statusRaw) : "SUDAH");
   if (receiverEl)
     receiverEl.value = row && row.penerima ? String(row.penerima) : "";
-  if (noteEl) noteEl.value = row && row.catatan ? String(row.catatan) : "";
   if (statusText) {
     statusText.textContent = "Mode edit storan";
     statusText.classList.remove("text-red-500");
@@ -7747,7 +7787,6 @@ async function submitStoran() {
   const nameEl = document.getElementById("storanNama");
   const statusEl = document.getElementById("storanStatus");
   const receiverEl = document.getElementById("storanPenerima");
-  const noteEl = document.getElementById("storanCatatan");
   const memberIdEl = document.getElementById("storanMemberId");
   const editIdEl = document.getElementById("storanEditId");
   if (!nameEl || !statusEl || !receiverEl) return;
@@ -7760,7 +7799,7 @@ async function submitStoran() {
       : nameEl.value.trim();
   const statusVal = statusEl.value;
   const penerima = receiverEl.value.trim();
-  const catatan = (noteEl && noteEl.value.trim()) || "";
+  const catatan = "";
 
   const memberId =
     !adminMode && currentMember && currentMember.id
@@ -7770,7 +7809,7 @@ async function submitStoran() {
         : NaN;
   const editingId = editIdEl ? parseInt(editIdEl.value || "", 10) : NaN;
   if (Number.isNaN(memberId) || !memberId) {
-    showAlert("Akun belum terhubung ke member", "error");
+    showAlert("Pilih nama member dulu", "error");
     return;
   }
   if (memberIdEl && !Number.isNaN(memberId) && memberId)
@@ -7783,11 +7822,11 @@ async function submitStoran() {
     return;
   }
   if (!statusVal) {
-    showAlert("Pilih status storan", "error");
+    showAlert("Pilih status Sudah / Belum", "error");
     return;
   }
-  if (!penerima) {
-    showAlert("Penerima wajib diisi", "error");
+  if (statusVal === "SUDAH" && !penerima) {
+    showAlert("Penerima wajib diisi untuk status Sudah", "error");
     return;
   }
 
@@ -7795,7 +7834,7 @@ async function submitStoran() {
   const ts = fmtDateTime(now.toISOString());
   const labelStatus =
     statusVal === "SUDAH"
-      ? "Lunas 50k & 50 Metal Scrap"
+      ? getStoranDoneLabel()
       : "Belum storan minggu ini";
   const weekPeriod = getStoranCalendarWeekPeriod(now);
   let periodeValue = weekPeriod.periodeValue;
@@ -7815,9 +7854,11 @@ async function submitStoran() {
   msg += `\nSTORAN MINGGUAN`;
   if (periodeLabel) msg += `\nPeriode : ${periodeLabel}`;
   msg += `\nNama    : ${nama}`;
-  msg += `\nPenerima: ${penerima}`;
+  if (penerima) msg += `\nPenerima: ${penerima}`;
   msg += `\nStatus  : ${labelStatus}`;
-  if (catatan) msg += `\nNote    : ${catatan}`;
+  if (statusVal === "SUDAH") {
+    msg += `\nItem    : 100 MS, 100 Empty Bottle, 100 Empty Can`;
+  }
   msg += `\nWaktu   : ${ts}`;
   msg += "\n```";
 
@@ -7831,6 +7872,12 @@ async function submitStoran() {
     let savedRowId =
       !Number.isNaN(editingId) && editingId ? editingId : null;
     let prevDiscordMsgId = "";
+
+    // Pastikan pakai baris aktif member+periode (hindari insert ganda)
+    if (!savedRowId) {
+      const existing = await findActiveStoranLog(memberId, periodeValue);
+      if (existing && existing.id) savedRowId = existing.id;
+    }
 
     if (savedRowId) {
       try {
@@ -7858,29 +7905,50 @@ async function submitStoran() {
       status: statusVal,
       status_label: labelStatus,
       periode_orderanke: periodeValue,
-      penerima,
+      penerima: statusVal === "SUDAH" ? penerima : "",
       catatan,
       waktu: now.toISOString(),
     };
 
     let logErr = null;
+    let savedOk = false;
     if (savedRowId) {
       const res = await supabase
         .from("storan_logs")
         .update(payload)
         .eq("id", savedRowId)
-        .select("id")
+        .select("id,status")
         .maybeSingle();
       logErr = res.error;
-      if (res.data && res.data.id) savedRowId = res.data.id;
+      if (res.data && res.data.id) {
+        savedRowId = res.data.id;
+        savedOk = true;
+        // Pastikan status benar-benar tertulis
+        if (
+          String(res.data.status || "").toUpperCase() !==
+          String(statusVal).toUpperCase()
+        ) {
+          savedOk = false;
+          logErr = {
+            message: "Status di database tidak berubah. Cek RLS update storan_logs.",
+          };
+        }
+      } else if (!logErr) {
+        logErr = {
+          message: "Update tidak mengubah baris (permission/RLS?).",
+        };
+      }
     } else {
       const res = await supabase
         .from("storan_logs")
         .insert(payload)
-        .select("id")
+        .select("id,status")
         .maybeSingle();
       logErr = res.error;
-      if (res.data && res.data.id) savedRowId = res.data.id;
+      if (res.data && res.data.id) {
+        savedRowId = res.data.id;
+        savedOk = true;
+      }
       if (logErr && isMissingColumnError(logErr, "deleted_at")) {
         // ignore
       }
@@ -7888,13 +7956,24 @@ async function submitStoran() {
 
     if (logErr) {
       if (isMissingColumnError(logErr, "discord_message_id")) {
-        // column optional; continue without it
+        savedOk = savedOk || !!savedRowId;
       } else {
         console.error("Gagal menyimpan storan_logs:", logErr);
-        showAlert("Gagal menyimpan log storan ke database", "error");
+        showAlert(
+          `Gagal menyimpan: ${(logErr && logErr.message) || "unknown"}`,
+          "error",
+        );
         return;
       }
     }
+
+    if (!savedOk) {
+      showAlert("Gagal menyimpan status storan ke database", "error");
+      return;
+    }
+
+    // Hapus duplikat log aktif lain di periode yang sama
+    await softDeleteOtherStoranLogs(memberId, periodeValue, savedRowId);
 
     const discordMessageId = await postToDiscord(msg, hook);
     if (savedRowId && discordMessageId) {
@@ -7911,9 +7990,22 @@ async function submitStoran() {
       }
     }
 
+    // Update UI lokal segera
+    patchStoranRekapRowLocal({
+      memberId,
+      nama,
+      statusRaw: statusVal,
+      statusLabel: labelStatus,
+      penerima: payload.penerima,
+      id: savedRowId,
+      waktu: fmtDateTime(now.toISOString()),
+      periodeValue,
+      discordMessageId: discordMessageId || "",
+    });
+
     showAlert(
-      savedRowId && !Number.isNaN(editingId) && editingId
-        ? "Storan berhasil diupdate"
+      !Number.isNaN(editingId) && editingId
+        ? `Storan diupdate → ${statusVal === "SUDAH" ? "Sudah" : "Belum"}`
         : "Storan terkirim ke Discord",
       "success",
     );
@@ -7926,6 +8018,101 @@ async function submitStoran() {
   } catch (e) {
     showAlert("Gagal mengirim storan ke Discord", "error");
   }
+}
+
+async function findActiveStoranLog(memberId, periodeValue) {
+  if (!supabase || !memberId || !periodeValue) return null;
+  let { data, error } = await supabase
+    .from("storan_logs")
+    .select("id,discord_message_id,status,deleted_at,waktu")
+    .eq("member_id", memberId)
+    .eq("periode_orderanke", periodeValue)
+    .order("waktu", { ascending: false })
+    .limit(10);
+  if (error && isMissingColumnError(error, "deleted_at")) {
+    ({ data, error } = await supabase
+      .from("storan_logs")
+      .select("id,discord_message_id,status,waktu")
+      .eq("member_id", memberId)
+      .eq("periode_orderanke", periodeValue)
+      .order("waktu", { ascending: false })
+      .limit(10));
+  }
+  if (error) return null;
+  const rows = (data || []).filter((r) => !r.deleted_at);
+  return rows[0] || null;
+}
+
+async function softDeleteOtherStoranLogs(memberId, periodeValue, keepId) {
+  if (!supabase || !memberId || !periodeValue || !keepId) return;
+  try {
+    let { data, error } = await supabase
+      .from("storan_logs")
+      .select("id,deleted_at")
+      .eq("member_id", memberId)
+      .eq("periode_orderanke", periodeValue)
+      .neq("id", keepId);
+    if (error && isMissingColumnError(error, "deleted_at")) {
+      ({ data, error } = await supabase
+        .from("storan_logs")
+        .select("id")
+        .eq("member_id", memberId)
+        .eq("periode_orderanke", periodeValue)
+        .neq("id", keepId));
+    }
+    if (error || !data || !data.length) return;
+    const ids = data
+      .filter((r) => !r.deleted_at)
+      .map((r) => r.id)
+      .filter(Boolean);
+    if (!ids.length) return;
+    const soft = await softDeleteByIds("storan_logs", ids);
+    if (!soft.ok && soft.error && isMissingColumnError(soft.error, "deleted_at")) {
+      await supabase.from("storan_logs").delete().in("id", ids);
+    }
+  } catch (e) {}
+}
+
+function patchStoranRekapRowLocal({
+  memberId,
+  nama,
+  statusRaw,
+  statusLabel,
+  penerima,
+  id,
+  waktu,
+  periodeValue,
+  discordMessageId,
+}) {
+  if (!Array.isArray(window.__storanRekapRows)) return;
+  const mid = parseInt(String(memberId || ""), 10);
+  if (!mid) return;
+  const isSudah = String(statusRaw || "").toUpperCase() === "SUDAH";
+  window.__storanRekapRows = window.__storanRekapRows.map((r) => {
+    if (parseInt(String(r.memberId || ""), 10) !== mid) return r;
+    return {
+      ...r,
+      id: id || r.id || "",
+      nama: nama || r.nama,
+      penerima: isSudah ? penerima || "" : "",
+      status: statusLabel || (isSudah ? getStoranDoneLabel() : "Belum storan minggu ini"),
+      statusRaw: isSudah ? "SUDAH" : "BELUM",
+      catatan: "",
+      waktu: waktu || "",
+      isBelum: !isSudah,
+      discordMessageId: discordMessageId || "",
+      periodeValue: periodeValue || r.periodeValue || null,
+    };
+  });
+  const doneCount = window.__storanRekapRows.filter(
+    (r) => !r.isBelum && r.statusRaw === "SUDAH",
+  ).length;
+  const pendingCount = window.__storanRekapRows.length - doneCount;
+  const sumDone = document.getElementById("storanSumDone");
+  const sumPending = document.getElementById("storanSumPending");
+  if (sumDone) sumDone.textContent = String(doneCount);
+  if (sumPending) sumPending.textContent = String(pendingCount);
+  if (typeof renderStoranRekapPage === "function") renderStoranRekapPage();
 }
 
 async function loadStoranTable() {
@@ -7956,8 +8143,7 @@ async function loadStoranTable() {
     return;
   }
 
-  const [{ data: logs, error: logErr }, { data: members, error: memErr }] =
-    await Promise.all([
+  const [{ data: logs, error: logErr }, membersRes] = await Promise.all([
       supabase
         .from("storan_logs")
         .select(
@@ -7966,11 +8152,22 @@ async function loadStoranTable() {
         .eq("periode_orderanke", periodeValue)
         .is("deleted_at", null)
         .order("waktu", { ascending: true }),
-      supabase
-        .from("members")
-        .select("id,nama")
-        .order("nama", { ascending: true }),
+      (async () => {
+        let res = await supabase
+          .from("members")
+          .select("id,nama")
+          .is("deleted_at", null)
+          .order("nama", { ascending: true });
+        if (res.error && isMissingColumnError(res.error, "deleted_at")) {
+          res = await supabase
+            .from("members")
+            .select("id,nama")
+            .order("nama", { ascending: true });
+        }
+        return res;
+      })(),
     ]);
+  const { data: members, error: memErr } = membersRes;
 
   if (logErr || memErr) {
     // Fallback bertahap jika kolom soft-delete / discord_message_id belum ada
@@ -8039,7 +8236,7 @@ async function deleteStoranRow(row) {
 
   const result = await Swal.fire({
     title: "Hapus storan ini?",
-    html: `<p class="text-sm text-stone-300">Nama: <strong>${row.nama || "-"}</strong><br>Status: <strong>${row.status || "-"}</strong></p><p class="text-xs text-stone-500 mt-2">Pesan Discord terkait juga akan dihapus.</p>`,
+    html: `<p class="text-sm text-stone-300">Nama: <strong>${row.nama || "-"}</strong><br>Status: <strong>${row.status || "-"}</strong></p><p class="text-xs text-stone-500 mt-2">Setelah dihapus status kembali ke <strong>Belum</strong>. Pesan Discord terkait juga akan dihapus.</p>`,
     icon: "warning",
     showCancelButton: true,
     confirmButtonColor: "#dc2626",
@@ -8073,10 +8270,36 @@ async function deleteStoranRow(row) {
     ok = soft.ok;
     error = soft.error;
 
-    if (!ok && error && isMissingColumnError(error, "deleted_at")) {
-      const hard = await supabase.from("storan_logs").delete().eq("id", row.id);
-      ok = !hard.error;
-      error = hard.error;
+    if (!ok) {
+      const hard = await supabase
+        .from("storan_logs")
+        .delete()
+        .eq("id", row.id)
+        .select("id");
+      if (!hard.error && hard.data && hard.data.length) {
+        ok = true;
+        error = null;
+      } else if (!ok) {
+        error = hard.error || error;
+      }
+    }
+
+    // Soft delete “sukses” palsu / RLS: pastikan baris benar-benar hilang dari rekap
+    if (ok) {
+      const { data: stillThere } = await supabase
+        .from("storan_logs")
+        .select("id,deleted_at")
+        .eq("id", row.id)
+        .maybeSingle();
+      if (stillThere && !stillThere.deleted_at) {
+        const hard = await supabase
+          .from("storan_logs")
+          .delete()
+          .eq("id", row.id)
+          .select("id");
+        ok = !hard.error && !!(hard.data && hard.data.length);
+        error = hard.error;
+      }
     }
 
     if (!ok) {
@@ -8087,7 +8310,44 @@ async function deleteStoranRow(row) {
       return;
     }
 
-    let msg = "Storan dihapus";
+    // Langsung reset status di UI ke Belum (jangan tunggu reload)
+    const mid = parseInt(String(row.memberId || row.member_id || ""), 10);
+    if (Array.isArray(window.__storanRekapRows) && mid) {
+      window.__storanRekapRows = window.__storanRekapRows.map((r) => {
+        if (parseInt(String(r.memberId || ""), 10) !== mid) return r;
+        return {
+          ...r,
+          id: "",
+          penerima: "",
+          status: "Belum storan minggu ini",
+          statusRaw: "BELUM",
+          catatan: "",
+          waktu: "",
+          isBelum: true,
+          discordMessageId: "",
+        };
+      });
+      const doneCount = window.__storanRekapRows.filter(
+        (r) => !r.isBelum && r.statusRaw === "SUDAH",
+      ).length;
+      const pendingCount = window.__storanRekapRows.length - doneCount;
+      const sumDone = document.getElementById("storanSumDone");
+      const sumPending = document.getElementById("storanSumPending");
+      if (sumDone) sumDone.textContent = String(doneCount);
+      if (sumPending) sumPending.textContent = String(pendingCount);
+      renderStoranRekapPage();
+    }
+
+    // Reset form jika sedang edit baris yang sama
+    const editIdEl = document.getElementById("storanEditId");
+    if (
+      editIdEl &&
+      String(editIdEl.value || "") === String(row.id || "")
+    ) {
+      resetStoranForm();
+    }
+
+    let msg = "Storan dihapus — status kembali Belum";
     if (discordRes.skipped) {
       msg +=
         ". Pesan Discord tidak terhubung (data lama / belum ada discord_message_id). Hapus manual di Discord jika masih ada.";
@@ -8103,9 +8363,11 @@ async function deleteStoranRow(row) {
 
 function renderStoranTableRows(logs, members, body, empty) {
   const allMembers = members || [];
+  const paginationEl = document.getElementById("storanPagination");
   if (!allMembers.length) {
     empty.textContent = "Belum ada member di database";
     empty.classList.remove("hidden");
+    if (paginationEl) paginationEl.innerHTML = "";
     return;
   }
 
@@ -8113,6 +8375,7 @@ function renderStoranTableRows(logs, members, body, empty) {
   const selectedPeriod = resolveSelectedStoranPeriod();
   const latestByMember = {};
   (logs || []).forEach((r) => {
+    if (!r || r.deleted_at) return;
     const key = r.member_id || null;
     if (!key) return;
     const prev = latestByMember[key];
@@ -8127,8 +8390,10 @@ function renderStoranTableRows(logs, members, body, empty) {
 
   const rows = allMembers.map((m) => {
     const log = latestByMember[m.id] || null;
-    const statusLabel = log
-      ? log.status_label || "Sudah storan"
+    const statusRaw = String((log && log.status) || "BELUM").toUpperCase();
+    const isSudah = !!(log && statusRaw === "SUDAH");
+    const statusLabel = isSudah
+      ? log.status_label || getStoranDoneLabel()
       : "Belum storan minggu ini";
     const t = log && log.waktu ? fmtDateTime(log.waktu) : "";
     const note = (log && log.catatan) || "";
@@ -8141,16 +8406,16 @@ function renderStoranTableRows(logs, members, body, empty) {
       cacheDiscordMsgId("storan_logs", log.id, discordMessageId);
     }
     return {
-      id: (log && log.id) || "",
+      id: isSudah && log ? log.id : log && log.id ? log.id : "",
       memberId: m.id,
       nama: m.nama || "",
-      penerima,
+      penerima: isSudah ? penerima : penerima,
       status: statusLabel,
-      statusRaw: (log && log.status) || "BELUM",
+      statusRaw: isSudah ? "SUDAH" : "BELUM",
       catatan: note,
       waktu: t,
-      isBelum: !log,
-      discordMessageId,
+      isBelum: !isSudah,
+      discordMessageId: log && log.id ? discordMessageId : "",
       periodeValue:
         (log && log.periode_orderanke) ||
         selectedPeriod.periodeValue ||
@@ -8167,9 +8432,52 @@ function renderStoranTableRows(logs, members, body, empty) {
   if (sumDone) sumDone.textContent = String(doneCount);
   if (sumPending) sumPending.textContent = String(pendingCount);
 
+  window.__storanRekapRows = rows;
+  window.__storanRekapPageSize = window.__storanRekapPageSize || 5;
+  let page = parseInt(window.__storanRekapPage || 1, 10) || 1;
+  const totalPages = Math.max(1, Math.ceil(rows.length / window.__storanRekapPageSize));
+  if (page > totalPages) page = totalPages;
+  if (page < 1) page = 1;
+  window.__storanRekapPage = page;
+
+  empty.classList.add("hidden");
+  renderStoranRekapPage();
+}
+
+function renderStoranRekapPage() {
+  const body = document.getElementById("storanTableBody");
+  const empty = document.getElementById("storanTableEmpty");
+  const paginationEl = document.getElementById("storanPagination");
+  if (!body) return;
+
+  const rows = window.__storanRekapRows || [];
+  const currentMember = window.__currentMember || null;
+  const pageSize = window.__storanRekapPageSize || 5;
+  const total = rows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  let page = parseInt(window.__storanRekapPage || 1, 10) || 1;
+  if (page > totalPages) page = totalPages;
+  if (page < 1) page = 1;
+  window.__storanRekapPage = page;
+
+  if (!total) {
+    body.innerHTML = "";
+    if (empty) {
+      empty.textContent = "Belum ada data";
+      empty.classList.remove("hidden");
+    }
+    if (paginationEl) paginationEl.innerHTML = "";
+    return;
+  }
+
+  if (empty) empty.classList.add("hidden");
+  const start = (page - 1) * pageSize;
+  const pageRows = rows.slice(start, start + pageSize);
   const dash = `<span class="storan-muted">—</span>`;
-  const html = rows
-    .map((r, idx) => {
+
+  body.innerHTML = pageRows
+    .map((r, localIdx) => {
+      const idx = start + localIdx;
       const isDone = !r.isBelum && r.statusRaw === "SUDAH";
       const statusText = isDone ? "Sudah" : "Belum";
       const statusCls = isDone ? "storan-badge--done" : "storan-badge--pending";
@@ -8195,8 +8503,7 @@ function renderStoranTableRows(logs, members, body, empty) {
 </tr>`;
     })
     .join("");
-  body.innerHTML = html;
-  empty.classList.add("hidden");
+
   body.querySelectorAll("[data-edit-storan-idx]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const idx = parseInt(btn.getAttribute("data-edit-storan-idx") || "", 10);
@@ -8220,6 +8527,76 @@ function renderStoranTableRows(logs, members, body, empty) {
       deleteStoranRow(row);
     });
   });
+
+  if (!paginationEl) return;
+  if (total <= pageSize) {
+    paginationEl.innerHTML = `<div>Menampilkan ${total} member</div>`;
+    return;
+  }
+  const from = Math.min((page - 1) * pageSize + 1, total);
+  const to = Math.min(page * pageSize, total);
+  paginationEl.innerHTML = `
+    <div>Menampilkan ${from}–${to} dari ${total} member</div>
+    <div class="flex items-center gap-2">
+      <button type="button" data-storan-page="prev" class="px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-100 hover:bg-[#2a1b13] transition ${page <= 1 ? "opacity-50 cursor-not-allowed" : ""}" ${page <= 1 ? "disabled" : ""}>Prev</button>
+      <span class="text-amber-200/80">Hal ${page}/${totalPages}</span>
+      <button type="button" data-storan-page="next" class="px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-100 hover:bg-[#2a1b13] transition ${page >= totalPages ? "opacity-50 cursor-not-allowed" : ""}" ${page >= totalPages ? "disabled" : ""}>Next</button>
+    </div>
+  `;
+  paginationEl.querySelectorAll("[data-storan-page]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const dir = btn.getAttribute("data-storan-page");
+      if (dir === "prev" && window.__storanRekapPage > 1) {
+        window.__storanRekapPage -= 1;
+      }
+      if (dir === "next" && window.__storanRekapPage < totalPages) {
+        window.__storanRekapPage += 1;
+      }
+      renderStoranRekapPage();
+    });
+  });
+}
+
+function applyStoranFormFromMember(memberId, nama) {
+  const mid = parseInt(String(memberId || ""), 10);
+  const nameEl = document.getElementById("storanNama");
+  const hidden = document.getElementById("storanMemberId");
+  const statusText = document.getElementById("storanNamaStatus");
+  if (nameEl && nama) nameEl.value = String(nama);
+  if (hidden && mid) hidden.value = String(mid);
+
+  const rows = window.__storanRekapRows || [];
+  const row = mid
+    ? rows.find((r) => parseInt(String(r.memberId || ""), 10) === mid)
+    : null;
+
+  if (row && row.id && (row.statusRaw === "SUDAH" || row.statusRaw === "BELUM")) {
+    startEditStoran(row);
+    if (statusText) {
+      statusText.textContent =
+        row.statusRaw === "SUDAH"
+          ? "Sudah storan — form diisi otomatis (mode edit)"
+          : "Ada data BELUM — form diisi otomatis (mode edit)";
+      statusText.classList.remove("text-red-500");
+      statusText.classList.add("text-green-500");
+    }
+    return;
+  }
+
+  // Belum ada data: reset field kecuali nama
+  const editIdEl = document.getElementById("storanEditId");
+  const editPeriodeEl = document.getElementById("storanEditPeriode");
+  const receiverEl = document.getElementById("storanPenerima");
+  if (editIdEl) editIdEl.value = "";
+  if (editPeriodeEl) editPeriodeEl.value = "";
+  setStoranStatusUI("SUDAH");
+  if (receiverEl) receiverEl.value = "";
+  setStoranFormMode(false);
+  if (statusText) {
+    statusText.textContent = "Belum storan minggu ini — pilih status & penerima";
+    statusText.classList.remove("text-red-500");
+    statusText.classList.add("text-green-500");
+  }
 }
 
 function setupStoranNameSearch() {
@@ -8230,47 +8607,62 @@ function setupStoranNameSearch() {
   if (!input || !dd || !hidden) return;
 
   let active = -1;
+
+  const selectMember = (id, name) => {
+    input.value = name || "";
+    hidden.value = id || "";
+    dd.classList.add("hidden");
+    applyStoranFormFromMember(id, name);
+  };
+
   const render = (items) => {
+    const rows = window.__storanRekapRows || [];
     dd.innerHTML = items
-      .map(
-        (r, i) =>
-          `<div class="px-3 py-2 cursor-pointer ${
-            i === active ? "bg-yellow-900/30" : ""
-          }" data-id="${r.id}" data-name="${r.nama}">${r.nama}</div>`,
-      )
+      .map((r, i) => {
+        const mid = parseInt(String(r.id || ""), 10);
+        const existing = rows.find(
+          (x) => parseInt(String(x.memberId || ""), 10) === mid,
+        );
+        const sudah = existing && existing.statusRaw === "SUDAH";
+        const badge = sudah
+          ? '<span class="ml-auto text-[10px] font-bold uppercase tracking-wide text-green-400">Sudah</span>'
+          : '<span class="ml-auto text-[10px] font-bold uppercase tracking-wide text-red-400/80">Belum</span>';
+        const safeName = String(r.nama || "")
+          .replace(/&/g, "&amp;")
+          .replace(/"/g, "&quot;")
+          .replace(/</g, "&lt;");
+        return `<div class="px-3 py-2 cursor-pointer flex items-center gap-2 ${
+          i === active ? "bg-yellow-900/30" : "hover:bg-yellow-900/20"
+        }" data-id="${r.id}" data-name="${safeName}"><span class="truncate">${safeName}</span>${badge}</div>`;
+      })
       .join("");
     dd.classList.toggle("hidden", items.length === 0);
     dd.querySelectorAll("[data-id]").forEach((el) =>
       el.addEventListener("mousedown", (e) => {
-        input.value = e.currentTarget.getAttribute("data-name");
-        hidden.value = e.currentTarget.getAttribute("data-id");
-        dd.classList.add("hidden");
-        if (status) {
-          status.textContent = "Nama valid";
-          status.classList.remove("text-red-500");
-          status.classList.add("text-green-500");
-        }
+        e.preventDefault();
+        selectMember(
+          e.currentTarget.getAttribute("data-id"),
+          e.currentTarget.getAttribute("data-name"),
+        );
       }),
     );
   };
 
   const run = debounce(async (term) => {
     if (!supabase) return;
-    let q;
-    if (term)
-      q = supabase
-        .from("members")
-        .select("id,nama")
-        .ilike("nama", `%${term}%`)
-        .order("nama", { ascending: true })
-        .limit(20);
-    else
-      q = supabase
-        .from("members")
-        .select("id,nama")
-        .order("nama", { ascending: true })
-        .limit(20);
-    const { data, error } = await q;
+    let q = supabase.from("members").select("id,nama");
+    try {
+      q = q.is("deleted_at", null);
+    } catch (e) {}
+    if (term) q = q.ilike("nama", `%${term}%`);
+    q = q.order("nama", { ascending: true }).limit(20);
+    let { data, error } = await q;
+    if (error && isMissingColumnError(error, "deleted_at")) {
+      let q2 = supabase.from("members").select("id,nama");
+      if (term) q2 = q2.ilike("nama", `%${term}%`);
+      q2 = q2.order("nama", { ascending: true }).limit(20);
+      ({ data, error } = await q2);
+    }
     if (error) return;
     active = -1;
     render(data || []);
@@ -8285,7 +8677,7 @@ function setupStoranNameSearch() {
     }
     run(e.target.value.trim());
   });
-  input.addEventListener("focus", () => run(""));
+  input.addEventListener("focus", () => run(input.value.trim()));
   input.addEventListener("click", () => run(input.value.trim()));
   input.addEventListener("keydown", (e) => {
     const items = Array.from(dd.querySelectorAll("[data-id]"));
@@ -8297,14 +8689,11 @@ function setupStoranNameSearch() {
       active = Math.max(0, active - 1);
       e.preventDefault();
     } else if (e.key === "Enter" && active >= 0) {
-      input.value = items[active].getAttribute("data-name");
-      hidden.value = items[active].getAttribute("data-id");
-      dd.classList.add("hidden");
-      if (status) {
-        status.textContent = "Nama valid";
-        status.classList.remove("text-red-500");
-        status.classList.add("text-green-500");
-      }
+      e.preventDefault();
+      selectMember(
+        items[active].getAttribute("data-id"),
+        items[active].getAttribute("data-name"),
+      );
     } else if (e.key === "Escape") {
       dd.classList.add("hidden");
     }
