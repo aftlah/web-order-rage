@@ -10019,7 +10019,6 @@ const GROUP_ITEMS = {
   "ORDER KE BOA": [
     "SHOTGUN",
     "AMMO 12 GAUGE",
-    "VEST MEDIUM",
     "PISTOL X17",
     "X17 + Attachment",
     // "Holo Scope",
