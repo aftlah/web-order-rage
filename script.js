@@ -11847,6 +11847,7 @@ async function shareDashboardToDiscord() {
     (a, b) => parseInt(a, 10) - parseInt(b, 10),
   );
   const lines = [];
+  const compactByGroup = {};
   lines.push("Total Qty per Item");
   if (month) {
     if (weekVal) {
@@ -11940,6 +11941,8 @@ async function shareDashboardToDiscord() {
             " | " +
             x.subFmt.padStart(subW),
         );
+        const qtyMap = (compactByGroup[grp] ||= {});
+        qtyMap[x.item] = (qtyMap[x.item] || 0) + (x.qty || 0);
       });
       const label = "Total : ".padEnd(itemW + 3 + qtyW + 3 + hargaW);
       lines.push(label + " | " + fmt(totalGrp).padStart(subW));
@@ -11969,6 +11972,31 @@ async function shareDashboardToDiscord() {
   });
   const msg = "```\n" + lines.join("\n") + "\n```";
   await postToDiscord(msg);
+
+  // Format padat biar gampang disalin (satu baris per grup)
+  const compactLines = [];
+  if (month) {
+    if (weekVal) compactLines.push(`Periode: M${month}-W${weekVal}`);
+    else compactLines.push(`Periode: M${month}`);
+  }
+  GROUP_ORDER.forEach((grp) => {
+    const qtyMap = compactByGroup[grp];
+    if (!qtyMap) return;
+    const ordered = sortRowsByGroupOrder(
+      Object.keys(qtyMap).map((item) => ({ item, qty: qtyMap[item] })),
+      grp,
+    );
+    if (!ordered.length) return;
+    if (compactLines.length) compactLines.push("");
+    compactLines.push(`## ${grp}`);
+    compactLines.push(
+      ordered.map((r) => `${r.item} = ${r.qty}`).join("; ") + ";",
+    );
+  });
+  if (compactLines.length) {
+    await postToDiscord(compactLines.join("\n"));
+  }
+
   showAlert("Ringkasan dikirim ke Discord", "success");
 }
 
